@@ -2935,17 +2935,7 @@
                 let nuevos = locales.filter(p => !quemados.find(q => q.id === p.id));
                 productosDB = quemados.length > 0 ? [...quemados, ...nuevos] : locales;
                 historialPedidos = window.pedidosQ || [];
-                // Aplicar orden del localStorage antes de renderizar
-                let ordenGuardado = JSON.parse(localStorage.getItem('ordenManualesV1') || '{}');
-                if (Object.keys(ordenGuardado).length > 0) {
-                    productosDB = productosDB.map(function(p) {
-                        if (ordenGuardado[p.id] !== undefined) {
-                            return Object.assign({}, p, { orden: ordenGuardado[p.id] });
-                        }
-                        return p;
-                    });
-                    productosDB.sort(function(a, b) { return (a.orden || 999) - (b.orden || 999); });
-                }
+                // El orden se carga desde Firebase (fuente única de verdad para todos los usuarios)
             }
             if (window.datosQuemados) {
                 document.querySelector('.btn-toggle-admin').style.display = 'none';
@@ -2954,7 +2944,7 @@
             renderizarCatalogo();
             renderizarPedidosPanel();
             // Cargar orden de Firebase para sincronizar (por si cambió desde otro dispositivo)
-            setTimeout(function() { if (typeof cargarOrdenDesdeFirebase === 'function') cargarOrdenDesdeFirebase(); }, 1000);
+            if (typeof cargarOrdenDesdeFirebase === 'function') cargarOrdenDesdeFirebase();
         };
 
         function aplicarDiseno() {
