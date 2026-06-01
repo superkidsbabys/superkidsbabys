@@ -163,7 +163,10 @@
       a.promo === b.promo &&
       listasIguales(a.subcategoriasAbiertas, b.subcategoriasAbiertas) &&
       a.tab === b.tab &&
-      a.pedido === b.pedido;
+      a.pedido === b.pedido &&
+      !!a[BACK_INITIAL_STATE] === !!b[BACK_INITIAL_STATE] &&
+      !!a[BACK_INTERNAL_STATE] === !!b[BACK_INTERNAL_STATE] &&
+      !!a[BACK_GUARD_STATE] === !!b[BACK_GUARD_STATE];
   }
 
   function agregarEstadoInterno() {
