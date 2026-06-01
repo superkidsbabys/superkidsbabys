@@ -444,6 +444,12 @@
   });
 
   window.addEventListener('popstate', function (event) {
+    console.log('POPSTATE DISPARADO');
+    console.log('POPSTATE history.state:', history.state);
+    console.log('POPSTATE event.state:', event.state);
+    try {
+      alert('POPSTATE DISPARADO\n' + JSON.stringify(event.state));
+    } catch (error) {}
     debugHistory('popstate recibido', { eventState: event.state, backExitRequested: backExitRequested, estaEnModoPwa: estaEnModoPwa() });
     if (!estaEnModoPwa() || backExitRequested) return;
 
