@@ -23,6 +23,8 @@
   var DEBUG_HISTORY = true;
   var PWA_DEBUG_VERSION = 'PWA-20260530-TEST-7';
   var versionDebugMostrada = false;
+  var estadosInternosCreados = [];
+  var ultimoEstadoInternoCreado = null;
 
   function debugHistory(accion, datos) {
     if (!DEBUG_HISTORY || !window.console) return;
@@ -54,6 +56,23 @@
       historyLengthAntes: history.length,
       currentStateAntes: history.state
     });
+  }
+
+  function logFlujoAtras(accion, datos) {
+    var payload = Object.assign({
+      internosCreadosEnEstaCarga: estadosInternosCreados.length,
+      ultimoInternoCreado: ultimoEstadoInternoCreado,
+      historyLength: history.length,
+      currentState: history.state
+    }, datos || {});
+    console.log('[SK-PWA-BACK-FLOW]', accion, payload);
+    return payload;
+  }
+
+  function alertFlujoAtras(titulo, datos) {
+    try {
+      alert(titulo + '\n' + JSON.stringify(datos));
+    } catch (error) {}
   }
 
   function estaEnModoPwa() {
@@ -219,8 +238,18 @@
         debugHistory('push interno antes', { nuevoEstado: nuevoEstado });
         logStateWrite('history.pushState', nuevoEstado);
         history.pushState(nuevoEstado, '', window.location.href);
+        estadosInternosCreados.push(nuevoEstado);
+        ultimoEstadoInternoCreado = nuevoEstado;
+        logFlujoAtras('internal creado', {
+          nuevoEstado: nuevoEstado,
+          historyStateDespues: history.state
+        });
         try {
-          alert('INTERNAL CREADO\n' + JSON.stringify(nuevoEstado));
+          alert('INTERNAL CREADO\n' + JSON.stringify({
+            internosCreadosEnEstaCarga: estadosInternosCreados.length,
+            nuevoEstado: nuevoEstado,
+            historyStateDespues: history.state
+          }));
         } catch (error) {}
         debugHistory('push interno creado', { nuevoEstado: nuevoEstado });
         console.log('[SK-PWA-STATE-WRITE]', 'history.pushState creado', {
@@ -241,6 +270,10 @@
     if (!estado) return;
 
     restaurandoEstadoInterno = true;
+    alertFlujoAtras('RESTAURAR EJECUTADO', logFlujoAtras('restaurarEstadoInterno ejecutado', {
+      estadoRecibido: estado,
+      tipoEstadoRecibido: tipoEstadoDebug(estado)
+    }));
     debugHistory('restaurar interno inicio', { estado: estado });
     try {
       clickGenero(estado.genero || 'Niñas');
@@ -511,19 +544,40 @@
     console.log('POPSTATE DISPARADO');
     console.log('POPSTATE history.state:', history.state);
     console.log('POPSTATE event.state:', event.state);
+    var popstateDebug = logFlujoAtras('popstate recibido exacto', {
+      eventState: event.state,
+      eventStateTipo: tipoEstadoDebug(event.state),
+      historyStateEnPopstate: history.state,
+      historyStateTipo: tipoEstadoDebug(history.state),
+      backExitRequested: backExitRequested,
+      estaEnModoPwa: estaEnModoPwa()
+    });
     try {
-      alert('POPSTATE DISPARADO\n' + JSON.stringify(event.state));
+      alert('POPSTATE DISPARADO\n' + JSON.stringify(popstateDebug));
     } catch (error) {}
     debugHistory('popstate recibido', { eventState: event.state, backExitRequested: backExitRequested, estaEnModoPwa: estaEnModoPwa() });
     if (!estaEnModoPwa() || backExitRequested) return;
 
     if (event.state && (event.state[BACK_INTERNAL_STATE] || event.state[BACK_GUARD_STATE])) {
+      logFlujoAtras('decision: restaurar estado interno/guard', {
+        condicion: 'event.state && (event.state[BACK_INTERNAL_STATE] || event.state[BACK_GUARD_STATE])',
+        eventState: event.state,
+        eventStateTipo: tipoEstadoDebug(event.state)
+      });
       ocultarDialogoSalida();
       restaurarEstadoInterno(event.state);
       return;
     }
 
     if (!event.state || event.state[BACK_INITIAL_STATE]) {
+      alertFlujoAtras('DIALOGO SALIDA - CONDICION', logFlujoAtras('decision: mostrar dialogo salida', {
+        condicion: '!event.state || event.state[BACK_INITIAL_STATE]',
+        eventStateExiste: !!event.state,
+        esInitial: !!(event.state && event.state[BACK_INITIAL_STATE]),
+        eventState: event.state,
+        historyStateEnDecision: history.state,
+        ultimoInternoCreado: ultimoEstadoInternoCreado
+      }));
       mostrarDialogoSalida();
     }
   });
