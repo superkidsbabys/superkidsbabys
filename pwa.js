@@ -21,6 +21,8 @@
   var funcionesNavegacionPreparadas = false;
   var clicksInternosPreparados = false;
   var DEBUG_HISTORY = true;
+  var PWA_DEBUG_VERSION = 'PWA-20260530-TEST-7';
+  var versionDebugMostrada = false;
 
   function debugHistory(accion, datos) {
     if (!DEBUG_HISTORY || !window.console) return;
@@ -38,6 +40,15 @@
   function estaEnModoPwa() {
     return window.matchMedia('(display-mode: standalone)').matches ||
       window.navigator.standalone === true;
+  }
+
+  function mostrarVersionDebug() {
+    if (versionDebugMostrada) return;
+    versionDebugMostrada = true;
+    console.log('VERSION:', PWA_DEBUG_VERSION);
+    try {
+      alert('VERSION: ' + PWA_DEBUG_VERSION);
+    } catch (error) {}
   }
 
   function crearDialogoSalida() {
@@ -432,6 +443,7 @@
 
   window.addEventListener('load', function () {
     setTimeout(function () {
+      mostrarVersionDebug();
       debugHistory('load pwa init', { estaEnModoPwa: estaEnModoPwa(), estadoInicial: leerEstadoInterno() });
       activarProteccionAtras();
       prepararClicksInternos();
