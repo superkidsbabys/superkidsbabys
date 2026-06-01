@@ -101,6 +101,32 @@
     return el ? el.textContent.replace(/\s+/g, ' ').trim() : fallback;
   }
 
+  function textoPortadaSubcategoria(el) {
+    if (!el) return '';
+    var titulo = el.querySelector('.portada-subcategoria-titulo');
+    return (titulo || el).textContent.replace(/\s+/g, ' ').trim();
+  }
+
+  function leerSubcategoriasAbiertas() {
+    var abiertas = [];
+    var elementos = document.querySelectorAll('.portada-subcategoria.activa');
+    for (var i = 0; i < elementos.length; i += 1) {
+      var texto = textoPortadaSubcategoria(elementos[i]);
+      if (texto) abiertas.push(texto);
+    }
+    return abiertas;
+  }
+
+  function listasIguales(a, b) {
+    a = Array.isArray(a) ? a : [];
+    b = Array.isArray(b) ? b : [];
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i += 1) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }
+
   function leerEstadoInterno() {
     var genero = 'Niñas';
     if (document.getElementById('btn-gen-ninos') && document.getElementById('btn-gen-ninos').classList.contains('activo')) genero = 'Niños';
@@ -117,6 +143,7 @@
       categoria: categoria || 'Todos',
       talla: talla || 'Todas',
       promo: promo,
+      subcategoriasAbiertas: leerSubcategoriasAbiertas(),
       tab: tabActivo && tabActivo.id ? tabActivo.id.replace('tab-', '') : '',
       pedido: filtroPedido && filtroPedido.id ? filtroPedido.id.replace('fp-', '') : 'nuevo'
     };
@@ -134,6 +161,7 @@
       a.categoria === b.categoria &&
       a.talla === b.talla &&
       a.promo === b.promo &&
+      listasIguales(a.subcategoriasAbiertas, b.subcategoriasAbiertas) &&
       a.tab === b.tab &&
       a.pedido === b.pedido;
   }
@@ -182,10 +210,10 @@
     } catch (error) {
       console.log('No se pudo restaurar navegación interna:', error);
     } finally {
-      setTimeout(function () {
+      restaurarSubcategoriasAbiertas(estado.subcategoriasAbiertas, function () {
         restaurandoEstadoInterno = false;
         debugHistory('restaurar interno fin', { estado: leerEstadoInterno() });
-      }, 0);
+      });
     }
   }
 
@@ -204,6 +232,35 @@
         return;
       }
     }
+  }
+
+  function restaurarSubcategoriasAbiertas(abiertas, terminado) {
+    abiertas = Array.isArray(abiertas) ? abiertas : [];
+    if (!abiertas.length) {
+      setTimeout(function () { if (terminado) terminado(); }, 0);
+      return;
+    }
+
+    var indice = 0;
+    function abrirSiguiente() {
+      if (indice >= abiertas.length) {
+        if (terminado) terminado();
+        return;
+      }
+      var buscado = abiertas[indice];
+      var portadas = document.querySelectorAll('.portada-subcategoria');
+      for (var j = 0; j < portadas.length; j += 1) {
+        var portada = portadas[j];
+        if (textoPortadaSubcategoria(portada) === buscado && !portada.classList.contains('activa')) {
+          portada.click();
+          break;
+        }
+      }
+      indice += 1;
+      setTimeout(abrirSiguiente, 0);
+    }
+
+    setTimeout(abrirSiguiente, 0);
   }
 
   function clickGenero(genero) {
@@ -267,6 +324,8 @@
         '#menu-categorias .btn-categoria',
         '#menu-tallas .btn-talla-f',
         '#menu-tallas .btn-promo-especial',
+        '#btn-volver-collage',
+        '.portada-subcategoria',
         '.btn-filtro-ped',
         '.btn-tab'
       ].join(',')) : null;
