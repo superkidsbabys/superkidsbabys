@@ -25,6 +25,7 @@
   var versionDebugMostrada = false;
   var estadosInternosCreados = [];
   var ultimoEstadoInternoCreado = null;
+  var ultimaCondicionDialogoSalida = null;
 
   function debugHistory(accion, datos) {
     if (!DEBUG_HISTORY || !window.console) return;
@@ -138,6 +139,11 @@
   }
 
   function mostrarDialogoSalida() {
+    alertFlujoAtras('MOSTRAR DIALOGO SALIDA EJECUTADO', logFlujoAtras('mostrarDialogoSalida ejecutado', {
+      condicionExacta: ultimaCondicionDialogoSalida || 'llamada sin condicion registrada',
+      historyStateAlMostrarDialogo: history.state,
+      tipoHistoryStateAlMostrarDialogo: tipoEstadoDebug(history.state)
+    }));
     crearDialogoSalida().style.display = 'flex';
   }
 
@@ -570,8 +576,9 @@
     }
 
     if (!event.state || event.state[BACK_INITIAL_STATE]) {
+      ultimaCondicionDialogoSalida = '!event.state || event.state[BACK_INITIAL_STATE]';
       alertFlujoAtras('DIALOGO SALIDA - CONDICION', logFlujoAtras('decision: mostrar dialogo salida', {
-        condicion: '!event.state || event.state[BACK_INITIAL_STATE]',
+        condicion: ultimaCondicionDialogoSalida,
         eventStateExiste: !!event.state,
         esInitial: !!(event.state && event.state[BACK_INITIAL_STATE]),
         eventState: event.state,
