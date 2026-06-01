@@ -37,6 +37,25 @@
     }
   }
 
+  function tipoEstadoDebug(estado) {
+    if (!estado) return 'None';
+    if (estado[BACK_INITIAL_STATE]) return 'Initial';
+    if (estado[BACK_INTERNAL_STATE]) return 'Internal';
+    if (estado[BACK_GUARD_STATE]) return 'BackGuard';
+    return 'Other';
+  }
+
+  function logStateWrite(accion, estado) {
+    console.log('[SK-PWA-STATE-WRITE]', accion, {
+      tipo: tipoEstadoDebug(estado),
+      genero: estado && estado.genero,
+      categoria: estado && estado.categoria,
+      talla: estado && estado.talla,
+      historyLengthAntes: history.length,
+      currentStateAntes: history.state
+    });
+  }
+
   function estaEnModoPwa() {
     return window.matchMedia('(display-mode: standalone)').matches ||
       window.navigator.standalone === true;
@@ -198,8 +217,17 @@
           return;
         }
         debugHistory('push interno antes', { nuevoEstado: nuevoEstado });
+        logStateWrite('history.pushState', nuevoEstado);
         history.pushState(nuevoEstado, '', window.location.href);
         debugHistory('push interno creado', { nuevoEstado: nuevoEstado });
+        console.log('[SK-PWA-STATE-WRITE]', 'history.pushState creado', {
+          tipo: tipoEstadoDebug(nuevoEstado),
+          genero: nuevoEstado.genero,
+          categoria: nuevoEstado.categoria,
+          talla: nuevoEstado.talla,
+          historyLengthDespues: history.length,
+          currentStateDespues: history.state
+        });
       } catch (error) {
         debugHistory('push interno error', { error: error && error.message ? error.message : error });
       }
@@ -366,8 +394,17 @@
         var nuevoEstado = Object.assign({}, base, leerEstadoInterno());
         nuevoEstado[BACK_INITIAL_STATE] = true;
         debugHistory('replace inicial antes', { nuevoEstado: nuevoEstado });
+        logStateWrite('history.replaceState', nuevoEstado);
         history.replaceState(nuevoEstado, '', window.location.href);
         debugHistory('replace inicial creado', { nuevoEstado: nuevoEstado });
+        console.log('[SK-PWA-STATE-WRITE]', 'history.replaceState creado', {
+          tipo: tipoEstadoDebug(nuevoEstado),
+          genero: nuevoEstado.genero,
+          categoria: nuevoEstado.categoria,
+          talla: nuevoEstado.talla,
+          historyLengthDespues: history.length,
+          currentStateDespues: history.state
+        });
       }
     } catch (error) {
       debugHistory('replace inicial error', { error: error && error.message ? error.message : error });
@@ -383,8 +420,17 @@
       if (!state || !state[BACK_GUARD_STATE]) {
         var guardState = construirEstado(BACK_GUARD_STATE);
         debugHistory('push guard antes', { guardState: guardState });
+        logStateWrite('history.pushState', guardState);
         history.pushState(guardState, '', window.location.href);
         debugHistory('push guard creado', { guardState: guardState });
+        console.log('[SK-PWA-STATE-WRITE]', 'history.pushState creado', {
+          tipo: tipoEstadoDebug(guardState),
+          genero: guardState.genero,
+          categoria: guardState.categoria,
+          talla: guardState.talla,
+          historyLengthDespues: history.length,
+          currentStateDespues: history.state
+        });
       }
     } catch (error) {
       debugHistory('push guard error', { error: error && error.message ? error.message : error });
