@@ -219,6 +219,9 @@
         debugHistory('push interno antes', { nuevoEstado: nuevoEstado });
         logStateWrite('history.pushState', nuevoEstado);
         history.pushState(nuevoEstado, '', window.location.href);
+        try {
+          alert('INTERNAL CREADO\n' + JSON.stringify(nuevoEstado));
+        } catch (error) {}
         debugHistory('push interno creado', { nuevoEstado: nuevoEstado });
         console.log('[SK-PWA-STATE-WRITE]', 'history.pushState creado', {
           tipo: tipoEstadoDebug(nuevoEstado),
