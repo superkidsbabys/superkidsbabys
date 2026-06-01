@@ -20,6 +20,20 @@
   var restaurandoEstadoInterno = false;
   var funcionesNavegacionPreparadas = false;
   var clicksInternosPreparados = false;
+  var DEBUG_HISTORY = true;
+
+  function debugHistory(accion, datos) {
+    if (!DEBUG_HISTORY || !window.console) return;
+    try {
+      console.log('[SK-PWA-HISTORY]', accion, Object.assign({
+        href: window.location.href,
+        historyLength: history.length,
+        currentState: history.state
+      }, datos || {}));
+    } catch (error) {
+      console.log('[SK-PWA-HISTORY]', accion, datos || {});
+    }
+  }
 
   function estaEnModoPwa() {
     return window.matchMedia('(display-mode: standalone)').matches ||
@@ -125,14 +139,28 @@
   }
 
   function agregarEstadoInterno() {
-    if (!estaEnModoPwa() || restaurandoEstadoInterno) return;
+    if (!estaEnModoPwa()) {
+      debugHistory('push interno omitido: no esta en modo PWA');
+      return;
+    }
+    if (restaurandoEstadoInterno) {
+      debugHistory('push interno omitido: restaurando estado');
+      return;
+    }
 
     setTimeout(function () {
       try {
         var nuevoEstado = construirEstado(BACK_INTERNAL_STATE);
-        if (history.state && estadosIguales(history.state, nuevoEstado)) return;
+        if (history.state && estadosIguales(history.state, nuevoEstado)) {
+          debugHistory('push interno omitido: estado igual', { nuevoEstado: nuevoEstado });
+          return;
+        }
+        debugHistory('push interno antes', { nuevoEstado: nuevoEstado });
         history.pushState(nuevoEstado, '', window.location.href);
-      } catch (error) {}
+        debugHistory('push interno creado', { nuevoEstado: nuevoEstado });
+      } catch (error) {
+        debugHistory('push interno error', { error: error && error.message ? error.message : error });
+      }
     }, 0);
   }
 
@@ -140,6 +168,7 @@
     if (!estado) return;
 
     restaurandoEstadoInterno = true;
+    debugHistory('restaurar interno inicio', { estado: estado });
     try {
       clickGenero(estado.genero || 'Niñas');
       if (estado.categoria && estado.categoria !== 'Todos') clickPorTexto('#menu-categorias .btn-categoria', estado.categoria);
@@ -153,7 +182,10 @@
     } catch (error) {
       console.log('No se pudo restaurar navegación interna:', error);
     } finally {
-      setTimeout(function () { restaurandoEstadoInterno = false; }, 0);
+      setTimeout(function () {
+        restaurandoEstadoInterno = false;
+        debugHistory('restaurar interno fin', { estado: leerEstadoInterno() });
+      }, 0);
     }
   }
 
@@ -182,15 +214,24 @@
 
   function envolverFuncionNavegacion(nombre) {
     var original = window[nombre];
-    if (typeof original !== 'function' || original.__superkidsBackWrapped) return false;
+    if (typeof original !== 'function') {
+      debugHistory('wrapper no instalado: funcion ausente', { nombre: nombre });
+      return false;
+    }
+    if (original.__superkidsBackWrapped) {
+      debugHistory('wrapper ya instalado', { nombre: nombre });
+      return false;
+    }
 
     var envuelta = function () {
+      debugHistory('funcion navegacion llamada', { nombre: nombre, argumentos: Array.prototype.slice.call(arguments) });
       var resultado = original.apply(this, arguments);
       agregarEstadoInterno();
       return resultado;
     };
     envuelta.__superkidsBackWrapped = true;
     window[nombre] = envuelta;
+    debugHistory('wrapper instalado', { nombre: nombre });
     return true;
   }
 
@@ -207,6 +248,11 @@
     ];
     var listas = nombres.map(envolverFuncionNavegacion);
     funcionesNavegacionPreparadas = listas.every(Boolean);
+    debugHistory('preparar historial interno', {
+      funciones: nombres,
+      instaladas: listas,
+      todasInstaladas: funcionesNavegacionPreparadas
+    });
   }
 
   function prepararClicksInternos() {
@@ -225,10 +271,18 @@
         '.btn-tab'
       ].join(',')) : null;
 
-      if (objetivo) agregarEstadoInterno();
+      if (objetivo) {
+        debugHistory('click catalogo interceptado', {
+          selector: objetivo.id ? ('#' + objetivo.id) : (objetivo.className || objetivo.tagName),
+          texto: objetivo.textContent ? objetivo.textContent.replace(/\s+/g, ' ').trim() : '',
+          estadoAntes: leerEstadoInterno()
+        });
+        agregarEstadoInterno();
+      }
     }, true);
 
     clicksInternosPreparados = true;
+    debugHistory('listener clicks internos instalado');
   }
 
   function marcarEstadoInicial() {
@@ -238,9 +292,13 @@
       if (!base[BACK_INITIAL_STATE]) {
         var nuevoEstado = Object.assign({}, base, leerEstadoInterno());
         nuevoEstado[BACK_INITIAL_STATE] = true;
+        debugHistory('replace inicial antes', { nuevoEstado: nuevoEstado });
         history.replaceState(nuevoEstado, '', window.location.href);
+        debugHistory('replace inicial creado', { nuevoEstado: nuevoEstado });
       }
-    } catch (error) {}
+    } catch (error) {
+      debugHistory('replace inicial error', { error: error && error.message ? error.message : error });
+    }
   }
 
   function activarProteccionAtras() {
@@ -251,9 +309,13 @@
       var state = history.state;
       if (!state || !state[BACK_GUARD_STATE]) {
         var guardState = construirEstado(BACK_GUARD_STATE);
+        debugHistory('push guard antes', { guardState: guardState });
         history.pushState(guardState, '', window.location.href);
+        debugHistory('push guard creado', { guardState: guardState });
       }
-    } catch (error) {}
+    } catch (error) {
+      debugHistory('push guard error', { error: error && error.message ? error.message : error });
+    }
   }
 
   function crearBotonInstalar() {
@@ -308,6 +370,7 @@
 
   window.addEventListener('load', function () {
     setTimeout(function () {
+      debugHistory('load pwa init', { estaEnModoPwa: estaEnModoPwa(), estadoInicial: leerEstadoInterno() });
       activarProteccionAtras();
       prepararClicksInternos();
       prepararHistorialInterno();
@@ -322,6 +385,7 @@
   });
 
   window.addEventListener('popstate', function (event) {
+    debugHistory('popstate recibido', { eventState: event.state, backExitRequested: backExitRequested, estaEnModoPwa: estaEnModoPwa() });
     if (!estaEnModoPwa() || backExitRequested) return;
 
     if (event.state && (event.state[BACK_INTERNAL_STATE] || event.state[BACK_GUARD_STATE])) {
