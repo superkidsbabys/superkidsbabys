@@ -28,6 +28,7 @@
 
   let usuarioActual = null;
   window.usuarioActual = null;
+  window.ROLES = ROLES;
 
   // ── LOGIN PANEL ───────────────────────────────────────────
   function mostrarLoginPanel() {
@@ -2966,7 +2967,20 @@
                 stockDescontado: false,
                 transportadora: transp || '',
                 observaciones: obs || '',
-                asesora: (window.usuarioActual && window.usuarioActual.nombre) ? window.usuarioActual.nombre : ''
+                asesora: (function() {
+                    // Si hay usuaria logueada, usar su nombre
+                    if (window.usuarioActual && window.usuarioActual.nombre) return window.usuarioActual.nombre;
+                    // Si no, buscar por el whatsapp cacheado en config (pedido de cliente)
+                    var waConfig = String(config.whatsapp || '').replace(/\D/g, '');
+                    if (waConfig && window.ROLES) {
+                        var roles = window.ROLES;
+                        for (var uid in roles) {
+                            var waRol = String(roles[uid].whatsapp || '').replace(/\D/g, '');
+                            if (waRol && waConfig.endsWith(waRol.slice(-9))) return roles[uid].nombre;
+                        }
+                    }
+                    return '';
+                })()
             };
             historialPedidos.unshift(objetoOrden);
             renderizarPedidosPanel();
@@ -3677,6 +3691,11 @@ table{width:100%;border-collapse:collapse}
             document.querySelector(`.btn-tab[onclick="cambiarTab('${tab}')"]`).classList.add('activo');
             document.getElementById(`tab-${tab}`).classList.add('activo');
             if (tab === 'inventario') { cargarHistorialInventario(); cargarHistorialSalidas(); }
+            if (tab === 'pedidos') {
+                var aviso = document.getElementById('aviso-nuevo-pedido');
+                if (aviso) aviso.style.display = 'none';
+                clearTimeout(window._nuevoPedidoAvisoTimer);
+            }
         }
 
         function abrirFotoGrande(url) { document.getElementById('modal-foto').style.display = 'block'; document.getElementById('img-grande-modal').src = url; }
