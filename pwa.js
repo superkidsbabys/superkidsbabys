@@ -20,74 +20,10 @@
   var restaurandoEstadoInterno = false;
   var funcionesNavegacionPreparadas = false;
   var clicksInternosPreparados = false;
-  var DEBUG_HISTORY = true;
-  var PWA_DEBUG_VERSION = 'PWA-20260530-TEST-7';
-  var versionDebugMostrada = false;
-  var estadosInternosCreados = [];
-  var ultimoEstadoInternoCreado = null;
-  var ultimaCondicionDialogoSalida = null;
-
-  function debugHistory(accion, datos) {
-    if (!DEBUG_HISTORY || !window.console) return;
-    try {
-      console.log('[SK-PWA-HISTORY]', accion, Object.assign({
-        href: window.location.href,
-        historyLength: history.length,
-        currentState: history.state
-      }, datos || {}));
-    } catch (error) {
-      console.log('[SK-PWA-HISTORY]', accion, datos || {});
-    }
-  }
-
-  function tipoEstadoDebug(estado) {
-    if (!estado) return 'None';
-    if (estado[BACK_INITIAL_STATE]) return 'Initial';
-    if (estado[BACK_INTERNAL_STATE]) return 'Internal';
-    if (estado[BACK_GUARD_STATE]) return 'BackGuard';
-    return 'Other';
-  }
-
-  function logStateWrite(accion, estado) {
-    console.log('[SK-PWA-STATE-WRITE]', accion, {
-      tipo: tipoEstadoDebug(estado),
-      genero: estado && estado.genero,
-      categoria: estado && estado.categoria,
-      talla: estado && estado.talla,
-      historyLengthAntes: history.length,
-      currentStateAntes: history.state
-    });
-  }
-
-  function logFlujoAtras(accion, datos) {
-    var payload = Object.assign({
-      internosCreadosEnEstaCarga: estadosInternosCreados.length,
-      ultimoInternoCreado: ultimoEstadoInternoCreado,
-      historyLength: history.length,
-      currentState: history.state
-    }, datos || {});
-    console.log('[SK-PWA-BACK-FLOW]', accion, payload);
-    return payload;
-  }
-
-  function alertFlujoAtras(titulo, datos) {
-    try {
-      alert(titulo + '\n' + JSON.stringify(datos));
-    } catch (error) {}
-  }
 
   function estaEnModoPwa() {
     return window.matchMedia('(display-mode: standalone)').matches ||
       window.navigator.standalone === true;
-  }
-
-  function mostrarVersionDebug() {
-    if (versionDebugMostrada) return;
-    versionDebugMostrada = true;
-    console.log('VERSION:', PWA_DEBUG_VERSION);
-    try {
-      alert('VERSION: ' + PWA_DEBUG_VERSION);
-    } catch (error) {}
   }
 
   function crearDialogoSalida() {
@@ -139,11 +75,6 @@
   }
 
   function mostrarDialogoSalida() {
-    alertFlujoAtras('MOSTRAR DIALOGO SALIDA EJECUTADO', logFlujoAtras('mostrarDialogoSalida ejecutado', {
-      condicionExacta: ultimaCondicionDialogoSalida || 'llamada sin condicion registrada',
-      historyStateAlMostrarDialogo: history.state,
-      tipoHistoryStateAlMostrarDialogo: tipoEstadoDebug(history.state)
-    }));
     crearDialogoSalida().style.display = 'flex';
   }
 
@@ -226,11 +157,9 @@
 
   function agregarEstadoInterno() {
     if (!estaEnModoPwa()) {
-      debugHistory('push interno omitido: no esta en modo PWA');
       return;
     }
     if (restaurandoEstadoInterno) {
-      debugHistory('push interno omitido: restaurando estado');
       return;
     }
 
@@ -238,36 +167,10 @@
       try {
         var nuevoEstado = construirEstado(BACK_INTERNAL_STATE);
         if (history.state && estadosIguales(history.state, nuevoEstado)) {
-          debugHistory('push interno omitido: estado igual', { nuevoEstado: nuevoEstado });
           return;
         }
-        debugHistory('push interno antes', { nuevoEstado: nuevoEstado });
-        logStateWrite('history.pushState', nuevoEstado);
         history.pushState(nuevoEstado, '', window.location.href);
-        estadosInternosCreados.push(nuevoEstado);
-        ultimoEstadoInternoCreado = nuevoEstado;
-        logFlujoAtras('internal creado', {
-          nuevoEstado: nuevoEstado,
-          historyStateDespues: history.state
-        });
-        try {
-          alert('INTERNAL CREADO\n' + JSON.stringify({
-            internosCreadosEnEstaCarga: estadosInternosCreados.length,
-            nuevoEstado: nuevoEstado,
-            historyStateDespues: history.state
-          }));
-        } catch (error) {}
-        debugHistory('push interno creado', { nuevoEstado: nuevoEstado });
-        console.log('[SK-PWA-STATE-WRITE]', 'history.pushState creado', {
-          tipo: tipoEstadoDebug(nuevoEstado),
-          genero: nuevoEstado.genero,
-          categoria: nuevoEstado.categoria,
-          talla: nuevoEstado.talla,
-          historyLengthDespues: history.length,
-          currentStateDespues: history.state
-        });
       } catch (error) {
-        debugHistory('push interno error', { error: error && error.message ? error.message : error });
       }
     }, 0);
   }
@@ -276,11 +179,6 @@
     if (!estado) return;
 
     restaurandoEstadoInterno = true;
-    alertFlujoAtras('RESTAURAR EJECUTADO', logFlujoAtras('restaurarEstadoInterno ejecutado', {
-      estadoRecibido: estado,
-      tipoEstadoRecibido: tipoEstadoDebug(estado)
-    }));
-    debugHistory('restaurar interno inicio', { estado: estado });
     try {
       clickGenero(estado.genero || 'Niñas');
       if (estado.categoria && estado.categoria !== 'Todos') clickPorTexto('#menu-categorias .btn-categoria', estado.categoria);
@@ -296,7 +194,6 @@
     } finally {
       restaurarSubcategoriasAbiertas(estado.subcategoriasAbiertas, function () {
         restaurandoEstadoInterno = false;
-        debugHistory('restaurar interno fin', { estado: leerEstadoInterno() });
       });
     }
   }
@@ -356,23 +253,19 @@
   function envolverFuncionNavegacion(nombre) {
     var original = window[nombre];
     if (typeof original !== 'function') {
-      debugHistory('wrapper no instalado: funcion ausente', { nombre: nombre });
       return false;
     }
     if (original.__superkidsBackWrapped) {
-      debugHistory('wrapper ya instalado', { nombre: nombre });
       return false;
     }
 
     var envuelta = function () {
-      debugHistory('funcion navegacion llamada', { nombre: nombre, argumentos: Array.prototype.slice.call(arguments) });
       var resultado = original.apply(this, arguments);
       agregarEstadoInterno();
       return resultado;
     };
     envuelta.__superkidsBackWrapped = true;
     window[nombre] = envuelta;
-    debugHistory('wrapper instalado', { nombre: nombre });
     return true;
   }
 
@@ -389,11 +282,6 @@
     ];
     var listas = nombres.map(envolverFuncionNavegacion);
     funcionesNavegacionPreparadas = listas.every(Boolean);
-    debugHistory('preparar historial interno', {
-      funciones: nombres,
-      instaladas: listas,
-      todasInstaladas: funcionesNavegacionPreparadas
-    });
   }
 
   function prepararClicksInternos() {
@@ -415,17 +303,11 @@
       ].join(',')) : null;
 
       if (objetivo) {
-        debugHistory('click catalogo interceptado', {
-          selector: objetivo.id ? ('#' + objetivo.id) : (objetivo.className || objetivo.tagName),
-          texto: objetivo.textContent ? objetivo.textContent.replace(/\s+/g, ' ').trim() : '',
-          estadoAntes: leerEstadoInterno()
-        });
         agregarEstadoInterno();
       }
     }, true);
 
     clicksInternosPreparados = true;
-    debugHistory('listener clicks internos instalado');
   }
 
   function marcarEstadoInicial() {
@@ -435,21 +317,9 @@
       if (!base[BACK_INITIAL_STATE]) {
         var nuevoEstado = Object.assign({}, base, leerEstadoInterno());
         nuevoEstado[BACK_INITIAL_STATE] = true;
-        debugHistory('replace inicial antes', { nuevoEstado: nuevoEstado });
-        logStateWrite('history.replaceState', nuevoEstado);
         history.replaceState(nuevoEstado, '', window.location.href);
-        debugHistory('replace inicial creado', { nuevoEstado: nuevoEstado });
-        console.log('[SK-PWA-STATE-WRITE]', 'history.replaceState creado', {
-          tipo: tipoEstadoDebug(nuevoEstado),
-          genero: nuevoEstado.genero,
-          categoria: nuevoEstado.categoria,
-          talla: nuevoEstado.talla,
-          historyLengthDespues: history.length,
-          currentStateDespues: history.state
-        });
       }
     } catch (error) {
-      debugHistory('replace inicial error', { error: error && error.message ? error.message : error });
     }
   }
 
@@ -461,21 +331,9 @@
       var state = history.state;
       if (!state || !state[BACK_GUARD_STATE]) {
         var guardState = construirEstado(BACK_GUARD_STATE);
-        debugHistory('push guard antes', { guardState: guardState });
-        logStateWrite('history.pushState', guardState);
         history.pushState(guardState, '', window.location.href);
-        debugHistory('push guard creado', { guardState: guardState });
-        console.log('[SK-PWA-STATE-WRITE]', 'history.pushState creado', {
-          tipo: tipoEstadoDebug(guardState),
-          genero: guardState.genero,
-          categoria: guardState.categoria,
-          talla: guardState.talla,
-          historyLengthDespues: history.length,
-          currentStateDespues: history.state
-        });
       }
     } catch (error) {
-      debugHistory('push guard error', { error: error && error.message ? error.message : error });
     }
   }
 
@@ -531,8 +389,6 @@
 
   window.addEventListener('load', function () {
     setTimeout(function () {
-      mostrarVersionDebug();
-      debugHistory('load pwa init', { estaEnModoPwa: estaEnModoPwa(), estadoInicial: leerEstadoInterno() });
       activarProteccionAtras();
       prepararClicksInternos();
       prepararHistorialInterno();
@@ -547,44 +403,15 @@
   });
 
   window.addEventListener('popstate', function (event) {
-    console.log('POPSTATE DISPARADO');
-    console.log('POPSTATE history.state:', history.state);
-    console.log('POPSTATE event.state:', event.state);
-    var popstateDebug = logFlujoAtras('popstate recibido exacto', {
-      eventState: event.state,
-      eventStateTipo: tipoEstadoDebug(event.state),
-      historyStateEnPopstate: history.state,
-      historyStateTipo: tipoEstadoDebug(history.state),
-      backExitRequested: backExitRequested,
-      estaEnModoPwa: estaEnModoPwa()
-    });
-    try {
-      alert('POPSTATE DISPARADO\n' + JSON.stringify(popstateDebug));
-    } catch (error) {}
-    debugHistory('popstate recibido', { eventState: event.state, backExitRequested: backExitRequested, estaEnModoPwa: estaEnModoPwa() });
     if (!estaEnModoPwa() || backExitRequested) return;
 
     if (event.state && (event.state[BACK_INTERNAL_STATE] || event.state[BACK_GUARD_STATE])) {
-      logFlujoAtras('decision: restaurar estado interno/guard', {
-        condicion: 'event.state && (event.state[BACK_INTERNAL_STATE] || event.state[BACK_GUARD_STATE])',
-        eventState: event.state,
-        eventStateTipo: tipoEstadoDebug(event.state)
-      });
       ocultarDialogoSalida();
       restaurarEstadoInterno(event.state);
       return;
     }
 
     if (!event.state || event.state[BACK_INITIAL_STATE]) {
-      ultimaCondicionDialogoSalida = '!event.state || event.state[BACK_INITIAL_STATE]';
-      alertFlujoAtras('DIALOGO SALIDA - CONDICION', logFlujoAtras('decision: mostrar dialogo salida', {
-        condicion: ultimaCondicionDialogoSalida,
-        eventStateExiste: !!event.state,
-        esInitial: !!(event.state && event.state[BACK_INITIAL_STATE]),
-        eventState: event.state,
-        historyStateEnDecision: history.state,
-        ultimoInternoCreado: ultimoEstadoInternoCreado
-      }));
       mostrarDialogoSalida();
     }
   });
