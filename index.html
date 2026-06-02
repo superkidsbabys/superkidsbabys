@@ -2,7 +2,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBn5zp89TGHUj6OkA8jyKm_ROfEazCRgUc",
@@ -17,7 +17,7 @@
   const db = getFirestore(app);
   window.db = db;
   const auth = getAuth(app);
-  setPersistence(auth, browserSessionPersistence);
+  setPersistence(auth, browserLocalPersistence);
 
   // ── ROLES ─────────────────────────────────────────────────
   const ROLES = {
@@ -580,6 +580,10 @@
         .btn-filtro-ped.activo { background: #4a90e2; color: white; border-color: #4a90e2; box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3);}
         .grid-pedidos { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         .tarjeta-pedido-cb { background: #fdfdfd; border: 1px solid #eaeaea; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; position: relative;}
+        .tarjeta-pedido-cb.pedido-nuevo-resaltado { border-color: #2ecc71; box-shadow: 0 0 0 3px rgba(46,204,113,0.18), 0 8px 22px rgba(46,204,113,0.16); }
+        .aviso-nuevo-pedido { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 100001; width: calc(100% - 28px); max-width: 380px; background: #ffffff; border: 2px solid #2ecc71; border-radius: 14px; box-shadow: 0 12px 32px rgba(0,0,0,0.18); padding: 14px 16px; color: #244033; font-family: Nunito, sans-serif; font-weight: 800; display: none; }
+        .aviso-nuevo-pedido strong { display: block; color: #1f7a45; font-size: 1.02em; margin-bottom: 3px; }
+        .aviso-nuevo-pedido span { display: block; color: #52635a; font-size: 0.86em; font-weight: 700; }
         .tp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
         .tp-id { font-weight: bold; color: #2c3e50; font-size: 1.15em; }
         .tp-fecha { font-size: 0.8em; color: #888; margin-bottom: 15px;}
@@ -1215,6 +1219,9 @@
         window._setModoEdicion = function(val) { modoEdicion = val; if(typeof renderizarCatalogo === 'function') renderizarCatalogo(); };
         let vistaPedidosActual = 'nuevo', tallaFiltroActual = 'Todas', soloPromociones = false;
         let unsubscribePedidosFirebase = null;
+        let snapshotPedidosInicialCargado = false;
+        let pedidosConocidosNotificacion = new Set();
+        let pedidosResaltadosNotificacion = new Set();
         const ESTADOS_PEDIDO = [
             { valor: 'nuevo', label: 'Nuevo', seccion: 'Nuevos' },
             { valor: 'pendiente_pago', label: 'Pendiente pago', seccion: 'Pendiente pago' },
@@ -1245,6 +1252,63 @@
             const norm = normalizarEstadoPedido(estado);
             const cfg = ESTADOS_PEDIDO.find(e => e.valor === norm);
             return cfg ? cfg.label : 'Nuevo';
+        }
+
+        function clavePedidoNotificacion(pedido) {
+            return pedido && (pedido._firebaseId || pedido.num || pedido.timestampPedido || '');
+        }
+
+        function reproducirSonidoNuevoPedido() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = 880;
+                gain.gain.setValueAtTime(0.001, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            } catch(e) {}
+        }
+
+        function mostrarAvisoNuevoPedido(pedido) {
+            const clave = clavePedidoNotificacion(pedido);
+            if (clave) pedidosResaltadosNotificacion.add(clave);
+            let aviso = document.getElementById('aviso-nuevo-pedido');
+            if (!aviso) {
+                aviso = document.createElement('div');
+                aviso.id = 'aviso-nuevo-pedido';
+                aviso.className = 'aviso-nuevo-pedido';
+                document.body.appendChild(aviso);
+            }
+            aviso.innerHTML = '<strong>Nuevo pedido recibido</strong><span>#SK-' + (pedido.num || '') + ' · ' + (pedido.nom || 'Cliente') + '</span>';
+            aviso.style.display = 'block';
+            document.querySelectorAll('.tarjeta-pedido-cb').forEach(function(card) {
+                const idPedido = card.querySelector('.tp-id');
+                if (idPedido && idPedido.textContent.replace(/\s+/g, '').indexOf('#SK-' + pedido.num) !== -1) {
+                    card.classList.add('pedido-nuevo-resaltado');
+                }
+            });
+            reproducirSonidoNuevoPedido();
+            clearTimeout(window._nuevoPedidoAvisoTimer);
+            window._nuevoPedidoAvisoTimer = setTimeout(function() {
+                aviso.style.display = 'none';
+            }, 4500);
+            if (clave) {
+                clearTimeout(window._nuevoPedidoResaltadoTimer);
+                window._nuevoPedidoResaltadoTimer = setTimeout(function() {
+                    pedidosResaltadosNotificacion.delete(clave);
+                    document.querySelectorAll('.tarjeta-pedido-cb.pedido-nuevo-resaltado').forEach(function(card) {
+                        card.classList.remove('pedido-nuevo-resaltado');
+                    });
+                }, 9000);
+            }
         }
 
         function timestampPedido(pedido) {
@@ -2722,17 +2786,27 @@
                 if (unsubscribePedidosFirebase) unsubscribePedidosFirebase();
                 unsubscribePedidosFirebase = onSnapshot(q, (snap) => {
                     const pedidosFirebase = [];
+                    const pedidosNuevosDetectados = [];
                     snap.forEach(d => {
                         const pedido = Object.assign({ _firebaseId: d.id }, d.data());
                         pedido.estado = normalizarEstadoPedido(pedido.estado || 'nuevo');
                         pedidosFirebase.push(pedido);
+                        const clavePedido = clavePedidoNotificacion(pedido);
+                        if (clavePedido) {
+                            if (snapshotPedidosInicialCargado && !pedidosConocidosNotificacion.has(clavePedido) && pedido.estado === 'nuevo') {
+                                pedidosNuevosDetectados.push(pedido);
+                            }
+                            pedidosConocidosNotificacion.add(clavePedido);
+                        }
                     });
+                    if (!snapshotPedidosInicialCargado) snapshotPedidosInicialCargado = true;
                     // Reemplazar completamente con los de Firebase (fuente de verdad)
                     historialPedidos = pedidosFirebase;
                     // Ordenar por número descendente
                     historialPedidos.sort(compararPedidosRecientes);
                     localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
                     renderizarPedidosPanel();
+                    pedidosNuevosDetectados.forEach(mostrarAvisoNuevoPedido);
                 }, (error) => {
                     console.log('Error listener pedidos Firebase:', error);
                 });
