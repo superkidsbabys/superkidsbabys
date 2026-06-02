@@ -95,6 +95,10 @@
 
         // Aplicar permisos según rol
         aplicarPermisosPorRol(usuarioActual.rol);
+        // ── PEDIR PERMISO NOTIFICACIONES (solo logueadas) ──
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
         mostrarPanelAdmin();
         // Activar modo edición automáticamente para admin
         if (usuarioActual.rol === 'admin') {
@@ -1296,6 +1300,14 @@
                 }
             });
             reproducirSonidoNuevoPedido();
+            // ── NOTIFICACIÓN DEL SISTEMA ──
+            if ('Notification' in window && Notification.permission === 'granted') {
+                var asesoraTexto = pedido.asesora ? ' · Asesora: ' + pedido.asesora : '';
+                new Notification('🛍️ Nuevo pedido #SK-' + (pedido.num || ''), {
+                    body: (pedido.nom || 'Cliente') + asesoraTexto + '\nTotal: $' + (pedido.tot ? pedido.tot.toLocaleString('es-CO') : '0'),
+                    icon: './icons/icon-192.png'
+                });
+            }
             clearTimeout(window._nuevoPedidoAvisoTimer);
             window._nuevoPedidoAvisoTimer = setTimeout(function() {
                 aviso.style.display = 'none';
@@ -2953,7 +2965,8 @@
                 timestampPedido: ahoraPedido,
                 stockDescontado: false,
                 transportadora: transp || '',
-                observaciones: obs || ''
+                observaciones: obs || '',
+                asesora: (window.usuarioActual && window.usuarioActual.nombre) ? window.usuarioActual.nombre : ''
             };
             historialPedidos.unshift(objetoOrden);
             renderizarPedidosPanel();
@@ -3086,7 +3099,7 @@ table{width:100%;border-collapse:collapse}
   </div>
   <div class="bloque-datos">
     <h4>📦 Pedido</h4>
-    <p>N° <strong class="num-editable" contenteditable="true" spellcheck="false">#SK-${ped.num}</strong><br>${ped.fecha}<br>Estado: <strong>${ped.estado}</strong></p>
+    <p>N° <strong class="num-editable" contenteditable="true" spellcheck="false">#SK-${ped.num}</strong><br>${ped.fecha}<br>Estado: <strong>${ped.estado}</strong>${ped.asesora ? `<br>Asesora: <strong>${ped.asesora}</strong>` : ""}</p>
   </div>
 </div>
 <div class="tabla-wrap">
