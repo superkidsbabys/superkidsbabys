@@ -326,8 +326,9 @@
         .btn-genero:hover { transform: translateY(-2px); }
         .btn-genero.activo { background-color: var(--color-banner); color: var(--color-texto-banner); box-shadow: 0 6px 15px rgba(0,0,0,0.15); border-color: transparent;}
 
-        .categorias-nav { display: flex; justify-content: center; gap: 12px; padding: 10px 20px 10px 20px; flex-wrap: wrap; }
-        .btn-categoria { background-color: var(--color-categoria-fondo, transparent); color: var(--color-categoria-texto, var(--color-banner)); border: 2px solid var(--color-categoria-borde, var(--color-banner)); padding: 8px 20px; border-radius: 25px; cursor: pointer; font-weight: 600; font-size: 1.05em; transition: all 0.2s ease; }
+        .categorias-nav { display: flex; gap: 8px; padding: 10px 16px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .categorias-nav::-webkit-scrollbar { display: none; }
+        .btn-categoria { background-color: var(--color-categoria-fondo, transparent); color: var(--color-categoria-texto, var(--color-banner)); border: 2px solid var(--color-categoria-borde, var(--color-banner)); padding: 6px 14px; border-radius: 25px; cursor: pointer; font-weight: 600; font-size: 0.88em; white-space: nowrap; flex-shrink: 0; transition: all 0.2s ease; }
         .btn-categoria.activo, .btn-categoria:hover { background-color: var(--color-categoria-activa-fondo, var(--color-banner)); color: var(--color-categoria-activa-texto, var(--color-tarjeta)); border-color: var(--color-categoria-activa-fondo, var(--color-banner)); }
         #btn-volver-collage { border-color: var(--color-volver-borde, var(--color-categoria-activa-fondo, var(--color-banner))) !important; background: var(--color-volver-fondo, var(--color-categoria-activa-fondo, var(--color-banner))) !important; color: var(--color-volver-texto, var(--color-categoria-activa-texto, white)) !important; }
 
