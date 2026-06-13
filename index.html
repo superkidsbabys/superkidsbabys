@@ -263,7 +263,11 @@
     try {
       await deleteDoc(doc(db, "productos", id));
       console.log("Eliminado de Firebase:", id);
-    } catch(e) { console.warn("Error eliminando:", e.message); }
+      return true;
+    } catch(e) {
+      console.warn("Error eliminando:", e.message);
+      return false;
+    }
   };
 
   console.log("Firebase conectado ✅");
@@ -1197,19 +1201,41 @@
         if (!config.ninos) config.ninos = { temaActivo: "SuperKids Mint", colorBanner: "#a8e0d5", colorFondo: "#f0fdf9", colorTarjeta: "#ffffff", colorTexto: "#4a4a4a", colorTextoPersonalizado: "#4a4a4a" };
 
         let dbGuardada = safeParse('productosV36') || safeParse('productosV35') || safeParse('productosV34') || safeParse('productosV33') || safeParse('productosV25');
+        const CLAVE_PRODUCTOS_ELIMINADOS = 'productosEliminadosV1';
+        function obtenerProductosEliminados() {
+            return safeParse(CLAVE_PRODUCTOS_ELIMINADOS) || [];
+        }
+        function guardarProductoEliminado(id) {
+            if (!id) return;
+            const eliminados = obtenerProductosEliminados();
+            if (!eliminados.includes(id)) {
+                eliminados.push(id);
+                localStorage.setItem(CLAVE_PRODUCTOS_ELIMINADOS, JSON.stringify(eliminados));
+            }
+        }
+        function quitarProductoEliminado(id) {
+            if (!id) return;
+            const eliminados = obtenerProductosEliminados().filter(x => x !== id);
+            localStorage.setItem(CLAVE_PRODUCTOS_ELIMINADOS, JSON.stringify(eliminados));
+        }
+        function filtrarProductosEliminados(lista) {
+            const eliminados = new Set(obtenerProductosEliminados());
+            return (lista || []).filter(p => p && !eliminados.has(p.id));
+        }
         // Usar HTML como semilla, pero respetar productos editados en localStorage al recargar.
-        let productosQuemados = window.productosQ || [];
+        let productosQuemados = filtrarProductosEliminados(window.productosQ || []);
+        dbGuardada = filtrarProductosEliminados(dbGuardada || []);
         let productosDB;
         if (productosQuemados.length > 0) {
             let productosGuardados = {};
-            (dbGuardada || []).forEach(p => { if (p && p.id) productosGuardados[p.id] = p; });
+            dbGuardada.forEach(p => { if (p && p.id) productosGuardados[p.id] = p; });
             // Aplicar producto guardado completo (preserva categoria, orden, stock y ediciones locales).
             productosDB = productosQuemados.map(q => {
                 if (productosGuardados[q.id]) return Object.assign({}, q, productosGuardados[q.id]);
                 return q;
             });
             // Agregar productos nuevos que no estén en el HTML
-            let nuevosExtra = (dbGuardada || []).filter(p => !productosQuemados.find(q => q.id === p.id));
+            let nuevosExtra = dbGuardada.filter(p => !productosQuemados.find(q => q.id === p.id));
             productosDB = [...productosDB, ...nuevosExtra];
         } else {
             productosDB = dbGuardada || [];
@@ -1462,9 +1488,10 @@
                         const productosFirebase = [];
                         snap.forEach(d => productosFirebase.push(d.data()));
                         // Mezclar: Firebase gana sobre quemados (datos más actualizados)
-                        const quemados = window.productosQ || [];
-                        const soloQuemadosNoEnFirebase = quemados.filter(q => !productosFirebase.find(f => f.id === q.id));
-                        productosDB = aplicarOrdenGuardadoLocal([...productosFirebase, ...soloQuemadosNoEnFirebase]);
+                        const quemados = filtrarProductosEliminados(window.productosQ || []);
+                        const productosFirebaseActivos = filtrarProductosEliminados(productosFirebase);
+                        const soloQuemadosNoEnFirebase = quemados.filter(q => !productosFirebaseActivos.find(f => f.id === q.id));
+                        productosDB = aplicarOrdenGuardadoLocal([...productosFirebaseActivos, ...soloQuemadosNoEnFirebase]);
                         ordenarProductosPorOrdenVisual(productosDB, generoActual);
                         localStorage.setItem('productosV36', JSON.stringify(productosDB));
                         renderizarFiltroTallas();
@@ -2361,6 +2388,7 @@
                     imagenes: imgsFinalesUrls
                 };
 
+                quitarProductoEliminado(nuevoProducto.id);
                 productosDB.unshift(nuevoProducto);
                 // Sincronizar con Firebase
                 if (window.fbGuardarProducto) window.fbGuardarProducto(nuevoProducto);
@@ -2379,12 +2407,18 @@
             }
         }
 
-        function eliminarProducto(id) {
+        async function eliminarProducto(id) {
             if (window.datosQuemados) return;
             if (confirm("¿Seguro que deseas eliminarlo?")) {
+                guardarProductoEliminado(id);
                 productosDB = productosDB.filter(p => p.id !== id);
                 // Eliminar de Firebase
-                if (window.fbEliminarProducto) window.fbEliminarProducto(id);
+                if (window.fbEliminarProducto) {
+                    const borradoFirebase = await window.fbEliminarProducto(id);
+                    if (!borradoFirebase) {
+                        alert('El producto se oculto en este navegador, pero Firebase no confirmo el borrado. Revisa tu conexion o permisos.');
+                    }
+                }
                 localStorage.setItem('productosV36', JSON.stringify(productosDB)); marcarCambio(); marcarCambio();
                 renderizarFiltroTallas(); renderizarCatalogo();
             }
