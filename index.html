@@ -2487,11 +2487,23 @@
               </div>`).join('');
         }
 
-        function eliminarFotoEdit(idx) {
+        async function eliminarFotoEdit(idx) {
             if (editFotosActuales.length <= 1) { alert('El producto debe tener al menos 1 foto.'); return; }
             if (!confirm('¿Eliminar esta foto?')) return;
             editFotosActuales.splice(idx, 1);
             renderEditFotos();
+            // Guardar inmediatamente en Firestore y localStorage para que persista
+            let id = document.getElementById('edit-prod-id').value;
+            let pIndex = productosDB.findIndex(x => x.id === id);
+            if (pIndex !== -1) {
+                productosDB[pIndex].imagenes = [...editFotosActuales];
+                if (window.fbGuardarProducto) {
+                    try {
+                        await window.fbGuardarProducto(productosDB[pIndex]);
+                        localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                    } catch(e) { console.warn('Error guardando foto eliminada:', e); }
+                }
+            }
         }
 
         async function reemplazarFotoEdit(idx, input) {
