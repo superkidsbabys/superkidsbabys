@@ -2302,7 +2302,7 @@
                 let htmlGal = imgs.length > 1 ? `<div class="galeria-miniaturas">${imgs.map((img, i) => `<img src="${optimizarUrl(img, 150)}" class="thumb ${i === 0 ? 'activo' : ''}" onclick="cambiarImg('${prod.id}', '${img}', this)">`).join('')}</div>` : "";
                 let btnAgregar = hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`;
 
-                cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgs[0]}')">${descH}${customH}<img src="${optimizarUrl(imgs[0])}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><span class="etiqueta-categoria">${prod.categoria}</span><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p><div class="precio-contenedor">${pNew}</div>${htmlTallasChips}${btnAgregar}<div class="acciones-admin-prod" style="display:${(modoEdicion || (window.usuarioActual && window.usuarioActual.editarPrecio)) ? 'flex' : 'none'}"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar precio</button>${modoEdicion ? '<button class="btn-eliminar-prod" onclick="eliminarProducto(\''+prod.id+'\')" >🗑️ Eliminar</button>' : ''}</div></div></div>`;
+                cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgs[0]}')">${descH}${customH}<img src="${optimizarUrl(imgs[0])}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><span class="etiqueta-categoria">${prod.categoria}</span><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p><div class="precio-contenedor">${pNew}</div>${htmlTallasChips}${btnAgregar}<div class="acciones-admin-prod" style="display:${(modoEdicion || (window.usuarioActual && window.usuarioActual.editarPrecio)) ? 'flex' : 'none'}"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">${(window.usuarioActual && window.usuarioActual.editarPrecio && window.usuarioActual.rol !== 'admin') ? '✏️ Precio' : '✏️ Editar'}</button>${modoEdicion ? '<button class="btn-eliminar-prod" onclick="eliminarProducto(\''+prod.id+'\')" >🗑️ Eliminar</button>' : ''}</div></div></div>`;
             });
             organizarCatalogoPorSubcategorias(filtrados, cont);
         }
@@ -2425,32 +2425,31 @@
 
             // ── MODO SOLO PRECIO para Bibiana ──
             var soloPrecio = window.usuarioActual && window.usuarioActual.editarPrecio && window.usuarioActual.rol !== 'admin';
-            var modalEditar = document.getElementById('modal-editar-producto');
-            // Campos a ocultar si es solo precio
-            var camposOcultar = ['edit-prod-nombre','edit-prod-codigo','edit-prod-orden','edit-prod-categoria',
-                'edit-prod-desc','edit-prod-etiqueta','edit-prod-foto-file','wrap-edit-orden-genero',
-                'contenedor-edit-tallas-stock'];
-            camposOcultar.forEach(function(id) {
-                var el = document.getElementById(id);
-                if (el) el.closest('div') && (el.closest('.campo-grupo, div[style], div') ? el.parentElement.style.display = (soloPrecio ? 'none' : '') : null);
+            // IDs de elementos raíz a ocultar cuando es solo-precio
+            var ocultarIds = [
+                'edit-prod-nombre', 'edit-prod-codigo', 'edit-prod-orden',
+                'edit-prod-categoria', 'edit-prod-desc', 'edit-prod-etiqueta',
+                'wrap-edit-orden-genero', 'contenedor-edit-tallas-stock', 'edit-fotos-grid',
+                'edit-nuevas-fotos', 'btn-subir-fotos-extra'
+            ];
+            ocultarIds.forEach(function(eid) {
+                var el = document.getElementById(eid);
+                if (!el) return;
+                // Subir hasta el div contenedor directo del modal (nivel 2 dentro del form)
+                var wrapper = el.parentElement;
+                // Si el elemento YA es un div contenedor (wrap-edit-orden-genero, contenedor-edit-tallas-stock), ocultarlo directo
+                if (el.tagName === 'DIV') {
+                    el.style.display = soloPrecio ? 'none' : '';
+                } else if (wrapper) {
+                    wrapper.style.display = soloPrecio ? 'none' : '';
+                }
             });
-            // Ocultar labels y wrappers de campos no-precio
-            if (modalEditar) {
-                modalEditar.querySelectorAll('.campo-grupo, .fila-campos').forEach(function(g) {
-                    var inputs = g.querySelectorAll('input, select, textarea');
-                    var esPrecio = false;
-                    inputs.forEach(function(inp) {
-                        if (inp.id === 'edit-prod-precio' || inp.id === 'edit-prod-precio-ant') esPrecio = true;
-                    });
-                    if (!esPrecio) g.style.display = soloPrecio ? 'none' : '';
-                });
-                // Ocultar sección fotos
-                var secFotos = modalEditar.querySelector('.seccion-fotos-edit, #wrap-fotos-edit');
-                if (secFotos) secFotos.style.display = soloPrecio ? 'none' : '';
-                // Ocultar tallas
-                var secTallas = modalEditar.querySelector('#contenedor-edit-tallas-stock');
-                if (secTallas && secTallas.parentElement) secTallas.parentElement.style.display = soloPrecio ? 'none' : '';
-            }
+            // Ocultar sección fotos completa (el div verde con background:#f0fdf4)
+            var secFotos = document.getElementById('modal-editar-producto').querySelector('[style*="f0fdf4"]');
+            if (secFotos) secFotos.style.display = soloPrecio ? 'none' : '';
+            // Cambiar título del modal
+            var tituloModal = document.getElementById('modal-editar-producto').querySelector('h3');
+            if (tituloModal) tituloModal.textContent = soloPrecio ? '✏️ Editar Precio' : '✏️ Editar Producto';
         }
 
         function agregarFilaTallaEdit(nom = '', stk = '') {
