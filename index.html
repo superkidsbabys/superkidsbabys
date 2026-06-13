@@ -2425,31 +2425,35 @@
 
             // ── MODO SOLO PRECIO para Bibiana ──
             var soloPrecio = window.usuarioActual && window.usuarioActual.editarPrecio && window.usuarioActual.rol !== 'admin';
-            // IDs de elementos raíz a ocultar cuando es solo-precio
-            var ocultarIds = [
-                'edit-prod-nombre', 'edit-prod-codigo', 'edit-prod-orden',
-                'edit-prod-categoria', 'edit-prod-desc', 'edit-prod-etiqueta',
-                'wrap-edit-orden-genero', 'contenedor-edit-tallas-stock', 'edit-fotos-grid',
-                'edit-nuevas-fotos', 'btn-subir-fotos-extra'
-            ];
-            ocultarIds.forEach(function(eid) {
-                var el = document.getElementById(eid);
-                if (!el) return;
-                // Subir hasta el div contenedor directo del modal (nivel 2 dentro del form)
-                var wrapper = el.parentElement;
-                // Si el elemento YA es un div contenedor (wrap-edit-orden-genero, contenedor-edit-tallas-stock), ocultarlo directo
-                if (el.tagName === 'DIV') {
-                    el.style.display = soloPrecio ? 'none' : '';
-                } else if (wrapper) {
-                    wrapper.style.display = soloPrecio ? 'none' : '';
-                }
-            });
-            // Ocultar sección fotos completa (el div verde con background:#f0fdf4)
-            var secFotos = document.getElementById('modal-editar-producto').querySelector('[style*="f0fdf4"]');
-            if (secFotos) secFotos.style.display = soloPrecio ? 'none' : '';
-            // Cambiar título del modal
-            var tituloModal = document.getElementById('modal-editar-producto').querySelector('h3');
-            if (tituloModal) tituloModal.textContent = soloPrecio ? '✏️ Editar Precio' : '✏️ Editar Producto';
+            var modal = document.getElementById('modal-editar-producto');
+            // Recorrer todos los hijos directos del form y ocultar lo que no sea precio/botón guardar
+            var form = modal.querySelector('.seccion-admin-sub');
+            if (form && soloPrecio) {
+                Array.from(form.children).forEach(function(child) {
+                    // Mantener: título h3, input hidden, div que contiene precios, botón guardar, botón cerrar
+                    var esPrecioDiv = child.querySelector && (child.querySelector('#edit-prod-precio') || child.querySelector('#edit-prod-precio-ant'));
+                    var esGuardar = child.id === 'btn-guardar-edicion' || (child.tagName === 'BUTTON' && child.id === 'btn-guardar-edicion');
+                    var esTitulo = child.tagName === 'H3';
+                    var esHidden = child.tagName === 'INPUT' && child.type === 'hidden';
+                    var esCerrar = child.classList && child.classList.contains('cerrar-modal');
+                    if (!esPrecioDiv && !esGuardar && !esTitulo && !esHidden && !esCerrar) {
+                        child.setAttribute('data-sk-hidden', '1');
+                        child.style.display = 'none';
+                    }
+                });
+                var tit = form.querySelector('h3');
+                if (tit) tit.textContent = '✏️ Editar Precio';
+            } else if (form && !soloPrecio) {
+                // Restaurar todo para admin
+                Array.from(form.children).forEach(function(child) {
+                    if (child.getAttribute('data-sk-hidden')) {
+                        child.removeAttribute('data-sk-hidden');
+                        child.style.display = '';
+                    }
+                });
+                var tit = form.querySelector('h3');
+                if (tit) tit.textContent = '✏️ Editar Producto';
+            }
         }
 
         function agregarFilaTallaEdit(nom = '', stk = '') {
