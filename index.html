@@ -369,7 +369,7 @@
         .btn-talla-f.activo { background: var(--color-banner); color: var(--color-texto-banner); border-color: var(--color-banner); box-shadow: 0 4px 8px rgba(0,0,0,0.15);}
 
         .contenedor { max-width: 1200px; margin: 0 auto; padding: 0 15px; }
-        .catalogo { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-bottom: 40px; }
+        .catalogo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 40px; }
         .catalogo.catalogo-subcategorias { display: block; max-width: 960px; margin-left: auto; margin-right: auto; }
         .subcategorias-portadas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
         .portada-subcategoria {
@@ -410,11 +410,13 @@
         .portada-subcategoria-info { position: absolute; left: 10px; right: 10px; bottom: 9px; z-index: 1; color: white; text-shadow: 0 2px 9px rgba(0,0,0,0.55); }
         .portada-subcategoria-titulo { display: block; font-size: 1.06rem; font-weight: 900; line-height: 1; }
         .portada-subcategoria-meta { display: block; margin-top: 3px; padding: 0; background: transparent; border: 0; backdrop-filter: none; font-size: 0.58rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2px; }
-        .subcategoria-productos { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin: 0 0 22px; animation: subcat-in 0.24s ease; }
+        .subcategoria-productos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 0 0 22px; animation: subcat-in 0.24s ease; }
         @keyframes subcat-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
         @media (max-width: 780px) {
             .catalogo.catalogo-subcategorias { max-width: 100%; }
             .subcategorias-portadas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .catalogo { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+            .subcategoria-productos { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
         }
         @media (max-width: 520px) {
             .subcategorias-portadas { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -422,6 +424,8 @@
             .portada-subcategoria-info { left: 10px; right: 10px; bottom: 10px; }
             .portada-subcategoria-titulo { font-size: 0.96rem; }
             .portada-subcategoria-meta { font-size: 0.55rem; }
+            .catalogo { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .subcategoria-productos { grid-template-columns: repeat(2, 1fr); gap: 10px; }
         }
         .producto { background: var(--color-tarjeta); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; position: relative; transition: transform 0.2s; border: 1px solid rgba(0,0,0,0.03);}
         .producto:hover { transform: translateY(-3px); }
@@ -2331,6 +2335,7 @@
                 return;
             }
 
+            cont.className = 'catalogo';
             filtrados.forEach(prod => {
                 let htmlTallasChips = "", hayStockTotal = false;
                 if (prod.tallasObj && prod.tallasObj.length > 0) {
@@ -3218,7 +3223,7 @@ table{width:100%;border-collapse:collapse}
   </div>
   <div class="bloque-datos">
     <h4>📦 Pedido</h4>
-    <p>N° <strong class="num-editable" contenteditable="true" spellcheck="false">#SK-${ped.num}</strong><br>${ped.fecha}<br>Estado: <strong>${ped.estado}</strong>${ped.asesora ? `<br>Asesora: <strong>${ped.asesora}</strong>` : ""}</p>
+    <p>N° <strong class="num-editable" contenteditable="true" spellcheck="false">#SK-${ped.num}</strong><br>${ped.fecha}<br>Estado: <strong>${ped.estado}</strong>${ped.asesora ? '<br>Asesora: <strong>' + ped.asesora + '</strong>' : ""}</p>
   </div>
 </div>
 <div class="tabla-wrap">
@@ -3794,7 +3799,7 @@ table{width:100%;border-collapse:collapse}
 
         function toggleAdmin() {
             if (!window.usuarioActual) {
-                mostrarLoginPanel();
+                window.mostrarLoginPanel();
                 return;
             }
             let panel = document.getElementById('panel-admin');
@@ -3965,4 +3970,67 @@ table{width:100%;border-collapse:collapse}
 
 
 <div id="toast-orden" style="position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgb(39, 174, 96); color: white; padding: 10px 20px; border-radius: 20px; font-family: Nunito, sans-serif; font-weight: 700; font-size: 0.85em; z-index: 99999; box-shadow: rgba(0, 0, 0, 0.2) 0px 4px 12px; display: none;">✅ Posición guardada</div>
+
+<script>
+// SOPORTE ENTER EN FORMULARIOS CLAVE
+document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    var target = e.target;
+    if (target && target.id === 'li-email') {
+      e.preventDefault();
+      var p = document.getElementById('li-pass');
+      if (p) p.focus();
+      return;
+    }
+    if (target && target.id === 'li-pass') {
+      e.preventDefault();
+      if (window.fbLogin) window.fbLogin();
+      return;
+    }
+    var panelAgregar = document.getElementById('tab-agregar');
+    if (panelAgregar && panelAgregar.contains(target)) {
+      if (target.tagName === 'TEXTAREA') return;
+      if (target.classList.contains('inp-talla-nombre') || target.classList.contains('inp-talla-stock')) return;
+      e.preventDefault();
+      var btn = document.getElementById('btn-anadir-prod');
+      if (btn) { btn.focus(); btn.click(); }
+      return;
+    }
+    var modalEditar = document.getElementById('modal-editar-producto');
+    if (modalEditar && modalEditar.style.display !== 'none' && modalEditar.contains(target)) {
+      if (target.tagName === 'TEXTAREA') return;
+      if (target.classList.contains('inp-talla-nombre-edit') || target.classList.contains('inp-talla-stock-edit')) return;
+      e.preventDefault();
+      var btnG = document.getElementById('btn-guardar-edicion');
+      if (btnG) { btnG.focus(); btnG.click(); }
+      return;
+    }
+    if (target && target.id === 'mi-whatsapp') {
+      e.preventDefault();
+      if (window.guardarMiWhatsapp) window.guardarMiWhatsapp();
+      return;
+    }
+    if (target && target.id === 'nueva-cat-input') {
+      e.preventDefault();
+      if (window.agregarCategoria) window.agregarCategoria();
+      return;
+    }
+  });
+  var obs = new MutationObserver(function() {
+    var m = document.getElementById('modal-editar-producto');
+    var b = document.getElementById('btn-guardar-edicion');
+    if (!m || !b) return;
+    if (m.style.display !== 'none') {
+      b.style.boxShadow = '0 0 0 3px rgba(39,174,96,0.45)';
+      b.style.outline = '2px solid #27ae60';
+    } else {
+      b.style.boxShadow = '';
+      b.style.outline = '';
+    }
+  });
+  var me = document.getElementById('modal-editar-producto');
+  if (me) obs.observe(me, { attributes: true, attributeFilter: ['style'] });
+});
+</script>
 </body></html>
