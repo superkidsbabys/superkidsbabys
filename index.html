@@ -1107,6 +1107,7 @@
             </div>
             <div style="display: flex; gap: 10px; margin-top: 8px;">
                 <div style="flex: 1;"><label>Categoría:</label><select id="edit-prod-categoria" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;"><option value="Mamelucos">Mamelucos</option><option value="Conjuntos pantalón">Conjuntos pantalón</option><option value="Conjuntos Short">Conjuntos Short</option><option value="Jardineras Short">Jardineras Short</option><option value="Jardineras Vestidos">Jardineras Vestidos</option><option value="conjuntos Falda">conjuntos Falda</option></select></div>
+                <div style="flex: 1;"><label>Género:</label><select id="edit-prod-genero" onchange="alCambiarGeneroEdit()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;"><option value="Niñas">Niñas</option><option value="Niños">Niños</option><option value="Junior">Junior</option><option value="Unisex">Unisex</option></select></div>
             </div>
             <div id="wrap-edit-orden-genero" style="display:none; gap:10px; margin-top:6px;">
                 <div style="flex:1;"><label>Posición en Niñas:</label><input type="number" id="edit-prod-orden-ninas" placeholder="Ej: 1" style="width:100%;"></div>
@@ -2459,6 +2460,12 @@
 
         let editFotosActuales = [];
 
+        function alCambiarGeneroEdit() {
+            const genero = document.getElementById('edit-prod-genero').value;
+            let wrapEd = document.getElementById('wrap-edit-orden-genero');
+            if (wrapEd) wrapEd.style.display = genero === 'Unisex' ? 'flex' : 'none';
+        }
+
         function abrirModalEditar(id) {
             if (window.datosQuemados) return;
             let p = productosDB.find(x => x.id === id); if (!p) return;
@@ -2474,6 +2481,10 @@
             if (editCatSelect) {
                 editCatSelect.innerHTML = config.categorias.map(cat => `<option value="${cat}">${cat}</option>`).join('');
                 editCatSelect.value = p.categoria || config.categorias[0] || '';
+            }
+            const editGeneroSelect = document.getElementById('edit-prod-genero');
+            if (editGeneroSelect) {
+                editGeneroSelect.value = p.genero || 'Niñas';
             }
             let wrapEd = document.getElementById('wrap-edit-orden-genero');
             if (wrapEd) {
@@ -2621,6 +2632,7 @@
                 p.nombre = document.getElementById('edit-prod-nombre').value;
                 p.codigo = document.getElementById('edit-prod-codigo').value;
                 p.categoria = document.getElementById('edit-prod-categoria').value;
+                p.genero = document.getElementById('edit-prod-genero').value;
                 p.orden = parseInt(document.getElementById('edit-prod-orden').value) || 100;
                 if (p.genero === 'Unisex') {
                     p.ordenNinas = parseInt(document.getElementById('edit-prod-orden-ninas').value) || p.orden;
