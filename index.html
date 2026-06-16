@@ -21,9 +21,33 @@
 
   // ── ROLES ─────────────────────────────────────────────────
   const ROLES = {
-    'F2SHGFQYSuMWlkbQKV8yrKAXgaH3': { nombre: 'Yohana',  rol: 'admin',   whatsapp: '573025451526' },
-    'yI067cx29zbmiBOd9wyKcwp0HpF2':  { nombre: 'Gina',    rol: 'asesora', whatsapp: '573025451526' },
-    'MtQpryHLGYab5v3UjhRZw88CAD63':  { nombre: 'Bibiana', rol: 'asesora', whatsapp: '15512627086', editarPrecio: true },
+    'F2SHGFQYSuMWlkbQKV8yrKAXgaH3': { nombre: 'Yohana',  rol: 'admin',   whatsapp: '573025451526', slug: 'yohana' },
+    'yI067cx29zbmiBOd9wyKcwp0HpF2':  { nombre: 'Gina',    rol: 'asesora', whatsapp: '573025451526', slug: 'gina' },
+    'MtQpryHLGYab5v3UjhRZw88CAD63':  { nombre: 'Bibiana', rol: 'asesora', whatsapp: '15512627086', editarPrecio: true, slug: 'bibiana' },
+  };
+
+  // ── ASESORA POR LINK (?asesora=slug) ─────────────────────────
+  // Se guarda en localStorage para que persista mientras el cliente navega/compra,
+  // sin depender de comparar números de WhatsApp (eso fallaba cuando varias
+  // asesoras compartían el mismo config.whatsapp de la tienda).
+  (function capturarAsesoraDesdeURL() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const slugURL = (params.get('asesora') || '').trim().toLowerCase();
+      if (slugURL) {
+        const encontrada = Object.values(ROLES).find(r => (r.slug || '').toLowerCase() === slugURL);
+        if (encontrada) {
+          localStorage.setItem('asesoraLinkNombre', encontrada.nombre);
+          localStorage.setItem('asesoraLinkWhatsapp', encontrada.whatsapp);
+        }
+      }
+    } catch(e) { console.log('No se pudo capturar asesora desde URL:', e.message); }
+  })();
+  window.obtenerAsesoraDesdeLink = function() {
+    return {
+      nombre: localStorage.getItem('asesoraLinkNombre') || '',
+      whatsapp: localStorage.getItem('asesoraLinkWhatsapp') || ''
+    };
   };
 
   let usuarioActual = null;
@@ -3092,17 +3116,11 @@
                 transportadora: transp || '',
                 observaciones: obs || '',
                 asesora: (function() {
-                    // Si hay usuaria logueada, usar su nombre
+                    // Si hay usuaria logueada (la asesora está tomando el pedido manualmente), usar su nombre
                     if (window.usuarioActual && window.usuarioActual.nombre) return window.usuarioActual.nombre;
-                    // Si no, buscar por el whatsapp cacheado en config (pedido de cliente)
-                    var waConfig = String(config.whatsapp || '').replace(/\D/g, '');
-                    if (waConfig && window.ROLES) {
-                        var roles = window.ROLES;
-                        for (var uid in roles) {
-                            var waRol = String(roles[uid].whatsapp || '').replace(/\D/g, '');
-                            if (waRol && waConfig.endsWith(waRol.slice(-9))) return roles[uid].nombre;
-                        }
-                    }
+                    // Si no, usar la asesora capturada desde el link compartido (?asesora=slug)
+                    var deLink = window.obtenerAsesoraDesdeLink ? window.obtenerAsesoraDesdeLink() : null;
+                    if (deLink && deLink.nombre) return deLink.nombre;
                     return '';
                 })()
             };
@@ -3119,7 +3137,12 @@
             descontarStockPedido(objetoOrden);
 
             // PASO 2: WhatsApp PRIMERO (acción directa del click - no puede estar en setTimeout)
-            window.open('https://wa.me/' + config.whatsapp + '?text=' + encodeURIComponent(txtWA), '_blank');
+            let waDestino = config.whatsapp;
+            if (!(window.usuarioActual && window.usuarioActual.nombre)) {
+                var deLinkWA = window.obtenerAsesoraDesdeLink ? window.obtenerAsesoraDesdeLink() : null;
+                if (deLinkWA && deLinkWA.whatsapp) waDestino = deLinkWA.whatsapp;
+            }
+            window.open('https://wa.me/' + waDestino + '?text=' + encodeURIComponent(txtWA), '_blank');
 
             // PASO 3: Prefactura después con delay
             setTimeout(function() {
