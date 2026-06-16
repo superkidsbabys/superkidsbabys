@@ -340,30 +340,57 @@
   function crearBotonInstalar() {
     if (installButton) return installButton;
 
-    installButton = document.createElement('button');
-    installButton.type = 'button';
-    installButton.textContent = 'Agregar a pantalla de inicio';
-    installButton.setAttribute('aria-label', 'Agregar SuperKids a pantalla de inicio');
+    installButton = document.createElement('div');
     installButton.style.cssText = [
       'position:fixed',
       'left:50%',
-      'bottom:18px',
+      'top:10px',
       'transform:translateX(-50%)',
       'z-index:99998',
       'display:none',
-      'border:none',
-      'border-radius:999px',
-      'padding:12px 18px',
+      'align-items:center',
+      'gap:8px',
       'background:#c0557a',
+      'border-radius:999px',
+      'padding:10px 8px 10px 18px',
+      'box-shadow:0 8px 24px rgba(192,85,122,0.28)',
+      'font-family:Nunito,Arial,sans-serif'
+    ].join(';');
+
+    var textoBtn = document.createElement('button');
+    textoBtn.type = 'button';
+    textoBtn.textContent = 'Agregar a pantalla de inicio';
+    textoBtn.setAttribute('aria-label', 'Agregar SuperKids a pantalla de inicio');
+    textoBtn.style.cssText = [
+      'border:none',
+      'background:transparent',
       'color:#fff',
       'font-family:Nunito,Arial,sans-serif',
       'font-weight:800',
       'font-size:14px',
-      'box-shadow:0 8px 24px rgba(192,85,122,0.28)',
-      'cursor:pointer'
+      'cursor:pointer',
+      'padding:0'
     ].join(';');
 
-    installButton.addEventListener('click', function () {
+    var cerrarBtn = document.createElement('button');
+    cerrarBtn.type = 'button';
+    cerrarBtn.textContent = '✕';
+    cerrarBtn.setAttribute('aria-label', 'Cerrar aviso de instalar app');
+    cerrarBtn.style.cssText = [
+      'border:none',
+      'background:rgba(255,255,255,0.25)',
+      'color:#fff',
+      'border-radius:50%',
+      'width:24px',
+      'height:24px',
+      'font-size:13px',
+      'font-weight:700',
+      'cursor:pointer',
+      'flex-shrink:0',
+      'padding:0'
+    ].join(';');
+
+    textoBtn.addEventListener('click', function () {
       if (!deferredInstallPrompt) return;
       installButton.style.display = 'none';
       deferredInstallPrompt.prompt();
@@ -372,6 +399,12 @@
       });
     });
 
+    cerrarBtn.addEventListener('click', function () {
+      installButton.style.display = 'none';
+    });
+
+    installButton.appendChild(textoBtn);
+    installButton.appendChild(cerrarBtn);
     document.body.appendChild(installButton);
     return installButton;
   }
@@ -379,7 +412,7 @@
   window.addEventListener('beforeinstallprompt', function (event) {
     event.preventDefault();
     deferredInstallPrompt = event;
-    crearBotonInstalar().style.display = 'block';
+    crearBotonInstalar().style.display = 'flex';
   });
 
   window.addEventListener('appinstalled', function () {

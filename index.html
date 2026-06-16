@@ -4074,42 +4074,4 @@ document.addEventListener('DOMContentLoaded', function() {
   if (me) obs.observe(me, { attributes: true, attributeFilter: ['style'] });
 });
 </script>
-
-<!-- Banner propio de instalar app (reemplaza al banner nativo que tapaba el checkout) -->
-<div id="banner-instalar-app" style="display:none; position:fixed; top:0; left:0; right:0; z-index:99998; background:linear-gradient(135deg,#ff6bc4,#ff4db8); color:white; padding:10px 16px; align-items:center; justify-content:space-between; gap:10px; font-family:Nunito,sans-serif; box-shadow:0 2px 10px rgba(0,0,0,0.2);">
-  <span style="font-size:0.85em; font-weight:700;">📲 Instala nuestra app para comprar más fácil</span>
-  <div style="display:flex; gap:8px; flex-shrink:0;">
-    <button id="btn-instalar-app-si" style="background:white; color:#ff4db8; border:none; padding:7px 14px; border-radius:20px; font-weight:800; font-size:0.82em; cursor:pointer;">Instalar</button>
-    <button id="btn-instalar-app-no" style="background:rgba(255,255,255,0.25); color:white; border:none; padding:7px 12px; border-radius:20px; font-weight:700; font-size:0.82em; cursor:pointer;">✕</button>
-  </div>
-</div>
-<script>
-  // Evita que el banner nativo de "Agregar a pantalla de inicio" aparezca solo
-  // (eso era lo que tapaba el botón de Finalizar Compra). En su lugar, se guarda
-  // el evento y se muestra un banner propio arriba, que no estorba el checkout.
-  let deferredInstallPrompt = null;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredInstallPrompt = e;
-    if (!localStorage.getItem('appInstaladaOcultarBanner')) {
-      document.getElementById('banner-instalar-app').style.display = 'flex';
-    }
-  });
-  document.getElementById('btn-instalar-app-si').addEventListener('click', async () => {
-    document.getElementById('banner-instalar-app').style.display = 'none';
-    if (deferredInstallPrompt) {
-      deferredInstallPrompt.prompt();
-      await deferredInstallPrompt.userChoice;
-      deferredInstallPrompt = null;
-    }
-  });
-  document.getElementById('btn-instalar-app-no').addEventListener('click', () => {
-    document.getElementById('banner-instalar-app').style.display = 'none';
-    localStorage.setItem('appInstaladaOcultarBanner', '1');
-  });
-  window.addEventListener('appinstalled', () => {
-    document.getElementById('banner-instalar-app').style.display = 'none';
-    localStorage.setItem('appInstaladaOcultarBanner', '1');
-  });
-</script>
 </body></html>
