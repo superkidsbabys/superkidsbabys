@@ -21,33 +21,9 @@
 
   // ── ROLES ─────────────────────────────────────────────────
   const ROLES = {
-    'F2SHGFQYSuMWlkbQKV8yrKAXgaH3': { nombre: 'Yohana',  rol: 'admin',   whatsapp: '573025451526', slug: 'yohana' },
-    'yI067cx29zbmiBOd9wyKcwp0HpF2':  { nombre: 'Gina',    rol: 'asesora', whatsapp: '573025451526', slug: 'gina' },
-    'MtQpryHLGYab5v3UjhRZw88CAD63':  { nombre: 'Bibiana', rol: 'asesora', whatsapp: '15512627086', editarPrecio: true, slug: 'bibiana' },
-  };
-
-  // ── ASESORA POR LINK (?asesora=slug) ─────────────────────────
-  // Se guarda en localStorage para que persista mientras el cliente navega/compra,
-  // sin depender de comparar números de WhatsApp (eso fallaba cuando varias
-  // asesoras compartían el mismo config.whatsapp de la tienda).
-  (function capturarAsesoraDesdeURL() {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const slugURL = (params.get('asesora') || '').trim().toLowerCase();
-      if (slugURL) {
-        const encontrada = Object.values(ROLES).find(r => (r.slug || '').toLowerCase() === slugURL);
-        if (encontrada) {
-          localStorage.setItem('asesoraLinkNombre', encontrada.nombre);
-          localStorage.setItem('asesoraLinkWhatsapp', encontrada.whatsapp);
-        }
-      }
-    } catch(e) { console.log('No se pudo capturar asesora desde URL:', e.message); }
-  })();
-  window.obtenerAsesoraDesdeLink = function() {
-    return {
-      nombre: localStorage.getItem('asesoraLinkNombre') || '',
-      whatsapp: localStorage.getItem('asesoraLinkWhatsapp') || ''
-    };
+    'F2SHGFQYSuMWlkbQKV8yrKAXgaH3': { nombre: 'Yohana',  rol: 'admin',   whatsapp: '573025451526' },
+    'yI067cx29zbmiBOd9wyKcwp0HpF2':  { nombre: 'Gina',    rol: 'asesora', whatsapp: '573025451526' },
+    'MtQpryHLGYab5v3UjhRZw88CAD63':  { nombre: 'Bibiana', rol: 'asesora', whatsapp: '15512627086', editarPrecio: true },
   };
 
   let usuarioActual = null;
@@ -2162,15 +2138,29 @@
         window.renombrarCategoriaVisual = renombrarCategoriaVisual;
         window.eliminarCategoria = eliminarCategoria;
 
+        // Valores que NO son tallas (colores de pañaleras u otros datos mezclados en tallasObj)
+        const VALORES_NO_TALLA = ['GRIS', 'VERDE', 'ROSA', 'ROSADO', 'AZUL', 'BLANCO', 'NEGRO', 'AMARILLO', 'BEIGE', 'CAFÉ', 'CAFE', 'RAYAS', 'ESTAMPADO', 'LISO', 'MORADO', 'FUCSIA', 'NARANJA', 'CRUDO', 'VINOTINTO', 'RED', 'PINK'];
+        function esTallaValida(nombre) {
+            const limpio = nombre.toString().trim().toUpperCase();
+            if (VALORES_NO_TALLA.includes(limpio)) return false;
+            // Válida si tiene formato de talla: número, número+letra (M/T/A), o "Talla Única"/"RN"
+            return /^\d+\s*(M|T|A)?$/i.test(limpio) || limpio === 'RN' || limpio === 'ÚNICA' || limpio === 'UNICA';
+        }
+
         function renderizarFiltroTallas() {
             const menuTallas = document.getElementById('menu-tallas');
             let tallasDisponibles = new Set();
             productosDB.forEach(p => {
                 if ((p.genero === generoActual || p.genero === 'Unisex' || !p.genero) && productoCoincideCategoria(p, filtroActual)) {
-                    if (p.tallasObj) p.tallasObj.forEach(t => { if (t.stock > 0) tallasDisponibles.add(t.nombre.toString().trim()); });
+                    if (p.tallasObj) p.tallasObj.forEach(t => { if (t.stock > 0 && esTallaValida(t.nombre)) tallasDisponibles.add(t.nombre.toString().trim()); });
                 }
             });
             let arrTallas = Array.from(tallasDisponibles).sort((a, b) => {
+                let esT_A = /T$/i.test(a.trim());
+                let esT_B = /T$/i.test(b.trim());
+                // Las tallas tipo T (3T, 4T, 5T...) siempre van al final
+                if (esT_A && !esT_B) return 1;
+                if (!esT_A && esT_B) return -1;
                 let numA = parseInt(a), numB = parseInt(b);
                 if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
                 return a.localeCompare(b);
@@ -2932,15 +2922,11 @@
         function abrirModalCheckout() {
             document.getElementById('modal-checkout').style.display = 'block';
             document.body.style.overflow = 'hidden';
-            var waBtn = document.getElementById('wa-float-btn');
-            if (waBtn) waBtn.style.display = 'none';
         }
 
         function cerrarModalCheckout() {
             document.getElementById('modal-checkout').style.display = 'none';
             document.body.style.overflow = '';
-            var waBtn = document.getElementById('wa-float-btn');
-            if (waBtn) waBtn.style.display = 'flex';
         }
 
         async function cargarPedidosDesdeFirebase() {
@@ -3120,11 +3106,17 @@
                 transportadora: transp || '',
                 observaciones: obs || '',
                 asesora: (function() {
-                    // Si hay usuaria logueada (la asesora está tomando el pedido manualmente), usar su nombre
+                    // Si hay usuaria logueada, usar su nombre
                     if (window.usuarioActual && window.usuarioActual.nombre) return window.usuarioActual.nombre;
-                    // Si no, usar la asesora capturada desde el link compartido (?asesora=slug)
-                    var deLink = window.obtenerAsesoraDesdeLink ? window.obtenerAsesoraDesdeLink() : null;
-                    if (deLink && deLink.nombre) return deLink.nombre;
+                    // Si no, buscar por el whatsapp cacheado en config (pedido de cliente)
+                    var waConfig = String(config.whatsapp || '').replace(/\D/g, '');
+                    if (waConfig && window.ROLES) {
+                        var roles = window.ROLES;
+                        for (var uid in roles) {
+                            var waRol = String(roles[uid].whatsapp || '').replace(/\D/g, '');
+                            if (waRol && waConfig.endsWith(waRol.slice(-9))) return roles[uid].nombre;
+                        }
+                    }
                     return '';
                 })()
             };
@@ -3141,12 +3133,7 @@
             descontarStockPedido(objetoOrden);
 
             // PASO 2: WhatsApp PRIMERO (acción directa del click - no puede estar en setTimeout)
-            let waDestino = config.whatsapp;
-            if (!(window.usuarioActual && window.usuarioActual.nombre)) {
-                var deLinkWA = window.obtenerAsesoraDesdeLink ? window.obtenerAsesoraDesdeLink() : null;
-                if (deLinkWA && deLinkWA.whatsapp) waDestino = deLinkWA.whatsapp;
-            }
-            window.open('https://wa.me/' + waDestino + '?text=' + encodeURIComponent(txtWA), '_blank');
+            window.open('https://wa.me/' + config.whatsapp + '?text=' + encodeURIComponent(txtWA), '_blank');
 
             // PASO 3: Prefactura después con delay
             setTimeout(function() {
