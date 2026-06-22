@@ -2592,8 +2592,15 @@
                 return;
             }
             grid.innerHTML = editFotosActuales.map((url, idx) => `
-              <div style="position:relative;width:90px;flex-shrink:0;" id="foto-slot-${idx}">
-                <img src="${optimizarUrl(url, 200)}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:${idx===0?'3px solid #27ae60':'2px solid #ddd'};"
+              <div draggable="true" data-idx="${idx}"
+                style="position:relative;width:90px;flex-shrink:0;cursor:grab;transition:opacity 0.2s,transform 0.2s;"
+                id="foto-slot-${idx}"
+                ondragstart="fotoDragStart(event,${idx})"
+                ondragover="fotoDragOver(event)"
+                ondrop="fotoDrop(event,${idx})"
+                ondragend="fotoDragEnd(event)"
+                ondragleave="fotoDragLeave(event)">
+                <img src="${optimizarUrl(url, 200)}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:${idx===0?'3px solid #27ae60':'2px solid #ddd'};pointer-events:none;"
                      onerror="this.src='https://via.placeholder.com/90?text=Error'" title="${idx===0?'Foto principal':'Foto extra '+(idx+1)}">
                 ${idx===0?'<div style="position:absolute;top:2px;left:2px;background:#27ae60;color:#fff;font-size:0.6em;padding:1px 4px;border-radius:4px;font-weight:bold;">PRINCIPAL</div>':''}
                 <div style="display:flex;gap:3px;margin-top:4px;">
@@ -2605,6 +2612,76 @@
                     style="flex:1;background:#e74c3c;color:#fff;border:none;border-radius:5px;padding:3px 0;font-size:0.7em;cursor:pointer;font-weight:bold;" title="Eliminar esta foto">🗑️</button>
                 </div>
               </div>`).join('');
+
+            // Activar drag & drop táctil en móvil
+            activarDragTouchFotos(grid);
+        }
+
+        let _fotoDragIdx = null;
+        function fotoDragStart(e, idx) {
+            _fotoDragIdx = idx;
+            e.dataTransfer.effectAllowed = 'move';
+            setTimeout(() => { const el = document.getElementById('foto-slot-'+idx); if(el) el.style.opacity = '0.4'; }, 0);
+        }
+        function fotoDragOver(e) {
+            e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+            e.currentTarget.style.outline = '2px dashed #27ae60';
+            e.currentTarget.style.transform = 'scale(1.05)';
+        }
+        function fotoDragLeave(e) {
+            e.currentTarget.style.outline = '';
+            e.currentTarget.style.transform = '';
+        }
+        function fotoDrop(e, idx) {
+            e.preventDefault();
+            e.currentTarget.style.outline = '';
+            e.currentTarget.style.transform = '';
+            if (_fotoDragIdx === null || _fotoDragIdx === idx) return;
+            const arr = editFotosActuales;
+            const tmp = arr[_fotoDragIdx];
+            arr.splice(_fotoDragIdx, 1);
+            arr.splice(idx, 0, tmp);
+            _fotoDragIdx = null;
+            renderEditFotos();
+        }
+        function fotoDragEnd(e) {
+            _fotoDragIdx = null;
+            document.querySelectorAll('#edit-fotos-grid > div').forEach(el => { el.style.opacity = ''; el.style.outline = ''; el.style.transform = ''; });
+        }
+
+        // Soporte táctil para móvil
+        function activarDragTouchFotos(grid) {
+            let touchSrc = null, clone = null;
+            grid.querySelectorAll('[data-idx]').forEach(el => {
+                el.addEventListener('touchstart', e => {
+                    touchSrc = parseInt(el.dataset.idx);
+                    clone = el.cloneNode(true);
+                    clone.style.cssText = 'position:fixed;opacity:0.7;pointer-events:none;z-index:9999;width:90px;border-radius:8px;';
+                    document.body.appendChild(clone);
+                }, {passive:true});
+                el.addEventListener('touchmove', e => {
+                    if (!clone) return;
+                    const t = e.touches[0];
+                    clone.style.left = (t.clientX - 45) + 'px';
+                    clone.style.top = (t.clientY - 45) + 'px';
+                }, {passive:true});
+                el.addEventListener('touchend', e => {
+                    if (clone) { document.body.removeChild(clone); clone = null; }
+                    const t = e.changedTouches[0];
+                    const target = document.elementFromPoint(t.clientX, t.clientY);
+                    const slot = target ? target.closest('[data-idx]') : null;
+                    if (slot && touchSrc !== null) {
+                        const destIdx = parseInt(slot.dataset.idx);
+                        if (destIdx !== touchSrc) {
+                            const tmp = editFotosActuales[touchSrc];
+                            editFotosActuales.splice(touchSrc, 1);
+                            editFotosActuales.splice(destIdx, 0, tmp);
+                            renderEditFotos();
+                        }
+                    }
+                    touchSrc = null;
+                });
+            });
         }
 
         async function eliminarFotoEdit(idx) {
