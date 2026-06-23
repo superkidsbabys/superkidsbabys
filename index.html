@@ -106,6 +106,7 @@
       usuarioActual = ROLES[user.uid] || null;
       if (usuarioActual) usuarioActual.uid = user.uid;
       window.usuarioActual = usuarioActual;
+      if (typeof mostrarBuscadorRef === 'function') mostrarBuscadorRef();
       document.getElementById('login-overlay') && (document.getElementById('login-overlay').style.display = 'none');
 
       if (usuarioActual) {
@@ -693,6 +694,7 @@
         <button class="btn-genero activo" id="btn-gen-ninas" onclick="cambiarGenero('Niñas')">👧 Niñas</button>
         <button class="btn-genero" id="btn-gen-ninos" onclick="cambiarGenero('Niños')">👦 Niños</button>
         <button class="btn-genero" id="btn-gen-junior" onclick="cambiarGenero('Junior')">🧒 Junior</button>
+        <button class="btn-genero" id="btn-gen-accesorios" onclick="cambiarGenero('Accesorios')">🎀 Accesorios</button>
     </div>
 
     <div class="contenedor">
@@ -894,7 +896,7 @@
                     </div>
 
                     <div style="display: flex; gap: 10px; margin-top: 10px;">
-                        <div style="flex: 1;"><label>Catálogo:</label> <select id="nuevo-genero" onchange="document.getElementById('wrap-orden-genero').style.display=this.value==='Unisex'?'flex':'none'"><option value="Niñas">Niñas</option><option value="Niños">Niños</option><option value="Junior">Junior</option><option value="Unisex">Unisex</option></select></div>
+                        <div style="flex: 1;"><label>Catálogo:</label> <select id="nuevo-genero" onchange="document.getElementById('wrap-orden-genero').style.display=this.value==='Unisex'?'flex':'none'"><option value="Niñas">Niñas</option><option value="Niños">Niños</option><option value="Junior">Junior</option><option value="Accesorios">Accesorios</option><option value="Unisex">Unisex</option></select></div>
                         <div style="flex: 1;"><label>Categoría:</label> <select id="nueva-categoria-select"><option value="Mamelucos">Mamelucos</option><option value="Conjuntos pantalón">Conjuntos pantalón</option><option value="Conjuntos Short">Conjuntos Short</option><option value="Jardineras Short">Jardineras Short</option><option value="Jardineras Vestidos">Jardineras Vestidos</option><option value="conjuntos Falda">conjuntos Falda</option></select></div>
                     </div>
 
@@ -1011,7 +1013,10 @@
         <!-- ── FILTROS COLAPSABLES ── -->
         <div class="filtros-accordion">
             <div class="filtros-row-toggle">
-                <button class="btn-filtro-toggle" id="btn-toggle-cat" onclick="toggleAcordeon('cat')">
+                <div id="wrap-buscador-ref" style="display:none; width:100%; padding: 4px 0 8px;">
+                    <input type="text" id="input-buscar-ref" placeholder="🔍 Buscar por referencia..." oninput="buscarPorReferencia(this.value)" style="width:100%; padding:9px 14px; border-radius:20px; border:2px solid var(--color-banner); font-family:Nunito,sans-serif; font-size:0.95em; box-sizing:border-box; outline:none;">
+                </div>
+                <button class="btn-filtro-toggle" id="btn-toggle-cat" onclick="toggleAcordeon('cat')" id="btn-toggle-cat-normal">
                     <span>Categorías</span>
                     <span class="ft-flecha">▼</span>
                 </button>
@@ -1135,7 +1140,7 @@
             </div>
             <div style="display: flex; gap: 10px; margin-top: 8px;">
                 <div style="flex: 1;"><label>Categoría:</label><select id="edit-prod-categoria" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;"><option value="Mamelucos">Mamelucos</option><option value="Conjuntos pantalón">Conjuntos pantalón</option><option value="Conjuntos Short">Conjuntos Short</option><option value="Jardineras Short">Jardineras Short</option><option value="Jardineras Vestidos">Jardineras Vestidos</option><option value="conjuntos Falda">conjuntos Falda</option></select></div>
-                <div style="flex: 1;"><label>Género:</label><select id="edit-prod-genero" onchange="alCambiarGeneroEdit()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;"><option value="Niñas">Niñas</option><option value="Niños">Niños</option><option value="Junior">Junior</option><option value="Unisex">Unisex</option></select></div>
+                <div style="flex: 1;"><label>Género:</label><select id="edit-prod-genero" onchange="alCambiarGeneroEdit()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;"><option value="Niñas">Niñas</option><option value="Niños">Niños</option><option value="Junior">Junior</option><option value="Accesorios">Accesorios</option><option value="Unisex">Unisex</option></select></div>
             </div>
             <div id="wrap-edit-orden-genero" style="display:none; gap:10px; margin-top:6px;">
                 <div style="flex:1;"><label>Posición en Niñas:</label><input type="number" id="edit-prod-orden-ninas" placeholder="Ej: 1" style="width:100%;"></div>
@@ -1331,6 +1336,55 @@
             'Entregado': 'entregado', 'entregado': 'entregado',
             'Cancelado': 'cancelado', 'cancelado': 'cancelado'
         };
+
+        // ── BUSCADOR POR REFERENCIA ──────────────────────────────────────────
+        function mostrarBuscadorRef() {
+            const u = window.usuarioActual;
+            const esAdmin = u && u.rol === 'admin';
+            const esGina = u && (u.email === 'gina@superkids.com' || u.nombre === 'Gina' || u.rol === 'gina');
+            const wrap = document.getElementById('wrap-buscador-ref');
+            if (wrap) wrap.style.display = (esAdmin || esGina) ? 'block' : 'none';
+        }
+
+        function buscarPorReferencia(valor) {
+            const ref = valor.trim().toLowerCase();
+            const cont = document.getElementById('contenedor-productos');
+            if (!ref) { renderizarCatalogo(); return; }
+            const resultados = productosDB.filter(p => p.codigo && p.codigo.toString().toLowerCase().includes(ref));
+            cont.className = 'catalogo';
+            cont.innerHTML = '';
+            if (resultados.length === 0) {
+                cont.innerHTML = `<div style="grid-column:1/-1;text-align:center;opacity:0.5;padding:40px;">No se encontró ninguna prenda con esa referencia.</div>`;
+                return;
+            }
+            resultados.forEach(prod => {
+                let pNew = `<span class="precio-nuevo">${formatMoney(prod.precio)}</span>`;
+                let descH = '', customH = '';
+                if (prod.precioAnterior > prod.precio) {
+                    descH = `<div class="etiqueta-descuento">-${Math.round((1 - prod.precio / prod.precioAnterior) * 100)}%</div>`;
+                    pNew = `<span class="precio-tachado">${formatMoney(prod.precioAnterior)}</span><span class="precio-nuevo">${formatMoney(prod.precio)}</span>`;
+                }
+                if (prod.etiquetaPersonalizada) customH = `<div class="etiqueta-custom">${prod.etiquetaPersonalizada}</div>`;
+                let imgs = prod.imagenes || ["https://via.placeholder.com/600?text=Sin+Imagen"];
+                let htmlGal = imgs.length > 1 ? `<div class="galeria-miniaturas">${imgs.map((img, i) => `<img src="${optimizarUrl(img, 150)}" class="thumb ${i===0?'activo':''}" onclick="cambiarImg('${prod.id}','${img}',this)">`).join('')}</div>` : "";
+                let tallasChips = '';
+                if (prod.tallasObj && prod.tallasObj.length > 0) {
+                    tallasChips = `<div class="contenedor-tallas-chips" id="contenedor-tallas-${prod.id}">${prod.tallasObj.map(t => `<span class="chip-talla${t.stock<=0?' agotada':''}" onclick="seleccionarTallaChip('${prod.id}',this,${t.stock<=0})">${t.nombre}${t.stock<=0?' (agotada)':''}</span>`).join('')}</div>`;
+                }
+                let btnAgregar = `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>`;
+                cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgs[0]}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgs[0])}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><span class="etiqueta-categoria">${prod.categoria}</span><h3>${prod.nombre}</h3><p style="font-size:0.8em;color:#888;">Ref: ${prod.codigo}</p><div class="precio-contenedor">${pNew}</div>${tallasChips}${btnAgregar}<div class="acciones-admin-prod" style="display:${(modoEdicion||(window.usuarioActual&&window.usuarioActual.editarPrecio))?'flex':'none'}"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button>${modoEdicion?'<button class="btn-eliminar-prod" onclick="eliminarProducto(\''+prod.id+'\')">🗑️ Eliminar</button>':''}</div></div></div>`;
+            });
+        }
+
+        // ── FIX CACHÉ: eliminar producto p1778342053218 y sincronizar con Firestore ──
+        (function purgarProductoBorrado() {
+            const ID_BORRADO = 'p1778342053218';
+            const idx = productosDB.findIndex(p => p.id === ID_BORRADO);
+            if (idx !== -1) {
+                productosDB.splice(idx, 1);
+                localStorage.setItem('productosV36', JSON.stringify(productosDB));
+            }
+        })();
 
         // Normaliza cualquier variante (mayúsculas, minúsculas, legacy, Firebase)
         function normalizarEstadoPedido(estado) {
