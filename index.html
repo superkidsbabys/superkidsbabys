@@ -106,6 +106,7 @@
       usuarioActual = ROLES[user.uid] || null;
       if (usuarioActual) usuarioActual.uid = user.uid;
       window.usuarioActual = usuarioActual;
+      setTimeout(function(){ if (typeof mostrarBuscadorRef === 'function') mostrarBuscadorRef(); }, 500);
       document.getElementById('login-overlay') && (document.getElementById('login-overlay').style.display = 'none');
 
       if (usuarioActual) {
@@ -1011,6 +1012,9 @@
         <!-- ── FILTROS COLAPSABLES ── -->
         <div class="filtros-accordion">
             <div class="filtros-row-toggle">
+                <div id="wrap-buscador-ref" style="display:none; flex:1;">
+                    <input type="text" id="input-buscar-ref" placeholder="🔍 Buscar por referencia..." oninput="buscarPorReferencia(this.value)" style="width:100%; padding:9px 14px; border-radius:20px; border:2px solid var(--color-banner); font-family:Nunito,sans-serif; font-size:0.95em; box-sizing:border-box; outline:none;">
+                </div>
                 <button class="btn-filtro-toggle" id="btn-toggle-tal" onclick="toggleAcordeon('tal')">
                     <span>Tallas</span>
                     <span class="ft-flecha">▼</span>
@@ -1327,6 +1331,58 @@
             'Entregado': 'entregado', 'entregado': 'entregado',
             'Cancelado': 'cancelado', 'cancelado': 'cancelado'
         };
+
+        // ── BUSCADOR POR REFERENCIA (solo admin y Gina) ───────────────────────
+        const UID_GINA   = 'yI067cx29zbmiBOd9wyKcwp0HpF2';
+        const UID_YOHANA = 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3';
+
+        function mostrarBuscadorRef() {
+            const u = window.usuarioActual;
+            if (!u) return;
+            const esAdmin = u.rol === 'admin' || u.uid === UID_YOHANA;
+            const esGina  = u.uid === UID_GINA;
+            const wrap = document.getElementById('wrap-buscador-ref');
+            if (wrap) wrap.style.display = (esAdmin || esGina) ? 'flex' : 'none';
+        }
+
+        function buscarPorReferencia(valor) {
+            const ref = (valor || '').trim().toLowerCase();
+            const cont = document.getElementById('contenedor-productos');
+            if (!cont) return;
+            if (!ref) { renderizarCatalogo(); return; }
+
+            const resultados = productosDB.filter(p => p.codigo && p.codigo.toString().toLowerCase().includes(ref));
+            cont.className = 'catalogo';
+            cont.innerHTML = '';
+
+            if (resultados.length === 0) {
+                cont.innerHTML = `<div style="grid-column:1/-1;text-align:center;opacity:0.5;padding:40px;">No se encontró ninguna prenda con esa referencia.</div>`;
+                return;
+            }
+
+            resultados.forEach(prod => {
+                let pNew = `<span class="precio-nuevo">${formatMoney(prod.precio)}</span>`;
+                let descH = '', customH = '';
+                if (prod.precioAnterior > prod.precio) {
+                    descH = `<div class="etiqueta-descuento">-${Math.round((1 - prod.precio / prod.precioAnterior) * 100)}%</div>`;
+                    pNew  = `<span class="precio-tachado">${formatMoney(prod.precioAnterior)}</span><span class="precio-nuevo">${formatMoney(prod.precio)}</span>`;
+                }
+                if (prod.etiquetaPersonalizada) customH = `<div class="etiqueta-custom">${prod.etiquetaPersonalizada}</div>`;
+                const imgs = prod.imagenes || ['https://via.placeholder.com/600?text=Sin+Imagen'];
+                const htmlGal = imgs.length > 1
+                    ? `<div class="galeria-miniaturas">${imgs.map((img, i) => `<img src="${optimizarUrl(img, 150)}" class="thumb ${i===0?'activo':''}" onclick="cambiarImg('${prod.id}','${img}',this)">`).join('')}</div>`
+                    : '';
+                let tallasChips = '';
+                if (prod.tallasObj && prod.tallasObj.length > 0) {
+                    tallasChips = `<div class="contenedor-tallas-chips" id="contenedor-tallas-${prod.id}">${prod.tallasObj.map(t => `<span class="chip-talla${t.stock<=0?' agotada':''}" onclick="seleccionarTallaChip('${prod.id}',this,${t.stock<=0})">${t.nombre}${t.stock<=0?' (agotada)':''}</span>`).join('')}</div>`;
+                }
+                const btnAgregar = `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>`;
+                const botonesAdmin = (modoEdicion || (window.usuarioActual && window.usuarioActual.editarPrecio))
+                    ? `<div class="acciones-admin-prod" style="display:flex"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button>${modoEdicion?`<button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button>`:''}</div>`
+                    : '';
+                cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgs[0]}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgs[0])}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><span class="etiqueta-categoria">${prod.categoria}</span><h3>${prod.nombre}</h3><p style="font-size:0.78em;color:#aaa;margin:0 0 4px;">Ref: ${prod.codigo}</p><div class="precio-contenedor">${pNew}</div>${tallasChips}${btnAgregar}${botonesAdmin}</div></div>`;
+            });
+        }
 
         // Normaliza cualquier variante (mayúsculas, minúsculas, legacy, Firebase)
         function normalizarEstadoPedido(estado) {
