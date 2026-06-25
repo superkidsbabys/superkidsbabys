@@ -1872,6 +1872,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     // onSnapshot: escucha cambios en tiempo real — stock se actualiza al instante
                     onSnapshot(collection(dbPublica, 'productos'), (snap) => {
                         if (snap.empty) return;
+                        // 🛡️ PROTECCIÓN: si hay un descuento de stock en curso, ignorar este snapshot
+                        // para evitar que Firebase sobreescriba el stock que acabamos de descontar
+                        if (window._bloqueandoSnapshotStock) {
+                            console.log('⏸️ onSnapshot ignorado: descuento de stock en curso');
+                            return;
+                        }
                         const productosFirebase = [];
                         snap.forEach(d => productosFirebase.push(d.data()));
                         // Mezclar: Firebase gana sobre quemados (datos más actualizados)
@@ -3426,9 +3432,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
             if (huboAlgunDescuento) renderizarCatalogo();
             console.log('✅ Stock descontado en memoria para pedido #' + pedido.num);
-            // PASO 3: Intentar guardar en Firebase (opcional, no bloquea)
+            // PASO 3: Guardar en Firebase PRIMERO para que el onSnapshot reciba el stock ya descontado
+            // Si Firebase actualiza ANTES de que el listener se dispare, no habrá sobreescritura del stock
             try {
                 const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                // Activar bandera para bloquear onSnapshot durante el descuento
+                window._bloqueandoSnapshotStock = true;
                 for (const idProd of Object.keys(porProducto)) {
                     let prod = productosDB.find(p => p.id === idProd);
                     if (!prod) continue;
@@ -3437,8 +3446,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         actualizadoEn: new Date().toISOString()
                     }), { merge: true });
                 }
-                console.log('✅ Stock también guardado en Firebase para pedido #' + pedido.num);
+                console.log('✅ Stock guardado en Firebase para pedido #' + pedido.num);
+                // Esperar un momento para que el onSnapshot traiga los datos ya actualizados
+                setTimeout(function() { window._bloqueandoSnapshotStock = false; }, 4000);
             } catch(e) {
+                window._bloqueandoSnapshotStock = false;
                 console.log('Firebase no disponible, stock guardado solo localmente:', e.message);
             }
         }
@@ -3468,8 +3480,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             localStorage.setItem('productosV36', JSON.stringify(productosDB));
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
             if (huboDevolucion) renderizarCatalogo();
+            // Bloquear onSnapshot para que no pise el stock que acabamos de reingresar
             try {
                 const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                window._bloqueandoSnapshotStock = true;
                 for (const idProd of Object.keys(porProducto)) {
                     let prod = productosDB.find(p => p.id === idProd);
                     if (!prod) continue;
@@ -3479,7 +3493,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     }), { merge: true });
                 }
                 console.log('✅ Stock devuelto para pedido #' + pedido.num);
+                setTimeout(function() { window._bloqueandoSnapshotStock = false; }, 4000);
             } catch(e) {
+                window._bloqueandoSnapshotStock = false;
                 console.log('Firebase no disponible, devolución guardada solo localmente:', e.message);
             }
         }
@@ -3575,7 +3591,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 txtWA += `\n💰 TOTAL: ${formatMoney(t)}`;
 
                 let objetoOrden = {
-                    num: numOrden, numOrden: numOrdenFormato, nom: n, cc: cc || '', dir: d, barrio: barrio || '', ciudad: ciudad || '', tel, correo: correo || '', tot: t,
+                    num: numOrden, numOrden: numOrdenFormato, nom: n, cc: cc || '', dir: d, barrio: barrio || '', ciudad: ciudad || '', tel, correo: correo || '', tipoVenta: 'Contraentrega', tot: t,
                     items: itemsParaPanel, fecha: fechaHoy, estado: 'nuevo',
                     timestampPedido: ahoraPedido,
                     stockDescontado: false,
@@ -3610,6 +3626,18 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 } catch(e) { console.log('Error guardando pedido en Firebase:', e); }
             })();
         }
+
+        // ── SCE: TIPO DE VENTA ──
+        window.cambiarTipoVenta = function(numPed, valor) {
+            var idx = historialPedidos.findIndex(function(p){ return p.num === numPed; });
+            if (idx === -1) return;
+            historialPedidos[idx].tipoVenta = valor;
+            localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+            if (typeof persistirPedidoEnFirebase === 'function') {
+                persistirPedidoEnFirebase(historialPedidos[idx]);
+            }
+        };
+        // ── FIN TIPO DE VENTA ──
 
         // ── SCE: SINCRONIZACIÓN PREFACTURA → APP ──
         window.actualizarPedidoDesdePrefactura = function(ref, cambios) {
@@ -3784,7 +3812,7 @@ table{width:100%;border-collapse:collapse}
   </div>
   <div class="bloque-datos">
     <h4>📦 Pedido</h4>
-    <p>N° <strong class="num-editable" contenteditable="true" spellcheck="false">#SK-${ped.num}</strong><br>${ped.fecha}<br>Estado: <strong>${ped.estado}</strong>${ped.asesora ? '<br>Asesora: <strong>' + ped.asesora + '</strong>' : ""}</p>
+    <p>N° <strong class="num-editable" contenteditable="true" spellcheck="false" id="fac-num-orden">${ped.numOrden || ('#SK-' + ped.num)}</strong>&nbsp;&nbsp;<span style="background:#f0e6fb;color:#8e44ad;font-size:0.8em;font-weight:800;padding:2px 8px;border-radius:20px;" id="fac-tipo-venta-display">${ped.tipoVenta || 'Contraentrega'}</span><br>${ped.fecha}<br>Estado: <strong>${ped.estado}</strong>${ped.asesora ? '<br>Asesora: <strong>' + ped.asesora + '</strong>' : ""}</p>
   </div>
 </div>
 <div class="tabla-wrap">
@@ -3861,7 +3889,8 @@ table{width:100%;border-collapse:collapse}
                 '    guia: guiaEl ? guiaEl.value.trim() : "",' +
                 '    transportadora: transpEl ? transpEl.value.trim() : "",' +
                 '    observaciones: obsEl ? obsEl.value.trim() : "",' +
-                '    tot: sub + envio' +
+                '    tot: sub + envio,' +
+                '    tipoVenta: document.getElementById(\'fac-tipo-venta-display\') ? document.getElementById(\'fac-tipo-venta-display\').textContent.trim() : \'Contraentrega\'' +
                 '  };' +
                 '  if (window.opener && !window.opener.closed) {' +
                 '    try {' +
@@ -3950,7 +3979,11 @@ table{width:100%;border-collapse:collapse}
                         <button onclick="anularFacturaPedido(${ped.num})" style="width:100%;background:#fcebeb;color:#a32d2d;border:1px solid #f7c1c1;border-radius:8px;padding:7px;font-size:0.8em;font-weight:700;cursor:pointer;">🚫 Anular factura</button>
                     </div>` : (ped.facturaAnulada ? `<div style="margin-top:6px;font-size:0.75em;color:#a32d2d;font-weight:700;">🚫 Factura anulada</div>` : '');
 
-                cont.innerHTML += `<div class="tarjeta-pedido-cb"><button class="btn-imprimir-ped" onclick="imprimirFactura(${ped.num})">📄 Factura #${numFact}</button><button class="btn-eliminar-ped" onclick="eliminarPedido(${ped.num})">🗑️ Eliminar</button><div class="tp-header"><span class="tp-id">#SK-${ped.num}</span><span class="tp-fecha">${ped.fecha || ''}</span></div><h4 class="tp-cliente">👤 ${ped.nom}</h4><div class="tp-datos">📍 ${ped.dir}<br>📞 ${ped.tel}</div><div class="tp-items">${htmlItems}</div><div class="tp-total">Total: ${formatMoney(ped.tot)}</div><div class="tp-acciones"><select class="select-estado-ped" onchange="cambiarEstadoPedido(${ped.num}, this.value)">${opcionesEstado}</select></div>${btnAnular}</div>`;
+                const numOrdenDisplay = ped.numOrden || ('#SK-' + String(ped.num));
+                const tipoVentaOpts = ['Contraentrega','Contado','Recaudo'].map(function(op) {
+                    return '<option value="'+op+'"'+(ped.tipoVenta===op?' selected':'')+'>'+op+'</option>';
+                }).join('');
+                cont.innerHTML += `<div class="tarjeta-pedido-cb"><button class="btn-imprimir-ped" onclick="imprimirFactura(${ped.num})">📄 Factura #${numFact}</button><button class="btn-eliminar-ped" onclick="eliminarPedido(${ped.num})">🗑️ Eliminar</button><div style="position:absolute;top:90px;left:20px;right:90px;"><label style="font-size:0.72em;color:#888;font-weight:700;display:block;margin-bottom:2px;">Tipo de venta</label><select onchange="cambiarTipoVenta(${ped.num}, this.value)" style="width:100%;padding:5px 8px;border:1.5px solid #c9a0dc;border-radius:8px;font-size:0.8em;font-weight:700;color:#8e44ad;background:#fdf8ff;cursor:pointer;">${tipoVentaOpts}</select></div><div class="tp-header" style="margin-top:52px;"><span class="tp-id">${numOrdenDisplay}</span><span class="tp-fecha">${ped.fecha || ''}</span></div><h4 class="tp-cliente">👤 ${ped.nom}</h4><div class="tp-datos">📍 ${ped.dir}<br>📞 ${ped.tel}</div><div class="tp-items">${htmlItems}</div><div class="tp-total">Total: ${formatMoney(ped.tot)}</div><div class="tp-acciones"><select class="select-estado-ped" onchange="cambiarEstadoPedido(${ped.num}, this.value)">${opcionesEstado}</select></div>${btnAnular}</div>`;
             });
         }
 
