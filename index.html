@@ -3700,7 +3700,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         function renderStockActual() {
-            var prods = window.productosDB || [];
+            var prods = window.productosDB || (typeof productosDB !== 'undefined' ? productosDB : []);
             if (!prods.length) {
                 document.getElementById('stock-vacio').style.display = 'block';
                 return;
@@ -3866,16 +3866,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             vent.document.close();
         };
 
-        // Enganchar renderStockActual al cambio de pestaña inventario
-        (function() {
-            var _origCambiarTab = window.cambiarTab;
-            window.cambiarTab = function(tab) {
-                if (_origCambiarTab) _origCambiarTab(tab);
-                if (tab === 'inventario') {
-                    setTimeout(renderStockActual, 300);
-                }
-            };
-        })();
+        // renderStockActual ya se llama desde cambiarTab directamente (ver función cambiarTab)
         // ── FIN SCE: STOCK ACTUAL ────────────────────────────────────
 
         // ── SCE: TIPO DE VENTA ──
@@ -4869,7 +4860,19 @@ table{width:100%;border-collapse:collapse}
             document.querySelectorAll('.seccion-tab').forEach(s => s.classList.remove('activo'));
             document.querySelector(`.btn-tab[onclick="cambiarTab('${tab}')"]`).classList.add('activo');
             document.getElementById(`tab-${tab}`).classList.add('activo');
-            if (tab === 'inventario') { cargarHistorialInventario(); cargarHistorialSalidas(); }
+            if (tab === 'inventario') {
+                cargarHistorialInventario();
+                cargarHistorialSalidas();
+                // Renderizar stock actual con reintento si productosDB aún no está listo
+                (function intentarRenderStock(intentos) {
+                    var db = window.productosDB;
+                    if (db && db.length > 0) {
+                        renderStockActual();
+                    } else if (intentos < 20) {
+                        setTimeout(function() { intentarRenderStock(intentos + 1); }, 200);
+                    }
+                })(0);
+            }
             if (tab === 'pedidos') {
                 var aviso = document.getElementById('aviso-nuevo-pedido');
                 if (aviso) aviso.style.display = 'none';
