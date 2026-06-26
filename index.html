@@ -1868,6 +1868,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     // onSnapshot: escucha cambios en tiempo real — stock se actualiza al instante
                     onSnapshot(collection(dbPublica, 'productos'), (snap) => {
                         if (snap.empty) return;
+                        if (window._bloqueandoSnapshotStock) {
+                            console.log('⏸️ onSnapshot ignorado: descuento de stock en curso');
+                            return;
+                        }
                         const productosFirebase = [];
                         snap.forEach(d => productosFirebase.push(d.data()));
                         // Mezclar: Firebase gana sobre quemados (datos más actualizados)
@@ -3425,6 +3429,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             // PASO 3: Intentar guardar en Firebase (opcional, no bloquea)
             try {
                 const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                window._bloqueandoSnapshotStock = true;
                 for (const idProd of Object.keys(porProducto)) {
                     let prod = productosDB.find(p => p.id === idProd);
                     if (!prod) continue;
@@ -3434,7 +3439,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     }), { merge: true });
                 }
                 console.log('✅ Stock también guardado en Firebase para pedido #' + pedido.num);
+                setTimeout(function() { window._bloqueandoSnapshotStock = false; }, 4000);
             } catch(e) {
+                window._bloqueandoSnapshotStock = false;
                 console.log('Firebase no disponible, stock guardado solo localmente:', e.message);
             }
         }
@@ -3466,6 +3473,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (huboDevolucion) renderizarCatalogo();
             try {
                 const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                window._bloqueandoSnapshotStock = true;
                 for (const idProd of Object.keys(porProducto)) {
                     let prod = productosDB.find(p => p.id === idProd);
                     if (!prod) continue;
@@ -3475,7 +3483,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     }), { merge: true });
                 }
                 console.log('✅ Stock devuelto para pedido #' + pedido.num);
+                setTimeout(function() { window._bloqueandoSnapshotStock = false; }, 4000);
             } catch(e) {
+                window._bloqueandoSnapshotStock = false;
                 console.log('Firebase no disponible, devolución guardada solo localmente:', e.message);
             }
         }
@@ -3927,7 +3937,7 @@ table{width:100%;border-collapse:collapse}
                     let htmlItems = ped.items.map(i => {
                         let prodImg = productosDB.find(x => x.id === i.id_prod);
                         let thumb = (prodImg && prodImg.imagenes && prodImg.imagenes[0]) ? prodImg.imagenes[0].replace('/image/upload/', '/image/upload/f_auto,q_auto,w_100/') : '';
-                        let imgTag = thumb ? `<img src="${thumb}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'">` : `<div style="width:44px;height:44px;border-radius:6px;background:#f5e6fb;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2em;">👗</div>`;
+                        let imgTag = thumb ? `<img src="${thumb}" onclick="abrirZoomPedido('${thumb}')" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;cursor:zoom-in;" title="Clic para ampliar" onerror="this.style.display='none'">` : `<div style="width:44px;height:44px;border-radius:6px;background:#f5e6fb;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2em;">👗</div>`;
                         return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${i.nom}</div><div style="font-size:0.72em;color:#888;">Talla: ${i.talla || 'Única'} · REF: ${i.cod || 'S/N'}</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(i.precio)}</span></div>`;
                     }).join('');
                     const numFact = String(ped.numFactura || ped.num).padStart(6, '0');
@@ -4806,4 +4816,26 @@ document.addEventListener('DOMContentLoaded', function() {
   if (me) obs.observe(me, { attributes: true, attributeFilter: ['style'] });
 });
 </script>
+
+    <!-- Modal zoom imagen pedido -->
+    <div id="modal-zoom-pedido" onclick="cerrarZoomPedido()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:99999;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
+        <img id="modal-zoom-img" src="" style="max-width:92vw;max-height:82vh;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.6);object-fit:contain;">
+        <span style="color:#fff;font-size:0.85em;opacity:0.7;">Toca en cualquier lugar para cerrar</span>
+    </div>
+    <script>
+    window.abrirZoomPedido = function(src) {
+        var modal = document.getElementById('modal-zoom-pedido');
+        var img = document.getElementById('modal-zoom-img');
+        img.src = src;
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    };
+    window.cerrarZoomPedido = function() {
+        document.getElementById('modal-zoom-pedido').style.display = 'none';
+        document.body.style.overflow = '';
+    };
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') cerrarZoomPedido();
+    });
+    </script>
 </body></html>
