@@ -158,16 +158,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         // Agregar botón logout y perfil con WhatsApp
         setTimeout(() => {
           let panelAdmin = document.getElementById('panel-admin');
-          if (panelAdmin && !document.getElementById('btn-logout')) {
-            let logoutBtn = document.createElement('button');
-            logoutBtn.id = 'btn-logout';
-            logoutBtn.innerHTML = '🚪 Cerrar sesión';
-            logoutBtn.style.cssText = 'background:#e74c3c;color:white;border:none;padding:10px 20px;border-radius:10px;cursor:pointer;font-family:Nunito,sans-serif;font-weight:700;font-size:0.9em;margin:10px;';
-            panelAdmin.appendChild(logoutBtn);
+          if (panelAdmin && !document.getElementById('perfil-usuario')) {
+            // Logout ya está en la barra de tabs — solo crear perfil en tab-diseno
             let u = usuarioActual;
             let perfil = document.createElement('div');
             perfil.id = 'perfil-usuario';
-            perfil.style.cssText = 'background:#fdf0f5;border:1.5px solid #f0c8d8;border-radius:14px;padding:14px 16px;margin:10px;';
+            perfil.style.cssText = 'background:#fdf0f5;border:1.5px solid #f0c8d8;border-radius:14px;padding:14px 16px;margin:10px 0;';
             let rolLabel = u.rol === 'admin' ? '👑 Admin' : '🛍️ Asesora';
             let waVal = (u.whatsapp || '').replace('57','');
             perfil.innerHTML = '<div style="font-family:Nunito,sans-serif;font-size:0.85em;color:#b04070;font-weight:700;margin-bottom:8px;">👤 '+u.nombre+' <span style="background:#c0557a;color:white;border-radius:20px;padding:2px 8px;font-size:0.8em;">'+rolLabel+'</span></div>'
@@ -177,7 +173,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
               + '<button onclick="window.guardarMiWhatsapp()" style="background:#c0557a;color:white;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;font-family:Nunito,sans-serif;font-weight:700;font-size:0.82em;">Guardar</button>'
               + '</div>'
               + '<div id="wa-guardado-msg" style="font-size:0.75em;color:#27ae60;margin-top:4px;display:none;">✅ Guardado</div>';
-            panelAdmin.appendChild(perfil);
+            let tabDiseno = document.getElementById('tab-diseno');
+            if (tabDiseno) tabDiseno.appendChild(perfil);
           }
           conectarBotonLogout();
         }, 1200);
@@ -650,7 +647,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         .btn-filtro-ped:hover { border-color: #4a90e2; }
         .btn-filtro-ped.activo { background: #4a90e2; color: white; border-color: #4a90e2; box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3);}
         .grid-pedidos { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-        .tarjeta-pedido-cb { background: #fdfdfd; border: 1px solid #eaeaea; border-radius: 12px; padding: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; position: relative;}
+        .tarjeta-pedido-cb { background: #fdfdfd; border: 1px solid #e8d5f5; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
         .tarjeta-pedido-cb.pedido-nuevo-resaltado { border-color: #2ecc71; box-shadow: 0 0 0 3px rgba(46,204,113,0.18), 0 8px 22px rgba(46,204,113,0.16); }
         .aviso-nuevo-pedido {
             position: fixed;
@@ -682,18 +679,157 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         .aviso-np-total { color: #ffffff; font-size: 0.88em; font-weight: 900; margin-top: 3px; }
         .aviso-np-time { color: #888; font-size: 0.72em; font-weight: 600; margin-top: 4px; }
         /* ── TARJETA PEDIDO: header en 3 filas sin superposición ── */
-        .tp-fila1 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; gap: 6px; }
-        .tp-id { font-weight: 800; color: #2c3e50; font-size: 0.92em; white-space: nowrap; }
-        .tp-fecha { font-size: 0.72em; color: #888; white-space: nowrap; text-align: right; }
+        /* ── ENCABEZADO TARJETA ── */
+        /* ── PORTADAS TRANSPORTADORA (estilo categorías catálogo) ── */
+        /* ══ MÓDULO TRANSPORTADORAS — 4 NIVELES ══ */
+
+        /* NIVEL 1 – Barra resumen */
+        .transp-barra-resumen {
+            display: flex; align-items: center; gap: 0;
+            background: white; border-radius: 12px;
+            border: 1.5px solid #e8d5f5;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            padding: 0; margin-bottom: 16px; overflow: hidden;
+        }
+        .transp-resumen-item {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 12px 8px; border-right: 1px solid #f0e4fb;
+            text-align: center;
+        }
+        .transp-resumen-item:last-child { border-right: none; }
+        .transp-resumen-label { font-size: 0.68em; color: #999; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
+        .transp-resumen-valor { font-size: 1em; font-weight: 900; color: #2c3e50; }
+        .transp-resumen-valor.total { color: #8e44ad; font-size: 1.05em; }
+
+        /* NIVEL 2 – Tarjetas transportadora */
+        .transp-nivel2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px; margin-bottom: 12px;
+        }
+        .transp-card {
+            background: white; border-radius: 14px;
+            border: 2px solid #f0e4fb;
+            padding: 16px 10px 12px;
+            display: flex; flex-direction: column;
+            align-items: center; text-align: center;
+            cursor: pointer; transition: all 0.18s ease;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            position: relative; min-height: 110px;
+        }
+        .transp-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(142,68,173,0.14); border-color: #c9a0dc; }
+        .transp-card.activa { border-color: #8e44ad; box-shadow: 0 0 0 3px rgba(142,68,173,0.15); background: #fdf8ff; }
+        .transp-card.sin-pedidos { opacity: 0.55; }
+        .transp-card-sin { background: #fffbeb; border-color: #fde68a; }
+        .transp-card-sin:hover { border-color: #f59e0b; box-shadow: 0 6px 18px rgba(245,158,11,0.15); }
+        .transp-card-logo {
+            width: 52px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 8px;
+        }
+        .transp-card-logo img { max-width: 52px; max-height: 34px; object-fit: contain; }
+        .transp-card-emoji { font-size: 1.8em; line-height: 1; margin-bottom: 6px; }
+        .transp-card-nombre { font-size: 0.78em; font-weight: 900; color: #2c3e50; line-height: 1.2; margin-bottom: 5px; }
+        .transp-card-meta { font-size: 0.68em; color: #888; font-weight: 700; line-height: 1.5; }
+        .transp-card-badge {
+            position: absolute; top: 8px; right: 8px;
+            background: #8e44ad; color: white;
+            border-radius: 20px; padding: 1px 7px;
+            font-size: 0.6em; font-weight: 900;
+        }
+        .transp-card-sin .transp-card-badge { background: #f59e0b; color: #78350f; }
+
+        /* NIVEL 3 – Lista de pedidos de una transportadora */
+        .transp-nivel3 { display: none; }
+        .transp-nivel3.visible { display: block; }
+        .transp-nivel3-header {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 14px; padding-bottom: 10px;
+            border-bottom: 1.5px solid #e8d5f5;
+        }
+        .transp-btn-volver {
+            background: none; border: 1.5px solid #c9a0dc;
+            border-radius: 20px; padding: 6px 14px;
+            color: #8e44ad; font-weight: 800; font-size: 0.8em;
+            cursor: pointer; transition: all 0.15s;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .transp-btn-volver:hover { background: #f3e8ff; }
+        .transp-nivel3-titulo {
+            font-size: 1em; font-weight: 900; color: #2c3e50;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .transp-nivel3-subtotal {
+            margin-left: auto; font-size: 0.82em; color: #888; font-weight: 700;
+        }
+        /* Tabla de pedidos (lista compacta) */
+        .transp-lista-pedidos {
+            width: 100%; border-collapse: collapse; table-layout: auto;
+        }
+        .transp-lista-pedidos thead tr {
+            background: #f8f4ff; border-bottom: 2px solid #e8d5f5;
+        }
+        .transp-lista-pedidos th {
+            padding: 10px 16px; font-size: 0.72em; font-weight: 900;
+            color: #8e44ad; text-transform: uppercase; letter-spacing: 0.4px;
+            text-align: left; white-space: nowrap;
+        }
+        .transp-lista-pedidos th:last-child { text-align: right; }
+        .transp-lista-pedidos tbody tr {
+            border-bottom: 1px solid #f3e8ff;
+            transition: background 0.12s; cursor: pointer;
+        }
+        .transp-lista-pedidos tbody tr:hover { background: #fdf8ff; }
+        .transp-lista-pedidos tbody tr.abierto { background: #f3e8ff; }
+        .transp-lista-pedidos td {
+            padding: 12px 16px; font-size: 0.88em; color: #333; vertical-align: middle;
+        }
+        .transp-td-num { font-weight: 900; color: #7e22ce; white-space: nowrap; font-size: 0.92em; }
+        .transp-td-cliente { font-weight: 700; }
+        .transp-td-fecha { color: #aaa; font-size: 0.82em; white-space: nowrap; }
+        .transp-td-prendas { color: #888; font-size: 0.82em; white-space: nowrap; }
+        .transp-td-total { font-weight: 900; color: #8e44ad; text-align: right; white-space: nowrap; font-size: 0.95em; padding-right: 20px; }
+        .transp-td-flecha { text-align: center; color: #c9a0dc; font-size: 0.8em; width: 28px; padding-right: 4px; transition: transform 0.18s; }
+        .transp-lista-pedidos tbody tr.abierto .transp-td-flecha { color: #8e44ad; transform: rotate(180deg); }
+
+        /* NIVEL 4 – Prefactura expandida debajo de la fila */
+        .transp-prefactura-row { display: none; }
+        .transp-prefactura-row.visible { display: table-row; }
+        .transp-prefactura-cell {
+            padding: 0 !important; background: #fafafa !important;
+        }
+        .transp-prefactura-inner {
+            padding: 16px; border-top: 2px solid #e8d5f5;
+            border-bottom: 2px solid #e8d5f5;
+            animation: subcat-in 0.2s ease;
+        }
+
+        @media (max-width: 600px) {
+            .transp-nivel2 { grid-template-columns: repeat(2, 1fr); }
+            .transp-lista-pedidos .transp-td-fecha,
+            .transp-lista-pedidos .transp-td-prendas { display: none; }
+            .transp-resumen-item { padding: 8px 4px; }
+            .transp-resumen-valor { font-size: 0.88em; }
+        }
+        /* ══ FIN MÓDULO TRANSPORTADORAS ══ */
+
+        .tp-encabezado { background: linear-gradient(135deg, #f3e8ff, #ede9fe); border-bottom: 1.5px solid #e8d5f5; padding: 10px 14px; }
+        .tp-fila1 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 6px; }
+        .tp-id { font-weight: 900; color: #7e22ce; font-size: 0.95em; white-space: nowrap; }
+        .tp-fecha { font-size: 0.7em; color: #888; white-space: nowrap; text-align: right; }
         .tp-fila2 { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
-        .tp-fila3 { display: flex; gap: 6px; margin-bottom: 10px; }
-        .tp-fila3 button { flex: 1; font-size: 0.78em; padding: 6px 8px; border-radius: 8px; cursor: pointer; font-weight: 700; transition: 0.2s; }
+        .tp-fila2 select { flex: 1; min-width: 110px; padding: 4px 7px; border-radius: 8px; font-size: 0.78em; font-weight: 700; cursor: pointer; font-family: Nunito, sans-serif; }
+        .tp-fila3 { display: flex; gap: 6px; }
+        .tp-fila3 button { flex: 1; font-size: 0.76em; padding: 6px 8px; border-radius: 8px; cursor: pointer; font-weight: 700; transition: 0.2s; font-family: Nunito, sans-serif; }
         .tp-btn-factura { background: #e74c3c; color: white; border: none; }
         .tp-btn-factura:hover { background: #c0392b; }
         .tp-btn-eliminar { background: #fff; color: #e74c3c; border: 1.5px solid #e74c3c; }
         .tp-btn-eliminar:hover { background: #e74c3c; color: white; }
-        .tp-cliente { font-size: 0.98em; font-weight: 800; margin: 0 0 4px 0; color: #000; }
-        .tp-datos-completo { font-size: 0.8em; color: #555; margin: 0 0 10px; line-height: 1.75; background: #faf5ff; border-radius: 8px; padding: 8px 10px; border-left: 3px solid #d8b4fe; }
+        /* ── CUERPO TARJETA ── */
+        .tp-body { padding: 12px 14px; flex: 1; display: flex; flex-direction: column; }
+        .tp-cliente { font-size: 0.98em; font-weight: 900; margin: 0 0 8px 0; color: #1a1a1a; }
+        .tp-datos-completo { font-size: 0.79em; color: #555; margin: 0 0 10px; line-height: 1.8; background: #faf5ff; border-radius: 8px; padding: 8px 10px; border-left: 3px solid #c084fc; }
         .tp-items { font-size: 0.9em; margin-bottom: 10px; border-bottom: 1px dashed #ddd; padding-bottom: 10px; flex-grow: 1;}
         .tp-item-fila { display: flex; justify-content: space-between; margin-bottom: 8px; color: #333; line-height: 1.3;}
         .tp-total { text-align: right; font-weight: bold; font-size: 1.05em; margin-top: 6px; color: #000;}
@@ -920,8 +1056,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <button class="btn-tab" onclick="cambiarTab('categorias')">📁 Categorías</button>
                 <button class="btn-tab" onclick="cambiarTab('productos')">🛍️ Productos</button>
                 <button class="btn-tab" onclick="cambiarTab('pedidos')" style="background-color: #4a90e2; color: white;">📦 Pedidos</button>
-                <button class="btn-tab activo" onclick="cambiarTab('publicar')" style="background-color: #8e44ad; color: white;">🚀 Publicar</button>
                 <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('inventario')" style="background-color: #27ae60; color: white; display:none;">📥 Inventario</button>
+                <button class="btn-tab" onclick="window.fbLogout && window.fbLogout()" style="background-color: #e74c3c; color: white;">🚪 Cerrar sesión</button>
             </div>
 
             <!-- TAB DISEÑO -->
@@ -1145,13 +1281,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <div class="seccion-admin-sub" style="background: transparent; border: none; padding: 0;">
                     <div class="filtros-pedidos">
                         <button class="btn-filtro-ped activo" id="fp-nuevo" onclick="filtrarVistaPedidos('nuevo')">Nuevos</button>
-                        <button class="btn-filtro-ped" id="fp-pendiente_pago" onclick="filtrarVistaPedidos('pendiente_pago')">Pendiente pago</button>
                         <button class="btn-filtro-ped" id="fp-enviado" onclick="filtrarVistaPedidos('enviado')">Enviados</button>
                         <button class="btn-filtro-ped" id="fp-entregado" onclick="filtrarVistaPedidos('entregado')">Entregados</button>
                         <button class="btn-filtro-ped" id="fp-cancelado" onclick="filtrarVistaPedidos('cancelado')">Cancelados</button>
                         <button class="btn-filtro-ped" id="fp-anuladas" onclick="filtrarVistaPedidos('anuladas')" style="background:#fcebeb;color:#a32d2d;border-color:#f7c1c1;">Facturas anuladas</button>
                     </div>
-                    <button onclick="generarInventarioPDF()" style="background:linear-gradient(135deg,#27ae60,#2ecc71);color:white;border:none;padding:10px 20px;border-radius:20px;cursor:pointer;font-weight:700;font-family:Nunito,sans-serif;font-size:0.9em;margin:10px 0;width:100%;">📋 Exportar Inventario PDF</button>
                     <div class="grid-pedidos" id="contenedor-historial-pedidos"><div class="tarjeta-pedido-cb"><button class="btn-imprimir-ped" onclick="imprimirFactura(7404)">📄 PDF</button><button class="btn-eliminar-ped" onclick="eliminarPedido(7404)">🗑️ Eliminar</button><div class="tp-header"><span class="tp-id">#SK-7404</span><span class="tp-fecha">19/5/2026, 10:21:23 a. m.</span></div><h4 class="tp-cliente">👤 Yomileth mejia lopez  CC1193558699</h4><div class="tp-datos">📍 OFICINA INTERRAPIDISIMO URIBIA LA GUAJIRA<br>📞 3207211515</div><div class="tp-items"><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778639673/hkauftuw6e3o8x12usfi.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco Rosado Cisnes</div><div style="font-size:0.72em;color:#888;">Talla: 6M · REF: 3402</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778642229/gcfjdjvwmcapnhd4eftx.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco Unicornio</div><div style="font-size:0.72em;color:#888;">Talla: 6M · REF: 1998</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778551747/ihohfk0ct7zlemqx63cn.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco Animal print rosado/cafe</div><div style="font-size:0.72em;color:#888;">Talla: 0M · REF: 3713</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778556767/qy4j4wmitmycl3mmrxus.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco blanco animal print con bolerito</div><div style="font-size:0.72em;color:#888;">Talla: 0M · REF: 101201665</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778538358/ctkdiajqmoqmheqj4xz2.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco Blanco Safari</div><div style="font-size:0.72em;color:#888;">Talla: 0M · REF: 2183</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778386309/vszgjy6pq36ljr7rrk0r.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Enterizo Rosado Daddy´s Girl</div><div style="font-size:0.72em;color:#888;">Talla: 0M · REF: 3717</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div></div><div class="tp-total">Total: $150.000</div><div class="tp-acciones"><select class="select-estado-ped" onchange="cambiarEstadoPedido(7404, this.value)"><option value="nuevo" selected="">Nuevo</option><option value="pendiente_pago">Pendiente pago</option><option value="enviado">Enviado</option><option value="entregado">Entregado</option><option value="cancelado">Cancelado</option></select></div></div><div class="tarjeta-pedido-cb"><button class="btn-imprimir-ped" onclick="imprimirFactura(4855)">📄 PDF</button><button class="btn-eliminar-ped" onclick="eliminarPedido(4855)">🗑️ Eliminar</button><div class="tp-header"><span class="tp-id">#SK-4855</span><span class="tp-fecha">27/5/2026, 11:45:40 p. m.</span></div><h4 class="tp-cliente">👤 Yohana</h4><div class="tp-datos">📍 55an<br>📞 3025451526</div><div class="tp-items"><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778386309/vszgjy6pq36ljr7rrk0r.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Enterizo Rosado Daddy´s Girl</div><div style="font-size:0.72em;color:#888;">Talla: 3M · REF: 3717</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778455515/ypxygwhjvwerdvjuxwiq.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco Rosado conejita</div><div style="font-size:0.72em;color:#888;">Talla: 3M · REF: 3716</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div></div><div class="tp-total">Total: $50.000</div><div class="tp-acciones"><select class="select-estado-ped" onchange="cambiarEstadoPedido(4855, this.value)"><option value="nuevo" selected="">Nuevo</option><option value="pendiente_pago">Pendiente pago</option><option value="enviado">Enviado</option><option value="entregado">Entregado</option><option value="cancelado">Cancelado</option></select></div></div></div>
                 </div>
             </div>
@@ -1209,13 +1343,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <button onclick="exportarInventarioPDF()" style="flex:1;background:linear-gradient(135deg,#c0392b,#e74c3c);color:white;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.9em;font-family:Nunito,sans-serif;min-width:140px;">📄 Exportar PDF</button>
                     </div>
                 </div>
-            </div>
-            
-                <!-- ====================================================
-                     SECCIÓN: STOCK ACTUAL
-                     Lee directamente de productosDB — sin nueva colección.
-                     No modifica Recepción de Mercancía ni lógica existente.
-                ==================================================== -->
+
+                <!-- SECCIÓN: STOCK ACTUAL — dentro del tab inventario -->
                 <div style="margin-top:28px;">
                     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
                         <h3 style="color:#8e44ad;margin:0;">📊 Stock Actual</h3>
@@ -1250,17 +1379,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <p id="stock-vacio" style="display:none;text-align:center;color:#aaa;font-size:0.88em;margin-top:16px;">Sin productos para mostrar</p>
                 </div>
                 <!-- FIN SECCIÓN STOCK ACTUAL -->
+            </div><!-- cierre tab-inventario -->
 
             <!-- TAB PUBLICAR -->
-            <div id="tab-publicar" class="seccion-tab activo">
-                <div class="seccion-admin-sub">
-                    <h3 style="color: #8e44ad; margin-top:0;">¡Lista para el mundo!</h3>
-                    <p>Descarga tu archivo definitivo y súbelo a Netlify.</p>
-                    <button class="btn-exportar" onclick="exportarParaInternet()" style="background:#8e44ad;">🌐 Descargar Versión para Publicar</button>
-                    <button class="btn-exportar" onclick="exportarEditable()" style="background:#27ae60; margin-top:10px;">💾 Guardar Copia Editable</button>
-                </div>
+            <div id="tab-publicar" class="seccion-tab" style="display:none;">
             </div>
-        <button id="btn-logout" onclick="window.fbLogout && window.fbLogout()" style="background: rgb(231, 76, 60); color: white; border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-family: Nunito, sans-serif; font-weight: 700; font-size: 0.9em; margin: 10px;">🚪 Cerrar sesión</button><div id="perfil-usuario" style="background: rgb(253, 240, 245); border: 1.5px solid rgb(240, 200, 216); border-radius: 14px; padding: 14px 16px; margin: 10px;"><div style="font-family:Nunito,sans-serif;font-size:0.85em;color:#b04070;font-weight:700;margin-bottom:8px;">👤 Yohana <span style="background:#c0557a;color:white;border-radius:20px;padding:2px 8px;font-size:0.8em;">👑 Admin</span></div><label style="font-size:0.78em;color:#888;font-weight:600;font-family:Nunito,sans-serif;">Mi número de WhatsApp</label><div style="display:flex;gap:6px;margin-top:4px;"><input id="mi-whatsapp" type="tel" value="3025451526" placeholder="3001234567" style="flex:1;padding:7px 10px;border:1.5px solid #f0c8d8;border-radius:8px;font-size:0.85em;font-family:Nunito,sans-serif;"><button onclick="window.guardarMiWhatsapp()" style="background:#c0557a;color:white;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;font-family:Nunito,sans-serif;font-weight:700;font-size:0.82em;">Guardar</button></div><div id="wa-guardado-msg" style="font-size:0.75em;color:#27ae60;margin-top:4px;display:none;">✅ Guardado</div></div></div>
+        </div>
 
         <!-- ── FILTROS COLAPSABLES ── -->
         <div class="filtros-accordion">
@@ -1599,15 +1723,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         let pedidosResaltadosNotificacion = new Set();
         const ESTADOS_PEDIDO = [
             { valor: 'nuevo', label: 'Nuevo', seccion: 'Nuevos' },
-            { valor: 'pendiente_pago', label: 'Pendiente pago', seccion: 'Pendiente pago' },
             { valor: 'enviado', label: 'Enviado', seccion: 'Enviados' },
             { valor: 'entregado', label: 'Entregado', seccion: 'Entregados' },
             { valor: 'cancelado', label: 'Cancelado', seccion: 'Cancelados' }
         ];
         const ESTADOS_PEDIDO_LEGACY = {
             'Nuevo': 'nuevo', 'nuevo': 'nuevo',
-            'Pendiente pago': 'pendiente_pago', 'Pendiente Pago': 'pendiente_pago',
-            'pendiente pago': 'pendiente_pago', 'Pendiente_pago': 'pendiente_pago', 'pendiente_pago': 'pendiente_pago',
+            // Pendiente pago → ahora va a Nuevo
+            'Pendiente pago': 'nuevo', 'Pendiente Pago': 'nuevo',
+            'pendiente pago': 'nuevo', 'Pendiente_pago': 'nuevo', 'pendiente_pago': 'nuevo',
             'Enviado': 'enviado', 'enviado': 'enviado',
             'Entregado': 'entregado', 'entregado': 'entregado',
             'Cancelado': 'cancelado', 'cancelado': 'cancelado'
@@ -1671,7 +1795,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (ESTADOS_PEDIDO_LEGACY[estado]) return ESTADOS_PEDIDO_LEGACY[estado];
             // Fallback: convertir a minúsculas con guión bajo
             const lower = estado.toLowerCase().replace(/\s+/g, '_');
-            const validos = ['nuevo', 'pendiente_pago', 'enviado', 'entregado', 'cancelado'];
+            const validos = ['nuevo', 'enviado', 'entregado', 'cancelado'];
             return validos.includes(lower) ? lower : 'nuevo';
         }
 
@@ -3963,6 +4087,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 let tObj = prod.tallasObj.find(t => t.nombre === item.talla);
                 if (tObj) { tObj.stock = (tObj.stock || 0) + (item.cant || 1); }
                 prod.stockTotal = prod.tallasObj.reduce((s, t) => s + (t.stock || 0), 0);
+                // Guardar stock actualizado en Firebase para que quede correcto en todos los dispositivos
+                if (window.fbGuardarProducto) {
+                    try { await window.fbGuardarProducto(prod); }
+                    catch(e) { console.log('Error guardando stock en Firebase:', e); }
+                }
+                localStorage.setItem('productosV36', JSON.stringify(productosDB));
             }
             // Quitar el producto del pedido
             ped.items.splice(itemIdx, 1);
@@ -4256,6 +4386,73 @@ table{width:100%;border-collapse:collapse}
 
         // 
 
+        // ── CONFIGURACIÓN DE TRANSPORTADORAS ─────────────────────────────────
+        const TRANSPORTADORAS_CONFIG = [
+            {
+                key: 'Interrapidísimo',
+                label: 'Inter Rapidísimo',
+                logo: '<img src="https://interrapidisimo.com/wp-content/uploads/2021/05/logo-inter.png" onerror="this.onerror=null;this.src=\'\';this.parentElement.innerHTML=\'<span style=\\\'font-weight:900;color:#e65c00;font-size:1em;\\\'>⚡ Inter Rapidísimo</span>\';" style="height:36px;max-width:160px;object-fit:contain;display:block;" alt="Inter Rapidísimo">',
+                color: '#e65c00', colorLight: '#fff4ee', border: '#f5a87a'
+            },
+            {
+                key: 'Envía',
+                label: 'Envía',
+                logo: '<img src="https://envia.co/img/logo-envia.svg" onerror="this.onerror=null;this.src=\'\';this.parentElement.innerHTML=\'<span style=\\\'font-weight:900;color:#00843d;font-size:1em;\\\'>📦 Envía</span>\';" style="height:36px;max-width:160px;object-fit:contain;display:block;" alt="Envía">',
+                color: '#00843d', colorLight: '#edfdf4', border: '#6edaa8'
+            },
+            {
+                key: '23M&M',
+                label: '23M&M',
+                logo: '<img src="https://www.23mym.com/images/logo.png" onerror="this.onerror=null;this.src=\'\';this.parentElement.innerHTML=\'<span style=\\\'font-weight:900;color:#1a3fa4;font-size:1em;\\\'>🚚 23M&M</span>\';" style="height:36px;max-width:160px;object-fit:contain;display:block;" alt="23M&M">',
+                color: '#1a3fa4', colorLight: '#eef2ff', border: '#93adef'
+            },
+            {
+                key: 'Domicilios Gina',
+                label: 'Domicilios Gina',
+                logo: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 52" style="height:44px;width:auto;display:block;">
+  <rect width="160" height="52" rx="10" fill="#fce4f6"/>
+  <!-- Moto -->
+  <circle cx="30" cy="38" r="8" fill="none" stroke="#c0196e" stroke-width="2.5"/>
+  <circle cx="30" cy="38" r="3" fill="#c0196e"/>
+  <circle cx="54" cy="38" r="8" fill="none" stroke="#c0196e" stroke-width="2.5"/>
+  <circle cx="54" cy="38" r="3" fill="#c0196e"/>
+  <path d="M30 38 L30 28 L40 22 L54 24 L58 30 L54 30" stroke="#c0196e" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
+  <path d="M40 22 L44 18 L50 18 L54 24" stroke="#c0196e" stroke-width="2" fill="#f9b8e0"/>
+  <line x1="22" y1="38" x2="30" y2="38" stroke="#c0196e" stroke-width="2.5"/>
+  <!-- Chica -->
+  <circle cx="43" cy="17" r="5" fill="#f4a0c8"/>
+  <!-- Pelo -->
+  <path d="M38 16 Q38 10 43 10 Q50 10 50 17 Q48 13 43 13 Q39 13 38 16Z" fill="#7b1f5e"/>
+  <!-- Cuerpo -->
+  <path d="M40 22 Q43 20 46 22 L47 30 L39 30Z" fill="#e040a0"/>
+  <!-- Brazos -->
+  <path d="M40 23 L36 28 M46 23 L52 27" stroke="#f4a0c8" stroke-width="2" stroke-linecap="round"/>
+  <!-- Casco mini -->
+  <path d="M38.5 14 Q43 11 47.5 14" stroke="#7b1f5e" stroke-width="1.5" fill="none"/>
+  <!-- Texto -->
+  <text x="68" y="24" font-family="Nunito,Arial,sans-serif" font-size="11" font-weight="900" fill="#c0196e">Domicilios</text>
+  <text x="68" y="39" font-family="Nunito,Arial,sans-serif" font-size="13" font-weight="900" fill="#7b1f5e">Gina 🛵</text>
+</svg>`,
+                color: '#c0196e', colorLight: '#fce4f6', border: '#f09ed8'
+            }
+        ];
+
+        // Claves alternativas que puede tener el campo transportadora en pedidos viejos
+        const TRANSP_KEY_MAP = {
+            'interrapidísimo': 'Interrapidísimo', 'interrapidisimo': 'Interrapidísimo',
+            'inter rapidísimo': 'Interrapidísimo', 'inter rapidisimo': 'Interrapidísimo',
+            'envía': 'Envía', 'envia': 'Envía',
+            '23m': '23M&M', '23 m': '23M&M', '23m&m': '23M&M', '23mym': '23M&M',
+            'domicilio gina': 'Domicilios Gina', 'domicilios gina': 'Domicilios Gina',
+            'domicilio-gina': 'Domicilios Gina'
+        };
+
+        function normalizarTransportadora(val) {
+            if (!val) return '';
+            const low = val.trim().toLowerCase();
+            return TRANSP_KEY_MAP[low] || val.trim();
+        }
+
         function renderizarPedidosPanel() {
             const cont = document.getElementById('contenedor-historial-pedidos'); if (!cont) return;
             cont.innerHTML = "";
@@ -4295,10 +4492,8 @@ table{width:100%;border-collapse:collapse}
                 return;
             }
 
-            // Vista normal
-            const filtrados = historialPedidos.filter(p => normalizarEstadoPedido(p.estado) === vistaPedidosActual).sort(compararPedidosRecientes);
-            if (filtrados.length === 0) return cont.innerHTML = `<p style='text-align:center; grid-column: 1/-1; color: #888; font-weight: bold; margin-top: 20px;'>No hay pedidos en esta sección.</p>`;
-            filtrados.forEach(ped => {
+            // ── Helper: renderizar una tarjeta de pedido individual ──
+            function _htmlTarjetaPedido(ped) {
                 const estadoActual = normalizarEstadoPedido(ped.estado);
                 const opcionesEstado = ESTADOS_PEDIDO.map(e => `<option value="${e.valor}" ${estadoActual === e.valor ? 'selected' : ''}>${e.label}</option>`).join('');
                 let htmlItems = ped.items.map((i, iIdx) => {
@@ -4312,8 +4507,6 @@ table{width:100%;border-collapse:collapse}
                     return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${i.nom}</div><div style="font-size:0.72em;color:#888;">Talla: ${i.talla || 'Única'} · REF: ${i.cod || 'S/N'}</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(i.precio)}</span><button class="tp-btn-del-prod" title="Eliminar producto" onclick="eliminarProductoDePedido(${ped.num}, ${iIdx})">🗑️</button></div>`;
                 }).join('');
 
-                // Botón anular solo para Gina, solo si tiene factura y no está ya anulada
-                // Número correlativo SK en el botón de la tarjeta
                 const numFact = ped.numOrden || ('SK' + String(ped.numFactura || ped.num).padStart(5, '0'));
                 const btnAnular = esGina && !ped.facturaAnulada ? `
                     <div style="margin-top:8px;border-top:1px dashed #f5c6cb;padding-top:8px;">
@@ -4325,11 +4518,10 @@ table{width:100%;border-collapse:collapse}
                 const tipoVentaOpts = ['Contraentrega','Contado','Recaudo'].map(function(op) {
                     return '<option value="'+op+'"'+(ped.tipoVenta===op?' selected':'')+'>'+op+'</option>';
                 }).join('');
-                const transpOpts = ['','Interrapidísimo','23M','Domicilio Gina','Envía'].map(function(op) {
-                    const sel = (ped.transportadora||'') === op ? ' selected' : '';
+                const transpOpts = ['','Interrapidísimo','Envía','23M&M','Domicilios Gina'].map(function(op) {
+                    const sel = normalizarTransportadora(ped.transportadora||'') === op ? ' selected' : '';
                     return '<option value="'+op+'"'+sel+'>'+(op||'— Transportadora —')+'</option>';
                 }).join('');
-                // Datos completos del cliente
                 const datosCliente = [
                     ped.nom ? '👤 <strong>'+ped.nom+'</strong>' : '',
                     ped.cc ? '🪪 CC: '+ped.cc : '',
@@ -4339,25 +4531,269 @@ table{width:100%;border-collapse:collapse}
                     ped.ciudad ? '🏙️ '+ped.ciudad : '',
                     ped.observaciones ? '📝 '+ped.observaciones : '',
                 ].filter(Boolean).join('<br>');
-                cont.innerHTML +=
-                    '<div class="tarjeta-pedido-cb">' +
-                    '<div class="tp-fila1"><span class="tp-id">' + numOrdenDisplay + '</span><span class="tp-fecha">' + (ped.fecha || '') + '</span></div>' +
-                    '<div class="tp-fila2">' +
-                      '<select onchange="cambiarTipoVenta(' + ped.num + ', this.value)" style="flex:1;padding:4px 7px;border:1.5px solid #c9a0dc;border-radius:8px;font-size:0.78em;font-weight:700;color:#8e44ad;background:#fdf8ff;cursor:pointer;">' + tipoVentaOpts + '</select>' +
-                      '<select onchange="cambiarTransportadora(' + ped.num + ', this.value)" style="flex:1;padding:4px 7px;border:1.5px solid #a8d8ea;border-radius:8px;font-size:0.78em;font-weight:700;color:#1a6a8a;background:#f0faff;cursor:pointer;">' + transpOpts + '</select>' +
+                return '<div class="tarjeta-pedido-cb">' +
+                    '<div class="tp-encabezado">' +
+                      '<div class="tp-fila1"><span class="tp-id">' + numOrdenDisplay + '</span><span class="tp-fecha">🕐 ' + (ped.fecha || '') + '</span></div>' +
+                      '<div class="tp-fila2">' +
+                        '<select onchange="cambiarTipoVenta(' + ped.num + ', this.value)" style="border:1.5px solid #c9a0dc;color:#8e44ad;background:#fdf8ff;">' + tipoVentaOpts + '</select>' +
+                        '<select onchange="cambiarTransportadora(' + ped.num + ', this.value)" style="border:1.5px solid #a8d8ea;color:#1a6a8a;background:#f0faff;">' + transpOpts + '</select>' +
+                      '</div>' +
+                      '<div class="tp-fila3">' +
+                        '<button class="tp-btn-factura" onclick="imprimirFactura(' + ped.num + ')">📋 ' + numFact + '</button>' +
+                        '<button class="tp-btn-eliminar" onclick="eliminarPedido(' + ped.num + ')">🗑️ Eliminar</button>' +
+                        '<select class="select-estado-ped" onchange="cambiarEstadoPedido(' + ped.num + ', this.value)" style="flex:1;padding:5px 6px;border:1.5px solid #d8b4fe;border-radius:8px;font-size:0.76em;font-weight:700;color:#7e22ce;background:#fdf8ff;cursor:pointer;font-family:Nunito,sans-serif;">' + opcionesEstado + '</select>' +
+                      '</div>' +
                     '</div>' +
-                    '<div class="tp-fila3">' +
-                      '<button class="tp-btn-factura" onclick="imprimirFactura(' + ped.num + ')" style="font-size:0.72em;padding:5px 6px;">📋 ' + numFact + '</button>' +
-                      '<button class="tp-btn-eliminar" onclick="eliminarPedido(' + ped.num + ')" style="font-size:0.72em;padding:5px 6px;">🗑️ Eliminar</button>' +
+                    '<div class="tp-body">' +
+                      '<div class="tp-datos-completo">' + datosCliente + '</div>' +
+                      '<div class="tp-items">' + htmlItems + '</div>' +
+                      '<div class="tp-total">Total: ' + formatMoney(ped.tot) + '</div>' +
+                      btnAnular +
                     '</div>' +
-                    '<div class="tp-datos-completo">' + datosCliente + '</div>' +
-                    '<div class="tp-items">' + htmlItems + '</div>' +
-                    '<div class="tp-total">Total: ' + formatMoney(ped.tot) + '</div>' +
-                    '<div class="tp-acciones"><select class="select-estado-ped" onchange="cambiarEstadoPedido(' + ped.num + ', this.value)">' + opcionesEstado + '</select></div>' +
-                    btnAnular +
                     '</div>';
+            }
+
+            // Vista cancelados — filas compactas expandibles
+            if (vistaPedidosActual === 'cancelado') {
+                const filtrados = historialPedidos.filter(p => normalizarEstadoPedido(p.estado) === 'cancelado').sort(compararPedidosRecientes);
+                if (filtrados.length === 0) return cont.innerHTML = `<p style='text-align:center;grid-column:1/-1;color:#888;font-weight:bold;margin-top:20px;'>No hay pedidos cancelados.</p>`;
+                const totalCancelados = filtrados.reduce((s,p)=>s+(p.tot||0),0);
+                cont.innerHTML = `<div style="background:#fcebeb;border:1.5px solid #f7c1c1;border-radius:12px;padding:10px 14px;margin-bottom:10px;grid-column:1/-1;font-size:0.85em;color:#a32d2d;font-weight:700;">
+                    ❌ ${filtrados.length} pedido(s) cancelado(s) · Total: ${formatMoney(totalCancelados)}</div>
+                <table style="width:100%;border-collapse:collapse;grid-column:1/-1;font-size:0.82em;">
+                    <thead><tr style="background:#fcebeb;color:#a32d2d;">
+                        <th style="padding:8px;text-align:left;border-bottom:1.5px solid #f7c1c1;">▼</th>
+                        <th style="padding:8px;text-align:left;border-bottom:1.5px solid #f7c1c1;">#Pedido</th>
+                        <th style="padding:8px;text-align:left;border-bottom:1.5px solid #f7c1c1;">Cliente</th>
+                        <th style="padding:8px;text-align:left;border-bottom:1.5px solid #f7c1c1;">Teléfono</th>
+                        <th style="padding:8px;text-align:left;border-bottom:1.5px solid #f7c1c1;">Fecha</th>
+                        <th style="padding:8px;text-align:center;border-bottom:1.5px solid #f7c1c1;">Prendas</th>
+                        <th style="padding:8px;text-align:right;border-bottom:1.5px solid #f7c1c1;">Total</th>
+                    </tr></thead>
+                    <tbody id="tbody-cancelados"></tbody>
+                </table>`;
+                const tbody = cont.querySelector('#tbody-cancelados');
+                filtrados.forEach((ped, idx) => {
+                    const detId = 'det-can-' + ped.num;
+                    const tr = document.createElement('tr');
+                    tr.style.cssText = 'cursor:pointer;border-bottom:1px solid #f5e6f8;';
+                    tr.innerHTML = `<td style="padding:8px;color:#a32d2d;" onclick="document.getElementById('${detId}').style.display=document.getElementById('${detId}').style.display==='none'?'table-row':'none'">▼</td>
+                        <td style="padding:8px;font-weight:700;color:#a32d2d;">#SK-${ped.num}</td>
+                        <td style="padding:8px;">${ped.nom||''}</td>
+                        <td style="padding:8px;">${ped.tel||''}</td>
+                        <td style="padding:8px;color:#888;font-size:0.9em;">${ped.fecha||''}</td>
+                        <td style="padding:8px;text-align:center;">${(ped.items||[]).length}</td>
+                        <td style="padding:8px;text-align:right;font-weight:700;color:#a32d2d;">${formatMoney(ped.tot)}</td>`;
+                    tbody.appendChild(tr);
+                    // Fila de detalle expandible
+                    const trDet = document.createElement('tr');
+                    trDet.id = detId;
+                    trDet.style.display = 'none';
+                    trDet.innerHTML = `<td colspan="7" style="padding:0;">${_htmlTarjetaPedido(ped)}</td>`;
+                    tbody.appendChild(trDet);
+                });
+                return;
+            }
+
+            // Vista normal — sin subcategorías transportadora
+            if (vistaPedidosActual !== 'enviado' && vistaPedidosActual !== 'entregado') {
+                const filtrados = historialPedidos.filter(p => normalizarEstadoPedido(p.estado) === vistaPedidosActual).sort(compararPedidosRecientes);
+                if (filtrados.length === 0) return cont.innerHTML = `<p style='text-align:center; grid-column: 1/-1; color: #888; font-weight: bold; margin-top: 20px;'>No hay pedidos en esta sección.</p>`;
+                filtrados.forEach(ped => { cont.innerHTML += _htmlTarjetaPedido(ped); });
+                return;
+            }
+
+            // ══ MÓDULO TRANSPORTADORAS — 4 NIVELES ══
+            const filtrados = historialPedidos.filter(p => normalizarEstadoPedido(p.estado) === vistaPedidosActual).sort(compararPedidosRecientes);
+            if (filtrados.length === 0) return cont.innerHTML = `<p style='text-align:center;color:#888;font-weight:bold;margin-top:20px;'>No hay pedidos en esta sección.</p>`;
+
+            // ── Agrupar por transportadora ──
+            const grupos = {};
+            const sinAsignar = [];
+            filtrados.forEach(ped => {
+                const t = normalizarTransportadora(ped.transportadora || '');
+                const cfg = TRANSPORTADORAS_CONFIG.find(x => x.key === t);
+                if (cfg) { if (!grupos[cfg.key]) grupos[cfg.key] = []; grupos[cfg.key].push(ped); }
+                else sinAsignar.push(ped);
             });
-        }
+
+            // ── Totales generales ──
+            let granTotalPrendas = 0, granTotalEnvios = 0;
+            filtrados.forEach(ped => {
+                granTotalPrendas += (ped.items || []).reduce((s, i) => s + ((i.precio || 0) * (i.cant || 1)), 0);
+                granTotalEnvios  += parseInt((ped.valorEnvio || '0').toString().replace(/[^0-9]/g, '')) || 0;
+            });
+
+            // ── NIVEL 1: Barra resumen ──
+            cont.innerHTML = '';
+            cont.innerHTML += `<div class="transp-barra-resumen">
+                <div class="transp-resumen-item"><span class="transp-resumen-label">📦 Paquetes</span><span class="transp-resumen-valor">${filtrados.length}</span></div>
+                <div class="transp-resumen-item"><span class="transp-resumen-label">👕 Prendas</span><span class="transp-resumen-valor">${formatMoney(granTotalPrendas)}</span></div>
+                <div class="transp-resumen-item"><span class="transp-resumen-label">🚚 Envíos</span><span class="transp-resumen-valor">${formatMoney(granTotalEnvios)}</span></div>
+                <div class="transp-resumen-item"><span class="transp-resumen-label">💰 Total</span><span class="transp-resumen-valor total">${formatMoney(granTotalPrendas + granTotalEnvios)}</span></div>
+            </div>`;
+
+            // ── NIVEL 2: Tarjetas transportadora ──
+            const bgMap = {
+                'Interrapidísimo': { emoji: '⚡', imgUrl: 'https://interrapidisimo.com/wp-content/uploads/2021/05/logo-inter.png' },
+                'Envía':           { emoji: '🟢', imgUrl: 'https://envia.co/img/logo-envia.svg' },
+                '23M&M':           { emoji: '🔵', imgUrl: '' },
+                'Domicilios Gina': { emoji: '🩷', imgUrl: '' },
+            };
+
+            const nivel2 = document.createElement('div');
+            nivel2.className = 'transp-nivel2';
+            nivel2.id = 'transp-nivel2';
+            cont.appendChild(nivel2);
+
+            // Tarjeta "Sin transportadora" al final
+            const todasTransp = [...TRANSPORTADORAS_CONFIG.map(c => ({key: c.key, label: c.key, color: c.color, esSin: false}))];
+            if (sinAsignar.length > 0) todasTransp.push({key: '__sin__', label: 'Sin transportadora', color: '#f59e0b', esSin: true});
+
+            todasTransp.forEach(tr => {
+                const pedidosGrupo = tr.esSin ? sinAsignar : (grupos[tr.key] || []);
+                const count = pedidosGrupo.length;
+                let subPrendas = 0, subEnvios = 0;
+                pedidosGrupo.forEach(p => {
+                    subPrendas += (p.items || []).reduce((s,i) => s + ((i.precio||0)*(i.cant||1)), 0);
+                    subEnvios  += parseInt((p.valorEnvio||'0').toString().replace(/[^0-9]/g,''))||0;
+                });
+
+                const bg = bgMap[tr.key] || {emoji: '🚚', imgUrl: ''};
+                const logoHTML = bg.imgUrl
+                    ? `<div class="transp-card-logo"><img src="${bg.imgUrl}" alt="${tr.label}" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=\"font-size:1.8em;\">${bg.emoji}</span>'"></div>`
+                    : `<div class="transp-card-emoji">${bg.emoji}</div>`;
+
+                const card = document.createElement('button');
+                card.className = 'transp-card' + (tr.esSin ? ' transp-card-sin' : '') + (count === 0 ? ' sin-pedidos' : '');
+                card.dataset.key = tr.key;
+                card.innerHTML =
+                    (count > 0 ? `<span class="transp-card-badge">${count}</span>` : '') +
+                    logoHTML +
+                    `<span class="transp-card-nombre">${tr.label}</span>` +
+                    `<span class="transp-card-meta">📦 ${count} pedido${count!==1?'s':''}<br>💰 ${formatMoney(subPrendas + subEnvios)}</span>`;
+
+                card.addEventListener('click', function() {
+                    if (count === 0) return;
+                    // Marcar activa
+                    document.querySelectorAll('.transp-card').forEach(c => c.classList.remove('activa'));
+                    card.classList.add('activa');
+                    // Mostrar nivel 3 con los pedidos de esta transportadora
+                    mostrarNivel3Transp(pedidosGrupo, tr.label, tr.esSin, tr.color);
+                });
+                nivel2.appendChild(card);
+            });
+
+            // ── NIVEL 3: Lista de pedidos ──
+            const nivel3 = document.createElement('div');
+            nivel3.className = 'transp-nivel3';
+            nivel3.id = 'transp-nivel3';
+            cont.appendChild(nivel3);
+
+            function mostrarNivel3Transp(pedidos, titulo, esSin, color) {
+                const n2 = document.getElementById('transp-nivel2');
+                const n3 = document.getElementById('transp-nivel3');
+                if (!n3) return;
+
+                // Ocultar nivel 2 Y barra de resumen, mostrar nivel 3 en ancho completo
+                if (n2) n2.style.display = 'none';
+                const resumen = document.querySelector('.transp-barra-resumen');
+                if (resumen) resumen.style.display = 'none';
+                n3.classList.add('visible');
+
+                let subP = 0, subE = 0;
+                pedidos.forEach(p => {
+                    subP += (p.items||[]).reduce((s,i) => s+((i.precio||0)*(i.cant||1)),0);
+                    subE += parseInt((p.valorEnvio||'0').toString().replace(/[^0-9]/g,''))||0;
+                });
+
+                const colorHead = esSin ? '#b45309' : (color || '#8e44ad');
+
+                n3.innerHTML = `
+                <div class="transp-nivel3-header">
+                    <button class="transp-btn-volver" onclick="
+                        document.getElementById('transp-nivel2').style.display='';
+                        document.getElementById('transp-nivel3').classList.remove('visible');
+                        document.querySelectorAll('.transp-card').forEach(c=>c.classList.remove('activa'));
+                        var res=document.querySelector('.transp-barra-resumen'); if(res) res.style.display='';
+                    ">← Volver</button>
+                    <span class="transp-nivel3-titulo" style="color:${colorHead};">
+                        ${esSin ? '⚠️' : '🚚'} ${titulo}
+                    </span>
+                    <span class="transp-nivel3-subtotal">
+                        📦 ${pedidos.length} pedidos &nbsp;·&nbsp; 💰 ${formatMoney(subP + subE)}
+                    </span>
+                </div>
+                <div>
+                <table class="transp-lista-pedidos" id="transp-tabla-pedidos">
+                    <thead>
+                        <tr>
+                            <th style="width:28px;"></th>
+                            <th>Pedido</th>
+                            <th>Cliente</th>
+                            <th>Teléfono</th>
+                            <th>Fecha</th>
+                            <th>Prendas</th>
+                            <th style="text-align:right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transp-tbody">
+                    </tbody>
+                </table>
+                </div>`;
+
+                const tbody = document.getElementById('transp-tbody');
+                pedidos.forEach(ped => {
+                    const numDisp = ped.numOrden || ('#SK-' + ped.num);
+                    const numPrendas = (ped.items || []).length;
+                    const totalPed = (ped.items||[]).reduce((s,i)=>s+((i.precio||0)*(i.cant||1)),0);
+                    const fechaCorta = (ped.fecha||'').split(',')[0];
+
+                    // Fila del pedido
+                    const tr = document.createElement('tr');
+                    tr.dataset.num = ped.num;
+                    tr.innerHTML = `
+                        <td class="transp-td-flecha">▼</td>
+                        <td class="transp-td-num">${numDisp}</td>
+                        <td class="transp-td-cliente">${ped.nom || '—'}</td>
+                        <td class="transp-td-fecha" style="color:#555;">${ped.tel || '—'}</td>
+                        <td class="transp-td-fecha">${fechaCorta}</td>
+                        <td class="transp-td-prendas">${numPrendas} prenda${numPrendas!==1?'s':''}</td>
+                        <td class="transp-td-total">${formatMoney(totalPed)}</td>`;
+
+                    // Fila oculta de prefactura
+                    const trPref = document.createElement('tr');
+                    trPref.className = 'transp-prefactura-row';
+                    trPref.id = 'pref-row-' + ped.num;
+                    const tdPref = document.createElement('td');
+                    tdPref.className = 'transp-prefactura-cell';
+                    tdPref.colSpan = 7;
+                    const inner = document.createElement('div');
+                    inner.className = 'transp-prefactura-inner';
+                    inner.innerHTML = _htmlTarjetaPedido(ped);
+                    tdPref.appendChild(inner);
+                    trPref.appendChild(tdPref);
+
+                    // Toggle al hacer click en la fila
+                    tr.addEventListener('click', function() {
+                        const estaAbierto = trPref.classList.contains('visible');
+                        // Cerrar todos
+                        document.querySelectorAll('.transp-prefactura-row.visible').forEach(r => r.classList.remove('visible'));
+                        document.querySelectorAll('#transp-tbody tr[data-num]').forEach(r => r.classList.remove('abierto'));
+                        if (!estaAbierto) {
+                            trPref.classList.add('visible');
+                            tr.classList.add('abierto');
+                            setTimeout(() => tr.scrollIntoView({behavior:'smooth', block:'nearest'}), 100);
+                        }
+                    });
+
+                    tbody.appendChild(tr);
+                    tbody.appendChild(trPref);
+                });
+            }
+
+                }
+        // ══ FIN MÓDULO TRANSPORTADORAS ══
 
         async function anularFacturaPedido(numPed) {
             const motivo = (document.getElementById('motivo-anular-' + numPed) || {}).value || '';
