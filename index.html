@@ -4301,7 +4301,7 @@ table{width:100%;border-collapse:collapse}
 <div class="total-bloque">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed #e8d5f5;">
     <span style="font-size:0.82em;color:#888;text-transform:uppercase;letter-spacing:1px;">Subtotal productos</span>
-    <span id="subtotal-productos" style="font-size:1em;font-weight:700;color:#555;">${formatMoney(ped.tot)}</span>
+    <span id="subtotal-productos" data-sub="${ped.tot}" style="font-size:1em;font-weight:700;color:#555;">${formatMoney(ped.tot)}</span>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:2px solid #e8d5f5;">
     <span style="font-size:0.82em;color:#888;text-transform:uppercase;letter-spacing:1px;">Valor de envío</span>
@@ -4329,13 +4329,11 @@ table{width:100%;border-collapse:collapse}
             // Inyectar función recalcularTotal de forma segura (no dentro del template literal)
             var scriptEl = vent.document.createElement('script');
             scriptEl.textContent = 'function recalcularTotal(){' +
-                '  var s=document.querySelectorAll(".precio-editable"),sub=0;' +
-                '  s.forEach(function(x){sub+=parseInt(x.textContent.replace(/[^0-9]/g,""))||0;});' +
+                '  var subEl=document.getElementById("subtotal-productos");' +
+                '  var sub=subEl?parseInt((subEl.dataset.sub||"0").replace(/[^0-9]/g,""))||0:0;' +
                 '  var envioEl=document.getElementById("fac-valor-envio");' +
                 '  var envio=envioEl?parseInt((envioEl.value||"0").replace(/[^0-9]/g,""))||0:0;' +
                 '  var total=sub+envio;' +
-                '  var elSub=document.getElementById("subtotal-productos");' +
-                '  if(elSub)elSub.textContent="$"+sub.toLocaleString("es-CO");' +
                 '  var elTot=document.getElementById("total-final");' +
                 '  if(elTot)elTot.textContent="$"+total.toLocaleString("es-CO");' +
                 '}';
