@@ -1,7 +1,11 @@
 <html lang="es"><head>
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { 
+    getFirestore, collection, doc, getDoc, getDocs, 
+    onSnapshot, addDoc, setDoc, updateDoc, deleteDoc,
+    query, orderBy, where, runTransaction
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBn5zp89TGHUj6OkA8jyKm_ROfEazCRgUc",
@@ -15,7 +19,36 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   window.db = db;
+
+  // Exponer funciones de Firestore globalmente para que el JS no-modular las pueda usar
+  window._firestore = {
+    getFirestore, collection, doc, getDoc, getDocs,
+    onSnapshot, addDoc, setDoc, updateDoc, deleteDoc,
+    query, orderBy, where, runTransaction, getApps,
+    app
+  };
+
+  // Cargar config y productos automáticamente al iniciar
+  window._firestoreReady = true;
+  if (window._onFirestoreReady) window._onFirestoreReady();
+
   console.log("Firebase catálogo conectado ✅");
+
+  // Llamar iniciarCatalogo cuando DOM esté listo
+  function arrancarCatalogo() {
+    if (typeof iniciarCatalogo === 'function') {
+      iniciarCatalogo();
+    } else {
+      // JS principal aún no cargó, esperar
+      setTimeout(arrancarCatalogo, 50);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', arrancarCatalogo);
+  } else {
+    setTimeout(arrancarCatalogo, 0);
+  }
 </script>
 
     <meta charset="UTF-8">
@@ -1238,11 +1271,17 @@
         // Renderizar inmediatamente si los datos ya están disponibles (sin esperar window.onload)
         // NO renderizar en DOMContentLoaded — esperar Firebase para tener colores correctos
 
-        window.onload = async () => {
+        async function iniciarCatalogo() {
+            if (!window._firestore || !window.db) {
+                console.log('Esperando Firebase...');
+                setTimeout(iniciarCatalogo, 100);
+                return;
+            }
             // Cargar config desde Firestore — es el JEFE, pisa todo lo demás
             try {
-                const { getFirestore, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const dbF = getFirestore();
+                const doc = window._firestore.doc;
+                const getDoc = window._firestore.getDoc;
+                const dbF = window.db;
                 const snapConfig = await getDoc(doc(dbF, 'config_tienda', 'configuracion'));
                 if (snapConfig.exists()) {
                     const dataFirebase = snapConfig.data();
@@ -1260,11 +1299,12 @@
 
             // ✅ CARGAR PRODUCTOS DESDE FIREBASE en tiempo real con onSnapshot
             try {
-                const { getFirestore, collection, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const { getApps } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+                const collection = window._firestore.collection;
+                const onSnapshot = window._firestore.onSnapshot;
+                const getApps = window._firestore.getApps;
                 const appActiva = getApps()[0];
                 if (appActiva) {
-                    const dbPublica = getFirestore(appActiva);
+                    const dbPublica = window.db;
                     // onSnapshot: escucha cambios en tiempo real — stock se actualiza al instante
                     onSnapshot(collection(dbPublica, 'productos'), (snap) => {
                         if (snap.empty) return;
@@ -1304,10 +1344,14 @@
             document.documentElement.style.removeProperty('--color-btn-carrito-texto');
             document.body.style.visibility = 'visible';
             document.getElementById('dynamic-theme').innerHTML = ':root { --color-banner: '+tema.banner+'; --color-texto-banner: '+tema.textoBanner+'; --color-fondo: '+tema.fondo+'; --color-tarjeta: '+tema.tarjeta+'; --color-texto: '+tema.texto+'; --color-precio: '+(cfg.colorPrecio || tema.banner)+'; --textura-banner: '+(cfg.texturaBanner || 'none')+'; --textura-size: '+(cfg.texturaSize || 'auto')+'; --tamano-titulo: '+config.sizeTitulo+'px; --tamano-descripcion: '+config.sizeDesc+'px; --tamano-logo: '+(config.sizeLogo || 80)+'px; --color-btn-carrito: '+(cfg.colorBtnCarrito || '#ff4db8')+'; --color-btn-carrito-texto: '+(cfg.colorBtnCarritoTexto || 'white')+'; --color-etiqueta-desc: '+(cfg.colorEtiquetaDesc || '#e74c3c')+'; --color-etiqueta-desc-texto: '+(cfg.colorEtiquetaDescTexto || 'white')+'; --opacidad-etiqueta-desc: '+(cfg.opacidadEtiquetaDesc || 1)+'; --color-categoria-fondo: '+(cfg.colorCategoriaFondo || '#ffffff')+'; --color-categoria-texto: '+(cfg.colorCategoriaTexto || tema.banner)+'; --color-categoria-borde: '+(cfg.colorCategoriaBorde || tema.banner)+'; --color-categoria-activa-fondo: '+(cfg.colorCategoriaActivaFondo || tema.banner)+'; --color-categoria-activa-texto: '+(cfg.colorCategoriaActivaTexto || tema.textoBanner || '#ffffff')+'; --color-volver-fondo: '+(cfg.colorVolverFondo || cfg.colorCategoriaActivaFondo || tema.banner)+'; --color-volver-texto: '+(cfg.colorVolverTexto || cfg.colorCategoriaActivaTexto || tema.textoBanner || '#ffffff')+'; --color-volver-borde: '+(cfg.colorVolverFondo || cfg.colorCategoriaActivaFondo || tema.banner)+'; }';
-            document.getElementById('logo-header').src = optimizarUrl(config.logo, 200);
-            document.getElementById('titulo-header').innerText = config.titulo;
-            document.getElementById('desc-header').innerText = config.desc;
-            document.getElementById('wa-header').innerText = `📱 ${config.whatsapp}`;
+            const _logo = document.getElementById('logo-header');
+            if (_logo && config.logo) _logo.src = optimizarUrl(config.logo, 200);
+            const _titulo = document.getElementById('titulo-header');
+            if (_titulo && config.titulo) _titulo.innerText = config.titulo;
+            const _desc = document.getElementById('desc-header');
+            if (_desc && config.desc) _desc.innerText = config.desc;
+            const _wa = document.getElementById('wa-header');
+            if (_wa && config.whatsapp) _wa.innerText = `📱 ${config.whatsapp}`;
             let waNum = String(config.whatsapp).replace(/\D/g,'');
             if (!waNum.startsWith('57')) waNum = '57' + waNum;
             document.getElementById('wa-header').href = `https://wa.me/${waNum}`;
@@ -1612,9 +1656,9 @@
                 // Guardar en localStorage como caché
                 localStorage.setItem('tiendaConfigV36', JSON.stringify(config));
                 // Guardar en Firestore — fuente de verdad principal
-                const { getFirestore, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const dbF = getFirestore();
-                await setDoc(doc(dbF, 'config_tienda', 'configuracion'), config);
+                     const doc = window._firestore.doc;
+                const setDoc = window._firestore.setDoc;
+                await setDoc(doc(window.db, 'config_tienda', 'configuracion'), config);
                 aplicarDiseno();
                 alert('✅ Diseño guardado correctamente.');
             } catch(e) {
@@ -1628,9 +1672,9 @@
             localStorage.setItem('tiendaConfigV36', JSON.stringify(config));
             if (window.datosQuemados) return;
             try {
-                const { getFirestore, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const dbF = getFirestore();
-                await setDoc(doc(dbF, 'config_tienda', 'configuracion'), config);
+                     const doc = window._firestore.doc;
+                const setDoc = window._firestore.setDoc;
+                await setDoc(doc(window.db, 'config_tienda', 'configuracion'), config);
             } catch(e) {
                 console.log('Error guardando config:', e);
             }
@@ -2069,6 +2113,9 @@
         }
 
         function renderizarCatalogo() {
+            // Ocultar spinner de carga
+            const _loading = document.getElementById('loading-catalogo');
+            if (_loading) _loading.style.display = 'none';
             const cont = document.getElementById('contenedor-productos'); cont.innerHTML = "";
 
             // Botón volver al collage — se inserta una sola vez antes del contenedor
@@ -2515,8 +2562,8 @@
                 productosDB.forEach(function(p) {
                     ordenMap[p.id] = { orden: p.orden || 100, ts: p._ts, suborden: p.subordenInterno, manual: true };
                 });
-                var firestoreModule = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                await firestoreModule.setDoc(firestoreModule.doc(db, 'config_tienda', 'orden_productos'), ordenMap);
+                var setDoc = window._firestore.setDoc; var docFn = window._firestore.doc;
+                await setDoc(docFn(db, 'config_tienda', 'orden_productos'), ordenMap);
                 localStorage.setItem('productosV36', JSON.stringify(productosDB));
                 localStorage.setItem('ordenManualesV1', JSON.stringify(ordenMap));
                 localStorage.setItem('ordenFirebaseActivo', '1');
@@ -2542,9 +2589,8 @@
                 localStorage.setItem('ordenManualesV1', JSON.stringify(ordenManuales));
 
                 // Guardar orden de TODOS los productos en Firebase
-                var firestoreModule = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                var setDoc = firestoreModule.setDoc;
-                var docFn = firestoreModule.doc;
+                var setDoc = window._firestore.setDoc;
+                var docFn = window._firestore.doc;
                 var ordenMap = {};
                 productosDB.forEach(function(p) {
                     ordenMap[p.id] = { orden: p.orden || 100, ts: p._ts, suborden: p.subordenInterno, manual: true };
@@ -2560,9 +2606,8 @@
         async function cargarOrdenDesdeFirebase() {
             try {
                 // Aplicar SOLO los cambios manuales de Firebase (sin resetear al orden del HTML)
-                var firestoreModule = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                var getDoc = firestoreModule.getDoc;
-                var docFn = firestoreModule.doc;
+                var getDoc = window._firestore.getDoc;
+                var docFn = window._firestore.doc;
                 var snap = await getDoc(docFn(db, 'config_tienda', 'orden_productos'));
                 if (snap.exists()) {
                     var ordenMap = snap.data();
@@ -2624,7 +2669,7 @@
             clearTimeout(window._invBusqTimer);
             window._invBusqTimer = setTimeout(async function() {
                 try {
-                    var { collection, getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                    var { collection, getDocs, query, where } = window._firestore;
                     // Buscar en entradas de inventario por referencia
                     var q = query(collection(db, 'inventario_mercancia'), where('ref', '==', codigo.trim()));
                     var snap = await getDocs(q);
@@ -2761,7 +2806,10 @@
 
         async function cargarPedidosDesdeFirebase() {
             try {
-                const { collection, onSnapshot, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const collection = window._firestore.collection;
+                const onSnapshot = window._firestore.onSnapshot;
+                const orderBy = window._firestore.orderBy;
+                const query = window._firestore.query;
                 const q = query(collection(db, 'pedidos'), orderBy('num', 'desc'));
                 // Listener en tiempo real — actualiza automáticamente en todos los dispositivos
                 if (unsubscribePedidosFirebase) unsubscribePedidosFirebase();
@@ -2829,7 +2877,8 @@
             console.log('✅ Stock descontado en memoria para pedido #' + pedido.num);
             // PASO 3: Intentar guardar en Firebase (opcional, no bloquea)
             try {
-                const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const doc = window._firestore.doc;
+                const setDoc = window._firestore.setDoc;
                 for (const idProd of Object.keys(porProducto)) {
                     let prod = productosDB.find(p => p.id === idProd);
                     if (!prod) continue;
@@ -2870,7 +2919,8 @@
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
             if (huboDevolucion) renderizarCatalogo();
             try {
-                const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const doc = window._firestore.doc;
+                const setDoc = window._firestore.setDoc;
                 for (const idProd of Object.keys(porProducto)) {
                     let prod = productosDB.find(p => p.id === idProd);
                     if (!prod) continue;
@@ -2887,7 +2937,13 @@
 
         async function persistirPedidoEnFirebase(pedido) {
             try {
-                const { collection, query, where, getDocs, doc, setDoc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const collection = window._firestore.collection;
+                const query = window._firestore.query;
+                const where = window._firestore.where;
+                const getDocs = window._firestore.getDocs;
+                const doc = window._firestore.doc;
+                const setDoc = window._firestore.setDoc;
+                const updateDoc = window._firestore.updateDoc;
                 const datosPedido = Object.assign({}, pedido, {
                     estado: normalizarEstadoPedido(pedido.estado || 'nuevo'),
                     actualizadoEn: new Date().toISOString()
@@ -2952,7 +3008,10 @@
                 let numOrden = 0;
                 let numOrdenFormato = 'SK00001';
                 try {
-                    const { doc, runTransaction, getDoc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                    const doc = window._firestore.doc;
+                const runTransaction = window._firestore.runTransaction;
+                const getDoc = window._firestore.getDoc;
+                const setDoc = window._firestore.setDoc;
                     const dbRef = window.db;
                     const contadorRef = doc(dbRef, 'contadores', 'pedidos');
                     // Asegurar que el documento existe antes de la transacción
@@ -3015,7 +3074,8 @@
 
                 // PASO 4: Guardar pedido completo en Firebase
                 try {
-                    const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                    const collection = window._firestore.collection;
+                const addDoc = window._firestore.addDoc;
                     await addDoc(collection(db, 'pedidos'), objetoOrden);
                     console.log('✅ Pedido ' + numOrdenFormato + ' guardado en Firebase');
                 } catch(e) { console.log('Error guardando pedido en Firebase:', e); }
@@ -3280,7 +3340,11 @@
             // Sincronizar con Firebase sin bloquear
             (async function() {
                 try {
-                    const { collection, query, where, getDocs, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                    const collection = window._firestore.collection;
+                const query = window._firestore.query;
+                const where = window._firestore.where;
+                const getDocs = window._firestore.getDocs;
+                const updateDoc = window._firestore.updateDoc;
                     const q = query(collection(db, 'pedidos'), where('num', '==', numPed));
                     const snap = await getDocs(q);
                     snap.forEach(async docSnap => { await updateDoc(docSnap.ref, { transportadora: valor }); });
@@ -3316,7 +3380,11 @@
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
             // Sincronizar con Firebase
             try {
-                const { collection, query, where, getDocs, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const collection = window._firestore.collection;
+                const query = window._firestore.query;
+                const where = window._firestore.where;
+                const getDocs = window._firestore.getDocs;
+                const updateDoc = window._firestore.updateDoc;
                 const q = query(collection(db, 'pedidos'), where('num', '==', numPed));
                 const snap = await getDocs(q);
                 snap.forEach(async docSnap => { await updateDoc(docSnap.ref, { items: ped.items, tot: ped.tot }); });
@@ -3420,7 +3488,12 @@
             historialPedidos = historialPedidos.filter(p => p.num !== numPed);
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
             try {
-                const { collection, query, where, getDocs, doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const collection = window._firestore.collection;
+                const query = window._firestore.query;
+                const where = window._firestore.where;
+                const getDocs = window._firestore.getDocs;
+                const doc = window._firestore.doc;
+                const deleteDoc = window._firestore.deleteDoc;
                 if (pedido && pedido._firebaseId) {
                     await deleteDoc(doc(db, 'pedidos', pedido._firebaseId));
                     return;
