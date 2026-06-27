@@ -340,7 +340,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
     <link rel="apple-touch-icon" href="./icons/icon-192.png">
     <script src="./pwa.js" defer></script>
-    <title>SuperKids &amp; Babys - Catálogo</title>
+    <title>SuperKids &amp; Babys - Panel de Gestión</title>
     <style id="dynamic-theme">:root { --color-banner: #f5d6ed; --color-texto-banner: #1c1717; --color-fondo: #fbeaf8; --color-tarjeta: #f9e2ed; --color-texto: #2a2222; --color-precio: #ff5cd6; --textura-banner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E"); --textura-size: 20px 20px; --tamano-titulo: 32px; --tamano-descripcion: 14px; --tamano-logo: 130px; --color-btn-carrito: #35c700; --color-btn-carrito-texto: #ffffff; --color-etiqueta-desc: #e74c3c; --color-etiqueta-desc-texto: #ffffff; --opacidad-etiqueta-desc: 0.7; }</style>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--color-fondo); margin: 0; color: var(--color-texto); padding-bottom: 80px; transition: background-color 0.3s, color 0.3s; }
@@ -851,7 +851,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
      Autocontenido. No toca ninguna funcionalidad existente.
      Usa localStorage para mostrarse solo una primera vez.
 ==================================================== -->
-<div id="sce-modal-overlay" style="
+<div id="sce-modal-overlay" style="display:none!important;" style="
     display: none;
     position: fixed;
     z-index: 100001;
@@ -971,7 +971,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 <!-- FIN MODAL INICIAL SCE -->
 
 
-    <header class="header-tienda">
+    <button class="btn-toggle-admin" onclick="toggleAdmin()">⚙️ Yohana</button>
+
+    <header class="header-tienda" style="display:none;">
         <div class="banner-top">
             <a id="wa-top-link" href="https://wa.me/573025451526" target="_blank" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:inherit;font-weight:600;font-size:0.9em;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="#25D366" style="flex-shrink:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.15))"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"></path></svg>Pedidos por WhatsApp</a>
             <button class="btn-compartir" onclick="compartirCatalogo()">📤 Compartir</button>
@@ -988,7 +990,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
      AVISO ENVÍOS CONTRAENTREGA — BANNER ESTÁTICO (Nivel 2)
      Debajo del header, parte del layout normal (no fixed).
 ==================================================== -->
-<div id="sce-banner" style="
+<div id="sce-banner" style="display:none!important;" style="
     background: linear-gradient(135deg, #fff3cd, #ffeaa0);
     border-bottom: 2px solid #f5a623;
     padding: 10px 16px;
@@ -1002,7 +1004,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 </div>
 <!-- FIN BANNER ESTÁTICO SCE -->
 
-    <div class="selector-genero">
+    <div class="selector-genero" style="display:none;">
         <button class="btn-genero activo" id="btn-gen-ninas" onclick="cambiarGenero('Niñas')">👧 Niñas</button>
         <button class="btn-genero" id="btn-gen-ninos" onclick="cambiarGenero('Niños')">👦 Niños</button>
         <button class="btn-genero" id="btn-gen-junior" onclick="cambiarGenero('Junior')">🧒 Junior</button>
@@ -1011,9 +1013,381 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
     <div class="contenedor">
 
-        
+        <div id="panel-admin" class="panel-admin-flotante" style="display: block; position: relative; width: 100%; max-width: 100%; border-radius: 0; box-shadow: none; padding: 12px 16px;">
+            <div id="alerta-bloqueo" style="display: none; background: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; text-align: center; border: 1px solid #f5c6cb;">
+                ⚠️ ESTÁS EDITANDO LA VERSIÓN EXPORTADA. Abre tu archivo local para guardar cambios definitivos.
+            </div>
 
-        <!-- ── FILTROS COLAPSABLES ── -->
+            <!-- ── INDICADOR NOTIFICACIONES (Mejora C) ── -->
+            <div id="sce-notif-indicator" style="
+                display: none;
+                align-items: center;
+                gap: 10px;
+                background: #fff8ec;
+                border: 1.5px solid #f5a623;
+                border-radius: 10px;
+                padding: 10px 14px;
+                margin-bottom: 12px;
+                font-family: Nunito, sans-serif;
+                font-size: 0.83em;
+            ">
+                <span id="sce-notif-icon" style="font-size:1.4em; flex-shrink:0;">🔔</span>
+                <div style="flex:1;">
+                    <div id="sce-notif-texto" style="font-weight:800; color:#555;"></div>
+                    <div id="sce-notif-sub" style="color:#888; font-size:0.9em; margin-top:1px;"></div>
+                </div>
+                <button id="sce-notif-btn" onclick="sceActivarNotificaciones()" style="
+                    display:none;
+                    background: #f5a623;
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    padding: 7px 12px;
+                    font-weight: 900;
+                    font-size: 0.9em;
+                    cursor: pointer;
+                    white-space: nowrap;
+                ">Activar</button>
+            </div>
+            <!-- FIN INDICADOR NOTIFICACIONES -->
+
+            <div class="tabs-admin">
+                <button class="btn-tab" onclick="cambiarTab('diseno')">🎨 Diseño</button>
+                <button class="btn-tab" onclick="cambiarTab('categorias')">📁 Categorías</button>
+                <button class="btn-tab" onclick="cambiarTab('productos')">🛍️ Productos</button>
+                <button class="btn-tab" onclick="cambiarTab('pedidos')" style="background-color: #4a90e2; color: white;">📦 Pedidos</button>
+                <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('inventario')" style="background-color: #27ae60; color: white; display:none;">📥 Inventario</button>
+                <button class="btn-tab" onclick="window.fbLogout && window.fbLogout()" style="background-color: #e74c3c; color: white;">🚪 Cerrar sesión</button>
+            </div>
+
+            <!-- TAB DISEÑO -->
+            <div id="tab-diseno" class="seccion-tab">
+                <div class="seccion-admin-sub form-admin">
+                    <h3>Textos Principales <span style="font-size:0.7em; background:#f0f2f5; padding:4px 10px; border-radius:20px; font-weight:normal;">(Aplica a toda la tienda)</span></h3>
+                    <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #c3e6cb;">
+                        <p style="margin-top: 0; font-size: 0.85em; font-weight: bold; color: #155724;">☁️ Sube el Logo desde tu PC (calidad original):</p>
+                        <input type="file" id="edit-logo-file" accept="image/*" style="width: 100%;">
+                        <p style="font-size: 0.8em; color: #666; margin: 5px 0 0;">(Si no seleccionas nada, se mantiene el logo actual)</p>
+                    </div>
+                    <label>Nombre:</label> <input type="text" id="edit-titulo">
+                    <label>Descripción:</label> <textarea id="edit-desc" rows="2"></textarea>
+                    <label>WhatsApp (Sin +):</label> <input type="number" id="edit-whatsapp">
+
+                    <h3 style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 15px;">Tamaños de Letra</h3>
+                    <label>Tamaño Título:</label>
+                    <div class="slider-container"><input type="range" id="slider-titulo" min="20" max="60" value="32" oninput="actualizarTamanosVivo()"><span class="slider-valor" id="val-titulo">32px</span></div>
+                    <label>Tamaño Descripción:</label>
+                    <div class="slider-container"><input type="range" id="slider-desc" min="12" max="24" value="14" oninput="actualizarTamanosVivo()"><span class="slider-valor" id="val-desc">14px</span></div>
+                    <label>Tamaño Logo:</label>
+                    <div class="slider-container"><input type="range" id="slider-logo" min="40" max="160" value="80" oninput="actualizarTamanosVivo()"><span class="slider-valor" id="val-logo">130px</span></div>
+
+                    <!-- SELECTOR DE GÉNERO PARA COLORES -->
+                    <div style="margin-top: 18px; border-top: 1px solid #ddd; padding-top: 18px;">
+                        <h3 style="margin:0 0 12px 0;">🎨 Colores por Género</h3>
+                        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                            <button id="btn-color-ninas" onclick="cambiarGeneroDiseno('Niñas')" style="flex:1; padding:10px; border-radius:8px; border:2px solid #d1b3e8; background:#d1b3e8; color:#4a4a4a; font-weight:bold; cursor:pointer; font-size:0.95em;">👧 Editando: Niñas</button>
+                            <button id="btn-color-ninos" onclick="cambiarGeneroDiseno('Niños')" style="flex:1; padding:10px; border-radius:8px; border:2px solid #ddd; background:#f5f5f5; color:#888; font-weight:bold; cursor:pointer; font-size:0.95em;">👦 Niños</button>
+                            <button id="btn-color-junior" onclick="cambiarGeneroDiseno('Junior')" style="flex:1; padding:10px; border-radius:8px; border:2px solid #ddd; background:#f5f5f5; color:#888; font-weight:bold; cursor:pointer; font-size:0.95em;">🧒 Junior</button>
+                        </div>
+                        <p id="label-genero-color" style="font-size:0.85em; color:#888; margin:0 0 10px; text-align:center;">Estás configurando los colores de <strong>Niñas</strong></p>
+                        <div class="grid-temas" id="contenedor-temas"><div class="tema-card " onclick="seleccionarTema('SuperKids Lila')"><div class="tema-colores"><div class="c-swatch" style="background:#d1b3e8"></div><div class="c-swatch" style="background:#fcf7f0"></div><div class="c-swatch" style="background:#4a4a4a"></div></div>SuperKids Lila</div><div class="tema-card " onclick="seleccionarTema('SuperKids Mint')"><div class="tema-colores"><div class="c-swatch" style="background:#a8e0d5"></div><div class="c-swatch" style="background:#fcf7f0"></div><div class="c-swatch" style="background:#4a4a4a"></div></div>SuperKids Mint</div><div class="tema-card " onclick="seleccionarTema('SuperKids Rosa')"><div class="tema-colores"><div class="c-swatch" style="background:#ffb6c1"></div><div class="c-swatch" style="background:#fcf7f0"></div><div class="c-swatch" style="background:#4a4a4a"></div></div>SuperKids Rosa</div><div class="tema-card " onclick="seleccionarTema('SuperKids Amarillo')"><div class="tema-colores"><div class="c-swatch" style="background:#fce08b"></div><div class="c-swatch" style="background:#fdfdf4"></div><div class="c-swatch" style="background:#4a4a4a"></div></div>SuperKids Amarillo</div><div class="tema-card " onclick="seleccionarTema('Oscuro Noche')"><div class="tema-colores"><div class="c-swatch" style="background:#4a4a4a"></div><div class="c-swatch" style="background:#fcf7f0"></div><div class="c-swatch" style="background:#ffffff"></div></div>Oscuro Noche</div><div class="tema-card activo" onclick="seleccionarTema('Personalizado')"><div class="c-swatch" style="background: linear-gradient(45deg, #ff9a9e, #fecfef);"></div>Personalizado</div></div>
+                        <div class="panel-colores-custom" id="panel-personalizado" style="display: grid;">
+                            <div style="grid-column: 1 / -1; margin-bottom: 5px;">
+                                <h4 style="margin: 0; color: #2c3e50;">🎨 Creador de Colores</h4>
+                            </div>
+                            <div class="selector-color-box"><label>Banner y Botones:</label><input type="color" id="edit-color-banner" oninput="actualizarColoresVivo()"></div>
+                            <div class="selector-color-box"><label>Letras del Banner:</label><input type="color" id="edit-color-texto-header" oninput="actualizarColoresVivo()"></div>
+                            <div class="selector-color-box"><label>Fondo de Página:</label><input type="color" id="edit-color-fondo" oninput="actualizarColoresVivo()"></div>
+                            <div class="selector-color-box"><label>Fondo Tarjetas:</label><input type="color" id="edit-color-tarjeta" oninput="actualizarColoresVivo()"></div>
+                            <div class="selector-color-box" style="grid-column: 1 / -1;"><label>Letras Generales:</label><input type="color" id="edit-color-texto" oninput="actualizarColoresVivo()"></div>
+                        </div>
+
+                        <!-- ✅ NUEVO BLOQUE: Color del precio + Texturas mejoradas -->
+                        <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:10px; padding:16px; margin-top:14px;">
+                            <h4 style="margin:0 0 14px; color:#2c3e50;">✨ Extras del Género Activo</h4>
+
+                            <!-- COLOR DEL PRECIO: ahora bien visible -->
+                            <p style="font-size:0.85em; font-weight:bold; color:#555; margin:0 0 8px;">💲 Color de los Precios en las prendas:</p>
+                            <div class="caja-color-precio">
+                                <label>Color del precio</label>
+                                <span class="preview-precio-demo" id="demo-precio-texto" style="color: rgb(255, 92, 214);">$45.000</span>
+                                <input type="color" id="edit-color-precio" oninput="actualizarColorPrecioVivo()" title="Elige el color del precio">
+                            </div>
+                            <p style="font-size:0.78em; color:#888; margin:4px 0 16px;">👆 El color afecta el precio en cada tarjeta de producto</p>
+
+                            <!-- TEXTURAS DEL BANNER -->
+                            <label style="font-size:0.88em; font-weight:bold; color:#555; display:block; margin-bottom:10px;">🌸 Textura del Banner (parte de arriba con el logo):</label>
+                            <div class="grid-texturas-mejorado" id="selector-texturas"><div class="textura-card " onclick="seleccionarTextura(0)" title="Ninguna">
+                    <div class="textura-preview" style="background: #e8e8e8;"></div>
+                    <div class="textura-nombre">Ninguna</div>
+                </div><div class="textura-card " onclick="seleccionarTextura(1)" title="Puntitos">
+                    <div class="textura-preview" style="background-color: #f5d6ed; background-image: radial-gradient(circle, rgba(255,255,255,0.28) 1.5px, transparent 1.5px); background-size: 14px 14px;"></div>
+                    <div class="textura-nombre">Puntitos</div>
+                </div><div class="textura-card " onclick="seleccionarTextura(2)" title="Rayas suaves">
+                    <div class="textura-preview" style="background-color: #f5d6ed; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.12) 0px, rgba(255,255,255,0.12) 1px, transparent 1px, transparent 10px); background-size: auto;"></div>
+                    <div class="textura-nombre">Rayas suaves</div>
+                </div><div class="textura-card " onclick="seleccionarTextura(3)" title="Cuadros">
+                    <div class="textura-preview" style="background-color: #f5d6ed; background-image: repeating-linear-gradient(0deg,rgba(255,255,255,0.1) 0px,rgba(255,255,255,0.1) 1px,transparent 1px,transparent 22px),repeating-linear-gradient(90deg,rgba(255,255,255,0.1) 0px,rgba(255,255,255,0.1) 1px,transparent 1px,transparent 22px); background-size: auto;"></div>
+                    <div class="textura-nombre">Cuadros</div>
+                </div><div class="textura-card " onclick="seleccionarTextura(4)" title="Rombos">
+                    <div class="textura-preview" style="background-color: #f5d6ed; background-image: repeating-linear-gradient(45deg,rgba(255,255,255,0.1) 0,rgba(255,255,255,0.1) 1px,transparent 0,transparent 50%),repeating-linear-gradient(135deg,rgba(255,255,255,0.1) 0,rgba(255,255,255,0.1) 1px,transparent 0,transparent 50%); background-size: 14px 14px;"></div>
+                    <div class="textura-nombre">Rombos</div>
+                </div><div class="textura-card activa" onclick="seleccionarTextura(5)" title="Corazones">
+                    <div class="textura-preview" style="background-color: #f5d6ed; background-image: url(" data:image="" svg+xml,%3csvg="" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewbox="0 0 20 20" %3e%3cpath="" d="M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9z" fill="rgba(255,255,255,0.2)" %3e%3c="" svg%3e");="" background-size:="" 20px="" 20px;"=""></div>
+                    <div class="textura-nombre">Corazones</div>
+                </div><div class="textura-card " onclick="seleccionarTextura(6)" title="Estrellas">
+                    <div class="textura-preview" style="background-color: #f5d6ed; background-image: url(" data:image="" svg+xml,%3csvg="" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewbox="0 0 22 22" %3e%3cpolygon="" points="11,2 13.5,8.5 20,8.5 14.5,13 16.5,20 11,16 5.5,20 7.5,13 2,8.5 8.5,8.5" fill="rgba(255,255,255,0.2)" %3e%3c="" svg%3e");="" background-size:="" 22px="" 22px;"=""></div>
+                    <div class="textura-nombre">Estrellas</div>
+                </div><div class="textura-card " onclick="seleccionarTextura(7)" title="Flores">
+                    <div class="textura-preview" style="background-color: #f5d6ed; background-image: url(" data:image="" svg+xml,%3csvg="" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewbox="0 0 24 24" %3e%3ccircle="" cx="12" cy="8" r="3" fill="rgba(255,255,255,0.18)" %3e%3c="" svg%3e");="" background-size:="" 24px="" 24px;"=""></div>
+                    <div class="textura-nombre">Flores</div>
+                </div><div class="textura-card " onclick="seleccionarTextura(8)" title="Lunares grandes">
+                    <div class="textura-preview" style="background-color: #f5d6ed; background-image: radial-gradient(circle, rgba(255,255,255,0.22) 4px, transparent 4px); background-size: 28px 28px;"></div>
+                    <div class="textura-nombre">Lunares grandes</div>
+                </div></div>
+                        </div>
+                    </div>
+                    
+                        <!-- 🆕 CONTROL BOTÓN CARRITO + ETIQUETA DESCUENTO -->
+                        <div style="background:#fff0f8; border:1px solid #f9c; border-radius:10px; padding:16px; margin-top:14px;">
+                            <h4 style="margin:0 0 14px; color:#c0397a;">🛒 Botón Carrito &amp; Etiqueta Descuento</h4>
+
+                            <p style="font-size:0.85em; font-weight:bold; color:#555; margin:0 0 6px;">🎀 Color del botón "Añadir al Carrito":</p>
+                            <div style="display:flex; gap:10px; align-items:center; margin-bottom:14px;">
+                                <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Color fondo</label><input type="color" id="edit-color-btn-carrito" value="#ff4db8" oninput="actualizarBtnCarritoVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
+                                <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Color texto</label><input type="color" id="edit-color-btn-carrito-texto" value="#ffffff" oninput="actualizarBtnCarritoVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
+                            </div>
+
+                            <p style="font-size:0.85em; font-weight:bold; color:#555; margin:0 0 6px;">🏷️ Etiqueta de descuento (-44%):</p>
+                            <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px;">
+                                <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Color fondo</label><input type="color" id="edit-color-etiqueta-desc" value="#e74c3c" oninput="actualizarEtiquetaDescVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
+                                <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Color texto</label><input type="color" id="edit-color-etiqueta-desc-texto" value="#ffffff" oninput="actualizarEtiquetaDescVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
+                            </div>
+                            <label style="font-size:0.8em; color:#666;">Transparencia (0=transparente, 1=sólido)</label>
+                            <input type="range" id="edit-opacidad-etiqueta" min="0.1" max="1" step="0.05" value="1" oninput="actualizarEtiquetaDescVivo()" style="width:100%; margin-top:4px;">
+                            <span id="demo-opacidad-etiqueta" style="font-size:0.78em; color:#888;">70%</span>
+                            <p style="font-size:0.85em; font-weight:bold; color:#555; margin:14px 0 6px;">✨ Etiqueta "¡Oferta Especial!" (derecha):</p>
+                            <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px;">
+                                <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Color fondo</label><input type="color" id="edit-color-etiqueta-custom" value="#f5d6ed" oninput="actualizarEtiquetaCustomVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
+                                <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Color texto</label><input type="color" id="edit-color-etiqueta-custom-texto" value="#1c1717" oninput="actualizarEtiquetaCustomVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
+                            </div>
+                            <label style="font-size:0.8em; color:#666;">Transparencia</label>
+                            <input type="range" id="edit-opacidad-etiqueta-custom" min="0.1" max="1" step="0.05" value="0.95" oninput="actualizarEtiquetaCustomVivo()" style="width:100%; margin-top:4px;">
+                            <span id="demo-opacidad-etiqueta-custom" style="font-size:0.78em; color:#888;">60%</span>
+
+                        </div>
+
+                    
+                        <!-- 🆕 CONTROL BOTÓN PROMOCIONES -->
+                        <div style="background:#fff0f8; border:1px solid #f9c; border-radius:10px; padding:16px; margin-top:14px;">
+                            <h4 style="margin:0 0 14px; color:#c0397a;">🏷️ Botón de Promociones</h4>
+                            <p style="font-size:0.82em; color:#666; margin:0 0 10px;">Este botón aparece junto a "Todas" en los filtros de talla.</p>
+                            <label style="font-size:0.8em; color:#666;">Nombre del botón</label>
+                            <input type="text" id="edit-nombre-btn-promo" placeholder="Ej: Promociones, Ofertas, Rebajas..." oninput="actualizarBtnPromoVivo()" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; font-size:0.9em; margin-bottom:12px; box-sizing:border-box;">
+                            <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px;">
+                                <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Color fondo</label><input type="color" id="edit-color-btn-promo" value="#ff4db8" oninput="actualizarBtnPromoVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
+                                <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Color texto</label><input type="color" id="edit-color-btn-promo-texto" value="#ffffff" oninput="actualizarBtnPromoVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
+                            </div>
+                            <label style="font-size:0.8em; color:#666;">Intensidad / Transparencia</label>
+                            <input type="range" id="edit-opacidad-btn-promo" min="0.1" max="1" step="0.05" value="1" oninput="actualizarBtnPromoVivo()" style="width:100%; margin-top:4px;">
+                            <span id="demo-opacidad-btn-promo" style="font-size:0.78em; color:#888;">100%</span>
+                        </div>
+
+                        <div style="background:#f7fbff; border:1px solid #b8d7f0; border-radius:10px; padding:16px; margin-top:14px;">
+                            <h4 style="margin:0 0 14px; color:#246b9b;">Botones de Categorias y Volver</h4>
+                            <p style="font-size:0.82em; color:#666; margin:0 0 10px;">Estos colores son para los botones de categorias del catalogo y el boton "Ver todas las categorias".</p>
+                            <p style="font-size:0.85em; font-weight:bold; color:#555; margin:0 0 6px;">Categoria normal:</p>
+                            <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
+                                <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Fondo</label><input type="color" id="edit-color-cat-fondo" value="#ffffff" oninput="actualizarBotonesCategoriaVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
+                                <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Texto</label><input type="color" id="edit-color-cat-texto" value="#c0397a" oninput="actualizarBotonesCategoriaVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
+                                <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Borde</label><input type="color" id="edit-color-cat-borde" value="#c0397a" oninput="actualizarBotonesCategoriaVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
+                            </div>
+                            <p style="font-size:0.85em; font-weight:bold; color:#555; margin:0 0 6px;">Categoria activa:</p>
+                            <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
+                                <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Fondo</label><input type="color" id="edit-color-cat-activa-fondo" value="#c0397a" oninput="actualizarBotonesCategoriaVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
+                                <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Texto</label><input type="color" id="edit-color-cat-activa-texto" value="#ffffff" oninput="actualizarBotonesCategoriaVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
+                            </div>
+                            <p style="font-size:0.85em; font-weight:bold; color:#555; margin:0 0 6px;">Boton volver:</p>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Fondo</label><input type="color" id="edit-color-volver-fondo" value="#c0397a" oninput="actualizarBotonesCategoriaVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
+                                <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Texto</label><input type="color" id="edit-color-volver-texto" value="#ffffff" oninput="actualizarBotonesCategoriaVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
+                            </div>
+                        </div>
+
+                    <button class="btn-guardar" style="margin-top: 15px;" onclick="guardarDatosTienda()">💾 Guardar Todo el Diseño</button>
+                </div>
+            </div>
+
+            <!-- TAB CATEGORÍAS -->
+            <div id="tab-categorias" class="seccion-tab">
+                <div class="seccion-admin-sub form-admin">
+                    <h3>Gestionar Categorías</h3>
+                    <div style="display: flex; gap: 10px;"><input type="text" id="nueva-cat-input" placeholder="Ej: Zapatos" style="flex:1;"><button class="btn-guardar" onclick="agregarCategoria()">Añadir</button></div>
+                    <div class="lista-tags" id="lista-categorias-admin"><div class="tag-categoria" style="gap:6px; flex-wrap:wrap;"><input type="text" id="edit-cat-0" value="Mamelucos" style="border:1px solid #b3d7f0;border-radius:14px;padding:5px 8px;min-width:130px;font-weight:600;color:#2980b9;"><button onclick="renombrarCategoria(0)" title="Guardar nombre">✓</button><button onclick="eliminarCategoria('Mamelucos')">X</button></div><div class="tag-categoria" style="gap:6px; flex-wrap:wrap;"><input type="text" id="edit-cat-1" value="Conjuntos pantalón" style="border:1px solid #b3d7f0;border-radius:14px;padding:5px 8px;min-width:130px;font-weight:600;color:#2980b9;"><button onclick="renombrarCategoria(1)" title="Guardar nombre">✓</button><button onclick="eliminarCategoria('Conjuntos pantalón')">X</button></div><div class="tag-categoria" style="gap:6px; flex-wrap:wrap;"><input type="text" id="edit-cat-2" value="Conjuntos Short" style="border:1px solid #b3d7f0;border-radius:14px;padding:5px 8px;min-width:130px;font-weight:600;color:#2980b9;"><button onclick="renombrarCategoria(2)" title="Guardar nombre">✓</button><button onclick="eliminarCategoria('Conjuntos Short')">X</button></div><div class="tag-categoria" style="gap:6px; flex-wrap:wrap;"><input type="text" id="edit-cat-3" value="Jardineras Short" style="border:1px solid #b3d7f0;border-radius:14px;padding:5px 8px;min-width:130px;font-weight:600;color:#2980b9;"><button onclick="renombrarCategoria(3)" title="Guardar nombre">✓</button><button onclick="eliminarCategoria('Jardineras Short')">X</button></div><div class="tag-categoria" style="gap:6px; flex-wrap:wrap;"><input type="text" id="edit-cat-4" value="Jardineras Vestidos" style="border:1px solid #b3d7f0;border-radius:14px;padding:5px 8px;min-width:130px;font-weight:600;color:#2980b9;"><button onclick="renombrarCategoria(4)" title="Guardar nombre">✓</button><button onclick="eliminarCategoria('Jardineras Vestidos')">X</button></div><div class="tag-categoria" style="gap:6px; flex-wrap:wrap;"><input type="text" id="edit-cat-5" value="conjuntos Falda" style="border:1px solid #b3d7f0;border-radius:14px;padding:5px 8px;min-width:130px;font-weight:600;color:#2980b9;"><button onclick="renombrarCategoria(5)" title="Guardar nombre">✓</button><button onclick="eliminarCategoria('conjuntos Falda')">X</button></div></div>
+                </div>
+            </div>
+
+            <!-- TAB PRODUCTOS -->
+            <div id="tab-productos" class="seccion-tab">
+                <div style="text-align:right;margin-bottom:10px;">
+                    <button id="btn-reset-orden" onclick="resetearOrdenEnFirebase()" style="display: inline-block; background: rgb(230, 126, 34); color: white; border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: Nunito, sans-serif; font-weight: 700; font-size: 0.82em;">🔄 Guardar orden actual en la nube</button>
+                </div>
+                <div class="seccion-admin-sub form-admin">
+                    <h3>Añadir Nuevo Producto</h3>
+                    <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; border: 1px solid #c3e6cb;">
+                        <p style="margin-top: 0; font-size: 0.9em; color: #155724; font-weight: bold;">☁️ Las fotos se suben a Cloudinary con calidad original</p>
+                        <label style="font-weight: bold;">📸 Foto Principal desde tu PC*:</label>
+                        <input type="file" id="nueva-foto-princ" accept="image/*" style="width: 100%; margin-bottom: 10px;">
+                        <label style="display: block;">📸 Fotos Extra (Opcional, hasta 3):</label>
+                        <input type="file" id="nuevas-fotos-extra" accept="image/*" multiple="" style="width: 100%;">
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <div style="flex: 1;"><label>Catálogo:</label> <select id="nuevo-genero" onchange="document.getElementById('wrap-orden-genero').style.display=this.value==='Unisex'?'flex':'none'"><option value="Niñas">Niñas</option><option value="Niños">Niños</option><option value="Junior">Junior</option><option value="Accesorios">Accesorios</option><option value="Unisex">Unisex</option></select></div>
+                        <div style="flex: 1;"><label>Categoría:</label> <select id="nueva-categoria-select"><option value="Mamelucos">Mamelucos</option><option value="Conjuntos pantalón">Conjuntos pantalón</option><option value="Conjuntos Short">Conjuntos Short</option><option value="Jardineras Short">Jardineras Short</option><option value="Jardineras Vestidos">Jardineras Vestidos</option><option value="conjuntos Falda">conjuntos Falda</option></select></div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex: 2;"><label>Nombre*:</label><input type="text" id="nuevo-nombre" required="" style="width: 100%;"></div>
+                        <div style="flex: 1;"><label>SKU (REF):</label><div style="position:relative;"><input type="text" id="nuevo-codigo" style="width:100%;" oninput="buscarTallasEnInventario(this.value)" autocomplete="off"><span id="inv-busqueda-msg" style="font-size: 0.75em; color: rgb(231, 76, 60); font-weight: 700; margin-top: 2px; display: block;">⚠️ No se encontró en inventario</span></div></div>
+                        <div style="flex: 1;"><label>Posición:</label><input type="number" id="nuevo-orden" placeholder="Ej: 1" style="width: 100%;"></div>
+                    </div>
+                    <div id="wrap-orden-genero" style="display:none; gap:10px; margin-top:8px;">
+                        <div style="flex:1;"><label>Posición en Niñas:</label><input type="number" id="nuevo-orden-ninas" placeholder="Ej: 1" style="width:100%;"></div>
+                        <div style="flex:1;"><label>Posición en Niños:</label><input type="number" id="nuevo-orden-ninos" placeholder="Ej: 1" style="width:100%;"></div>
+                    </div>
+
+                    <textarea id="nueva-desc" placeholder="Descripción breve..." rows="2"></textarea>
+
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex: 1;"><label>Precio Anterior:</label><input type="number" id="nuevo-precio-ant" style="width: 100%;"></div>
+                        <div style="flex: 1;"><label>Precio Actual*:</label><input type="number" id="nuevo-precio" required="" style="width: 100%;"></div>
+                    </div>
+
+                    <label>Etiqueta Especial:</label> <input type="text" id="nueva-etiqueta-badge" placeholder="Ej: Oferta">
+
+                    <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; margin-top: 10px;">
+                        <label>📏 Tallas (Inventario)</label>
+                        <div id="contenedor-tallas-stock"><div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"></div></div>
+                        <button type="button" class="btn-secundario" onclick="agregarFilaTalla()">+ Añadir renglón</button>
+                    </div>
+
+                    <button class="btn-guardar" id="btn-anadir-prod" style="margin-top: 15px; font-size: 1.1em; padding: 15px;" onclick="procesarYAgregarProducto()">➕ Subir Producto y Guardar</button>
+                </div>
+            </div>
+
+            <!-- TAB PEDIDOS -->
+            <div id="tab-pedidos" class="seccion-tab">
+                <div class="seccion-admin-sub" style="background: transparent; border: none; padding: 0;">
+                    <div class="filtros-pedidos">
+                        <button class="btn-filtro-ped activo" id="fp-nuevo" onclick="filtrarVistaPedidos('nuevo')">Nuevos</button>
+                        <button class="btn-filtro-ped" id="fp-enviado" onclick="filtrarVistaPedidos('enviado')">Enviados</button>
+                        <button class="btn-filtro-ped" id="fp-entregado" onclick="filtrarVistaPedidos('entregado')">Entregados</button>
+                        <button class="btn-filtro-ped" id="fp-cancelado" onclick="filtrarVistaPedidos('cancelado')">Cancelados</button>
+                        <button class="btn-filtro-ped" id="fp-anuladas" onclick="filtrarVistaPedidos('anuladas')" style="background:#fcebeb;color:#a32d2d;border-color:#f7c1c1;">Facturas anuladas</button>
+                    </div>
+                    <div class="grid-pedidos" id="contenedor-historial-pedidos"><div class="tarjeta-pedido-cb"><button class="btn-imprimir-ped" onclick="imprimirFactura(7404)">📄 PDF</button><button class="btn-eliminar-ped" onclick="eliminarPedido(7404)">🗑️ Eliminar</button><div class="tp-header"><span class="tp-id">#SK-7404</span><span class="tp-fecha">19/5/2026, 10:21:23 a. m.</span></div><h4 class="tp-cliente">👤 Yomileth mejia lopez  CC1193558699</h4><div class="tp-datos">📍 OFICINA INTERRAPIDISIMO URIBIA LA GUAJIRA<br>📞 3207211515</div><div class="tp-items"><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778639673/hkauftuw6e3o8x12usfi.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco Rosado Cisnes</div><div style="font-size:0.72em;color:#888;">Talla: 6M · REF: 3402</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778642229/gcfjdjvwmcapnhd4eftx.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco Unicornio</div><div style="font-size:0.72em;color:#888;">Talla: 6M · REF: 1998</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778551747/ihohfk0ct7zlemqx63cn.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco Animal print rosado/cafe</div><div style="font-size:0.72em;color:#888;">Talla: 0M · REF: 3713</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778556767/qy4j4wmitmycl3mmrxus.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco blanco animal print con bolerito</div><div style="font-size:0.72em;color:#888;">Talla: 0M · REF: 101201665</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778538358/ctkdiajqmoqmheqj4xz2.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco Blanco Safari</div><div style="font-size:0.72em;color:#888;">Talla: 0M · REF: 2183</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778386309/vszgjy6pq36ljr7rrk0r.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Enterizo Rosado Daddy´s Girl</div><div style="font-size:0.72em;color:#888;">Talla: 0M · REF: 3717</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div></div><div class="tp-total">Total: $150.000</div><div class="tp-acciones"><select class="select-estado-ped" onchange="cambiarEstadoPedido(7404, this.value)"><option value="nuevo" selected="">Nuevo</option><option value="pendiente_pago">Pendiente pago</option><option value="enviado">Enviado</option><option value="entregado">Entregado</option><option value="cancelado">Cancelado</option></select></div></div><div class="tarjeta-pedido-cb"><button class="btn-imprimir-ped" onclick="imprimirFactura(4855)">📄 PDF</button><button class="btn-eliminar-ped" onclick="eliminarPedido(4855)">🗑️ Eliminar</button><div class="tp-header"><span class="tp-id">#SK-4855</span><span class="tp-fecha">27/5/2026, 11:45:40 p. m.</span></div><h4 class="tp-cliente">👤 Yohana</h4><div class="tp-datos">📍 55an<br>📞 3025451526</div><div class="tp-items"><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778386309/vszgjy6pq36ljr7rrk0r.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Enterizo Rosado Daddy´s Girl</div><div style="font-size:0.72em;color:#888;">Talla: 3M · REF: 3717</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778455515/ypxygwhjvwerdvjuxwiq.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco Rosado conejita</div><div style="font-size:0.72em;color:#888;">Talla: 3M · REF: 3716</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div></div><div class="tp-total">Total: $50.000</div><div class="tp-acciones"><select class="select-estado-ped" onchange="cambiarEstadoPedido(4855, this.value)"><option value="nuevo" selected="">Nuevo</option><option value="pendiente_pago">Pendiente pago</option><option value="enviado">Enviado</option><option value="entregado">Entregado</option><option value="cancelado">Cancelado</option></select></div></div></div>
+                </div>
+            </div>
+
+
+            <!-- TAB INVENTARIO MERCANCIA -->
+            <div id="tab-inventario" class="seccion-tab">
+                <div class="seccion-admin-sub">
+                    <h3 style="color:#27ae60;margin-top:0;">📥 Recepción de Mercancía</h3>
+                    <div style="background:#f0faf4;border:1.5px solid #a8e6c1;border-radius:12px;padding:16px;margin-bottom:16px;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                            <div>
+                                <label style="font-size:0.8em;color:#555;font-weight:700;">📅 Fecha llegada</label>
+                                <input type="date" id="inv-fecha" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.8em;color:#555;font-weight:700;">🏷️ Referencia (SKU)</label>
+                                <input type="text" id="inv-ref" placeholder="Ej: 3607" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+                            </div>
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <label style="font-size:0.8em;color:#555;font-weight:700;">👗 Descripción del producto</label>
+                            <input type="text" id="inv-desc" placeholder="Ej: Mameluco rosado gatita algodón" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <label style="font-size:0.8em;color:#555;font-weight:700;">💰 Valor de la prenda</label>
+                            <input type="number" id="inv-valor" placeholder="Ej: 25000" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <label style="font-size:0.8em;color:#555;font-weight:700;">📏 Tallas y Cantidades</label>
+                            <div id="inv-tallas-cont">
+                                <div class="inv-fila-talla" style="display:flex;gap:6px;margin-bottom:6px;">
+                                    <input type="text" class="inv-talla-nom" placeholder="Talla (ej: 0M)" style="flex:1;padding:7px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+                                    <input type="number" class="inv-talla-cant" placeholder="Cant." min="0" style="width:80px;padding:7px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+                                    <button onclick="this.parentElement.remove()" style="background:#e74c3c;color:white;border:none;border-radius:8px;padding:7px 10px;cursor:pointer;font-weight:700;">✕</button>
+                                </div>
+                            </div>
+                            <button onclick="agregarFilaTallaInv()" style="background:#a8e6c1;color:#1a6636;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.82em;margin-top:4px;">+ Agregar talla</button>
+                        </div>
+                        <div style="margin-bottom:14px;">
+                            <label style="font-size:0.8em;color:#555;font-weight:700;">📝 Observaciones</label>
+                            <textarea id="inv-obs" placeholder="Ej: Se pidió 9M-36M pero llegó 12M-4T" rows="2" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;resize:vertical;"></textarea>
+                        </div>
+                        <button onclick="guardarEntradaInventario()" style="background:linear-gradient(135deg,#27ae60,#2ecc71);color:white;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:800;font-size:1em;width:100%;font-family:Nunito,sans-serif;">✅ Registrar Entrada</button>
+                        <div id="inv-msg" style="display:none;text-align:center;margin-top:8px;font-size:0.85em;color:#27ae60;font-weight:700;"></div>
+                    </div>
+                    <h4 style="color:#27ae60;margin-bottom:8px;">📋 Historial de Entradas</h4>
+                    <div id="inv-historial" style="max-height:400px;overflow-y:auto;"></div>
+
+
+
+                    <!-- BOTONES EXPORTAR -->
+                    <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;">
+                        <button onclick="exportarInventarioExcel()" style="flex:1;background:linear-gradient(135deg,#1a7a4a,#27ae60);color:white;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.9em;font-family:Nunito,sans-serif;min-width:140px;">📊 Exportar Excel</button>
+                        <button onclick="exportarInventarioPDF()" style="flex:1;background:linear-gradient(135deg,#c0392b,#e74c3c);color:white;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.9em;font-family:Nunito,sans-serif;min-width:140px;">📄 Exportar PDF</button>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN: STOCK ACTUAL — dentro del tab inventario -->
+                <div style="margin-top:28px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+                        <h3 style="color:#8e44ad;margin:0;">📊 Stock Actual</h3>
+                        <button onclick="exportarStockActualPDF()" style="background:linear-gradient(135deg,#8e44ad,#9b59b6);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(142,68,173,0.3);">
+                            🖨️ Exportar PDF
+                        </button>
+                    </div>
+
+                    <!-- Filtros -->
+                    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+                        <input type="text" id="stock-buscar" placeholder="🔍 Buscar por nombre o código..." oninput="renderStockActual()"
+                            style="flex:1;min-width:180px;padding:9px 12px;border:1.5px solid #d8b4fe;border-radius:10px;font-family:Nunito,sans-serif;font-size:0.88em;outline:none;"
+                            onfocus="this.style.borderColor='#8e44ad'" onblur="this.style.borderColor='#d8b4fe'">
+                        <select id="stock-filtro-cat" onchange="renderStockActual()"
+                            style="padding:9px 12px;border:1.5px solid #d8b4fe;border-radius:10px;font-family:Nunito,sans-serif;font-size:0.88em;color:#555;outline:none;background:white;">
+                            <option value="">Todas las categorías</option>
+                        </select>
+                    </div>
+
+                    <!-- Resumen -->
+                    <div id="stock-resumen" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;"></div>
+
+                    <!-- Tabla -->
+                    <div style="overflow-x:auto;border-radius:12px;border:1.5px solid #e8d5f5;">
+                        <table id="stock-tabla" style="width:100%;border-collapse:collapse;font-family:Nunito,sans-serif;font-size:0.83em;">
+                            <thead id="stock-thead" style="background:linear-gradient(135deg,#8e44ad,#9b59b6);color:white;">
+                            </thead>
+                            <tbody id="stock-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <p id="stock-vacio" style="display:none;text-align:center;color:#aaa;font-size:0.88em;margin-top:16px;">Sin productos para mostrar</p>
+                </div>
+                <!-- FIN SECCIÓN STOCK ACTUAL -->
+            </div><!-- cierre tab-inventario -->
+
+            <!-- TAB PUBLICAR -->
+            <div id="tab-publicar" class="seccion-tab" style="display:none;">
+            </div>
+        </div>
+
+        <!-- ── FILTROS COLAPSABLES ── (oculto en panel) -->
+        <div style="display:none;"><!-- filtros inicio -->
         <div class="filtros-accordion">
             <div class="filtros-row-toggle">
                 <div id="wrap-buscador-ref" style="display:none; flex:1;">
@@ -1035,17 +1409,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 </div>
             </div>
         </div>
-        <button id="btn-volver-collage" style="display: block; margin: 10px auto 4px; padding: 8px 22px; border-radius: 25px; border: 2px solid var(--color-banner); background: transparent; color: var(--color-banner); font-weight: 700; font-size: 0.95em; cursor: pointer; font-family: Nunito, sans-serif; transition: 0.2s;">← Ver todas las categorías</button><div class="catalogo" id="contenedor-productos"></div>
+        <button id="btn-volver-collage" style="display: block; margin: 10px auto 4px; padding: 8px 22px; border-radius: 25px; border: 2px solid var(--color-banner); background: transparent; color: var(--color-banner); font-weight: 700; font-size: 0.95em; cursor: pointer; font-family: Nunito, sans-serif; transition: 0.2s;">← Ver todas las categorías</button><div class="catalogo" id="contenedor-productos" style="display:none;"></div>
 
     </div>
 
     <!-- BOTÓN FLOTANTE CARRITO -->
-    <button id="btn-flotante-carrito" onclick="abrirModalCheckout()" style="display: none; position: fixed; bottom: 24px; right: 20px; z-index: 1500; background: linear-gradient(135deg, rgb(255, 107, 196), rgb(255, 77, 184)); color: white; border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; border-radius: 50px; padding: 14px 22px; font-size: 0.95em; font-weight: 900; cursor: pointer; box-shadow: rgba(255, 77, 184, 0.5) 0px 6px 24px; align-items: center; gap: 10px; transition: 0.3s; animation: 2s ease 0s infinite normal none running pulso;">
+            </div><!-- filtros fin -->
+
+        <button id="btn-flotante-carrito" style="display:none!important;" onclick="abrirModalCheckout()" style="display: none; position: fixed; bottom: 24px; right: 20px; z-index: 1500; background: linear-gradient(135deg, rgb(255, 107, 196), rgb(255, 77, 184)); color: white; border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; border-radius: 50px; padding: 14px 22px; font-size: 0.95em; font-weight: 900; cursor: pointer; box-shadow: rgba(255, 77, 184, 0.5) 0px 6px 24px; align-items: center; gap: 10px; transition: 0.3s; animation: 2s ease 0s infinite normal none running pulso;">
         🛒 <span id="flotante-cantidad">6</span> prenda(s) &nbsp;·&nbsp; <span id="flotante-total">$150.000</span> &nbsp;→ Finalizar
     </button>
 
     <!-- MODAL CHECKOUT -->
-    <div id="modal-checkout" style="display: none; position: fixed; z-index: 2500; left: 0px; top: 0px; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(6px); overflow-y: auto;">
+    <div id="modal-checkout" style="display:none!important;" style="display: none; position: fixed; z-index: 2500; left: 0px; top: 0px; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(6px); overflow-y: auto;">
         <div style="background:white; width:92%; max-width:480px; margin:5vh auto 5vh; border-radius:20px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.4);">
             <div style="background:linear-gradient(135deg,#ff6bc4,#ff4db8); padding:20px 24px; display:flex; justify-content:space-between; align-items:center;">
                 <div>
@@ -1084,7 +1460,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
      AVISO ENVÍOS CONTRAENTREGA — CHECKOUT (Nivel 3)
      Antes del botón "Enviar pedido por WhatsApp".
 ==================================================== -->
-<div id="sce-aviso-checkout" style="
+<div id="sce-aviso-checkout" style="display:none!important;" style="
     background: #fff8ec;
     border: 2px solid #f5a623;
     border-radius: 12px;
@@ -1647,8 +2023,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         window.onload = async () => {
             if (window.datosQuemados) {
-                let _btnA = document.querySelector('.btn-toggle-admin');
-                if (_btnA) _btnA.style.display = 'none';
+                document.querySelector('.btn-toggle-admin').style.display = 'none';
             }
             // Cargar config desde Firestore — es el JEFE, pisa todo lo demás
             try {
@@ -1728,7 +2103,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             let waFloat = document.getElementById('wa-float-btn');
             if (waFloat) waFloat.href = `https://wa.me/${waNum}`;
 
-            if (!window.datosQuemados && document.getElementById('edit-titulo')) {
+            if (!window.datosQuemados) {
                 document.getElementById('edit-titulo').value = config.titulo;
                 document.getElementById('edit-desc').value = config.desc;
                 document.getElementById('edit-whatsapp').value = config.whatsapp;
@@ -1791,7 +2166,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         function actualizarTamanosVivo() {
-            if (!window.datosQuemados && document.getElementById('slider-titulo')) {
+            if (!window.datosQuemados) {
                 let sTit = document.getElementById('slider-titulo').value, sDes = document.getElementById('slider-desc').value;
                 let sLog = document.getElementById('slider-logo').value;
                 document.getElementById('val-titulo').innerText = sTit + 'px';
@@ -2062,7 +2437,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         function renderizarCategoriasAdminYPublic() {
             sincronizarCategoriasConfigConVisuales();
-            if (!window.datosQuemados && document.getElementById('lista-categorias-admin')) {
+            if (!window.datosQuemados) {
                 const adminCont = document.getElementById('lista-categorias-admin'); adminCont.innerHTML = "";
                 config.categorias.forEach((cat, idx) => {
                     const catClick = encodeURIComponent(cat);
@@ -4082,8 +4457,8 @@ table{width:100%;border-collapse:collapse}
         function renderizarPedidosPanel() {
             const cont = document.getElementById('contenedor-historial-pedidos'); if (!cont) return;
             cont.innerHTML = "";
-            const esGina = window.usuarioActual && window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2';
-            const puedeVerAnuladas = window.usuarioActual && (window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' || window.usuarioActual.uid === 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3' || window.usuarioActual.uid === 'MtQpryHLGYab5v3UjhRZw88CAD63');
+            const esGina = usuarioActual && usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2';
+            const puedeVerAnuladas = usuarioActual && (usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' || usuarioActual.uid === 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3' || usuarioActual.uid === 'MtQpryHLGYab5v3UjhRZw88CAD63');
 
             // Mostrar/ocultar botón facturas anuladas según permisos
             const btnAnuladas = document.getElementById('fp-anuladas');
@@ -5090,7 +5465,7 @@ table{width:100%;border-collapse:collapse}
 
 
     <!-- Botón flotante WhatsApp -->
-    <a id="wa-float-btn" href="https://wa.me/573025451526" target="_blank" title="Escríbenos por WhatsApp" style="position: fixed; bottom: 90px; right: 20px; z-index: 9999; width: 56px; height: 56px; background: rgb(37, 211, 102); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: rgba(37, 211, 102, 0.45) 0px 4px 16px; text-decoration: none; transition: transform 0.2s, box-shadow 0.2s; animation: 2.5s ease 0s infinite normal none running waPulse; transform: scale(1);" onmouseover="this.style.transform='scale(1.12)';this.style.boxShadow='0 6px 24px rgba(37,211,102,0.6)'" onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 16px rgba(37,211,102,0.45)'">
+    <a id="wa-float-btn" style="display:none!important;" href="https://wa.me/573025451526" target="_blank" title="Escríbenos por WhatsApp" style="position: fixed; bottom: 90px; right: 20px; z-index: 9999; width: 56px; height: 56px; background: rgb(37, 211, 102); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: rgba(37, 211, 102, 0.45) 0px 4px 16px; text-decoration: none; transition: transform 0.2s, box-shadow 0.2s; animation: 2.5s ease 0s infinite normal none running waPulse; transform: scale(1);" onmouseover="this.style.transform='scale(1.12)';this.style.boxShadow='0 6px 24px rgba(37,211,102,0.6)'" onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 16px rgba(37,211,102,0.45)'">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="30" height="30" fill="white">
         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"></path>
       </svg>
@@ -5103,13 +5478,95 @@ table{width:100%;border-collapse:collapse}
       }
     </style>
 
+<div id="login-overlay" style="position: fixed; inset: 0px; z-index: 99999; background: rgba(248, 220, 235, 0.97); display: none; align-items: center; justify-content: center; font-family: Nunito, sans-serif;">
+        <div style="background:white;border-radius:24px;padding:36px 32px;width:90%;max-width:360px;box-shadow:0 8px 40px rgba(192,85,122,0.18);text-align:center;">
+          <div style="font-size:2.5em;margin-bottom:8px;">🌈</div>
+          <div style="font-family:Quicksand,sans-serif;font-weight:800;font-size:1.4em;color:#c0557a;margin-bottom:4px;">SuperKids&amp;Babys</div>
+          <div style="font-size:0.82em;color:#b0778a;margin-bottom:24px;">Panel de Gestión</div>
+          <input id="li-email" type="email" placeholder="Correo electrónico" style="width:100%;padding:11px 14px;border:1.5px solid #f0c8d8;border-radius:12px;font-size:0.9em;margin-bottom:10px;outline:none;font-family:Nunito,sans-serif;">
+          <input id="li-pass" type="password" placeholder="Contraseña" style="width:100%;padding:11px 14px;border:1.5px solid #f0c8d8;border-radius:12px;font-size:0.9em;margin-bottom:16px;outline:none;font-family:Nunito,sans-serif;">
+          <div id="li-error" style="color:#e74c3c;font-size:0.82em;margin-bottom:10px;display:none;"></div>
+          <button onclick="window.fbLogin()" style="width:100%;padding:12px;background:linear-gradient(135deg,#c0557a,#e8a0b4);color:white;border:none;border-radius:12px;font-size:1em;font-weight:700;cursor:pointer;font-family:Nunito,sans-serif;">Ingresar</button>
+          <button onclick="document.getElementById('login-overlay').style.display='none'" style="width:100%;padding:10px;background:none;border:none;color:#b0778a;font-size:0.85em;cursor:pointer;margin-top:8px;font-family:Nunito,sans-serif;">Cancelar</button>
+        </div></div><!-- MODAL EDITAR ENTRADA INVENTARIO (solo Gina) -->
+<div id="modal-editar-entrada" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;overflow-y:auto;">
+  <div style="background:white;border-radius:16px;padding:24px;max-width:480px;margin:40px auto;font-family:Nunito,sans-serif;">
+    <h3 style="color:#27ae60;margin-bottom:16px;">✏️ Editar Entrada de Inventario</h3>
+    <input type="hidden" id="edit-entrada-id">
+    <div style="margin-bottom:10px;">
+      <label style="font-size:0.8em;color:#555;font-weight:700;">🏷️ Referencia (SKU)</label>
+      <input type="text" id="edit-entrada-ref" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:0.8em;color:#555;font-weight:700;">👗 Descripción</label>
+      <input type="text" id="edit-entrada-desc" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:0.8em;color:#555;font-weight:700;">📏 Tallas y Cantidades</label>
+      <div id="edit-entrada-tallas-cont"></div>
+      <button onclick="agregarFilaEditEntrada()" style="background:#e8f5e9;color:#1a7a4a;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.82em;margin-top:4px;">+ Agregar talla</button>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button onclick="guardarEdicionEntrada()" style="flex:1;background:linear-gradient(135deg,#27ae60,#2ecc71);color:white;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.95em;">💾 Guardar Cambios</button>
+      <button onclick="document.getElementById('modal-editar-entrada').style.display='none'" style="flex:1;background:#f5f5f5;color:#555;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:700;font-size:0.95em;">Cancelar</button>
+    </div>
+    <div id="edit-entrada-msg" style="display:none;text-align:center;margin-top:8px;font-size:0.85em;font-weight:700;"></div>
+  </div>
+</div>
 
 
+<!-- MODAL EDITAR ENTRADA INVENTARIO (solo Gina) -->
+<div id="modal-editar-entrada" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;overflow-y:auto;">
+  <div style="background:white;border-radius:16px;padding:24px;max-width:480px;margin:40px auto;font-family:Nunito,sans-serif;">
+    <h3 style="color:#27ae60;margin-bottom:16px;">✏️ Editar Entrada de Inventario</h3>
+    <input type="hidden" id="edit-entrada-id">
+    <div style="margin-bottom:10px;">
+      <label style="font-size:0.8em;color:#555;font-weight:700;">🏷️ Referencia (SKU)</label>
+      <input type="text" id="edit-entrada-ref" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:0.8em;color:#555;font-weight:700;">👗 Descripción</label>
+      <input type="text" id="edit-entrada-desc" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:0.8em;color:#555;font-weight:700;">📏 Tallas y Cantidades</label>
+      <div id="edit-entrada-tallas-cont"></div>
+      <button onclick="agregarFilaEditEntrada()" style="background:#e8f5e9;color:#1a7a4a;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.82em;margin-top:4px;">+ Agregar talla</button>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button onclick="guardarEdicionEntrada()" style="flex:1;background:linear-gradient(135deg,#27ae60,#2ecc71);color:white;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.95em;">💾 Guardar Cambios</button>
+      <button onclick="document.getElementById('modal-editar-entrada').style.display='none'" style="flex:1;background:#f5f5f5;color:#555;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:700;font-size:0.95em;">Cancelar</button>
+    </div>
+    <div id="edit-entrada-msg" style="display:none;text-align:center;margin-top:8px;font-size:0.85em;font-weight:700;"></div>
+  </div>
+</div>
 
 
-
-
-
+<!-- MODAL EDITAR ENTRADA INVENTARIO (solo Gina) -->
+<div id="modal-editar-entrada" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;overflow-y:auto;">
+  <div style="background:white;border-radius:16px;padding:24px;max-width:480px;margin:40px auto;font-family:Nunito,sans-serif;">
+    <h3 style="color:#27ae60;margin-bottom:16px;">✏️ Editar Entrada de Inventario</h3>
+    <input type="hidden" id="edit-entrada-id">
+    <div style="margin-bottom:10px;">
+      <label style="font-size:0.8em;color:#555;font-weight:700;">🏷️ Referencia (SKU)</label>
+      <input type="text" id="edit-entrada-ref" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:0.8em;color:#555;font-weight:700;">👗 Descripción</label>
+      <input type="text" id="edit-entrada-desc" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:0.8em;color:#555;font-weight:700;">📏 Tallas y Cantidades</label>
+      <div id="edit-entrada-tallas-cont"></div>
+      <button onclick="agregarFilaEditEntrada()" style="background:#e8f5e9;color:#1a7a4a;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.82em;margin-top:4px;">+ Agregar talla</button>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button onclick="guardarEdicionEntrada()" style="flex:1;background:linear-gradient(135deg,#27ae60,#2ecc71);color:white;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.95em;">💾 Guardar Cambios</button>
+      <button onclick="document.getElementById('modal-editar-entrada').style.display='none'" style="flex:1;background:#f5f5f5;color:#555;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:700;font-size:0.95em;">Cancelar</button>
+    </div>
+    <div id="edit-entrada-msg" style="display:none;text-align:center;margin-top:8px;font-size:0.85em;font-weight:700;"></div>
+  </div>
+</div>
 
 
 <div id="toast-orden" style="position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgb(39, 174, 96); color: white; padding: 10px 20px; border-radius: 20px; font-family: Nunito, sans-serif; font-weight: 700; font-size: 0.85em; z-index: 99999; box-shadow: rgba(0, 0, 0, 0.2) 0px 4px 12px; display: none;">✅ Posición guardada</div>
