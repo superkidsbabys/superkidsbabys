@@ -1647,8 +1647,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         window.onload = async () => {
             if (window.datosQuemados) {
-                let _btnA = document.querySelector('.btn-toggle-admin');
-                if (_btnA) _btnA.style.display = 'none';
+                document.querySelector('.btn-toggle-admin').style.display = 'none';
             }
             // Cargar config desde Firestore — es el JEFE, pisa todo lo demás
             try {
@@ -1728,7 +1727,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             let waFloat = document.getElementById('wa-float-btn');
             if (waFloat) waFloat.href = `https://wa.me/${waNum}`;
 
-            if (!window.datosQuemados && document.getElementById('edit-titulo')) {
+            if (!window.datosQuemados) {
                 document.getElementById('edit-titulo').value = config.titulo;
                 document.getElementById('edit-desc').value = config.desc;
                 document.getElementById('edit-whatsapp').value = config.whatsapp;
@@ -1791,7 +1790,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         function actualizarTamanosVivo() {
-            if (!window.datosQuemados && document.getElementById('slider-titulo')) {
+            if (!window.datosQuemados) {
                 let sTit = document.getElementById('slider-titulo').value, sDes = document.getElementById('slider-desc').value;
                 let sLog = document.getElementById('slider-logo').value;
                 document.getElementById('val-titulo').innerText = sTit + 'px';
@@ -2062,7 +2061,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         function renderizarCategoriasAdminYPublic() {
             sincronizarCategoriasConfigConVisuales();
-            if (!window.datosQuemados && document.getElementById('lista-categorias-admin')) {
+            if (!window.datosQuemados) {
                 const adminCont = document.getElementById('lista-categorias-admin'); adminCont.innerHTML = "";
                 config.categorias.forEach((cat, idx) => {
                     const catClick = encodeURIComponent(cat);
@@ -4082,8 +4081,8 @@ table{width:100%;border-collapse:collapse}
         function renderizarPedidosPanel() {
             const cont = document.getElementById('contenedor-historial-pedidos'); if (!cont) return;
             cont.innerHTML = "";
-            const esGina = window.usuarioActual && window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2';
-            const puedeVerAnuladas = window.usuarioActual && (window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' || window.usuarioActual.uid === 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3' || window.usuarioActual.uid === 'MtQpryHLGYab5v3UjhRZw88CAD63');
+            const esGina = usuarioActual && usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2';
+            const puedeVerAnuladas = usuarioActual && (usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' || usuarioActual.uid === 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3' || usuarioActual.uid === 'MtQpryHLGYab5v3UjhRZw88CAD63');
 
             // Mostrar/ocultar botón facturas anuladas según permisos
             const btnAnuladas = document.getElementById('fp-anuladas');
