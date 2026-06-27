@@ -1727,7 +1727,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             let waFloat = document.getElementById('wa-float-btn');
             if (waFloat) waFloat.href = `https://wa.me/${waNum}`;
 
-            if (!window.datosQuemados) {
+            if (!document.getElementById('edit-titulo')) {
+                renderizarCategoriasAdminYPublic();
+                return;
+            }
+
+            if (!window.datosQuemados && document.getElementById('edit-titulo')) {
                 document.getElementById('edit-titulo').value = config.titulo;
                 document.getElementById('edit-desc').value = config.desc;
                 document.getElementById('edit-whatsapp').value = config.whatsapp;
@@ -2062,7 +2067,18 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         function renderizarCategoriasAdminYPublic() {
             sincronizarCategoriasConfigConVisuales();
             if (!window.datosQuemados) {
-                const adminCont = document.getElementById('lista-categorias-admin'); adminCont.innerHTML = "";
+                const adminCont = document.getElementById('lista-categorias-admin');
+                if (!adminCont) {
+                    const navMenu = document.getElementById('menu-categorias');
+                    if (!navMenu) return;
+                    navMenu.innerHTML = `<button class="btn-categoria ${filtroActual === 'Todos' ? 'activo' : ''}" onclick="filtrarCatalogo('Todos')">Todos</button>`;
+                    obtenerCategoriasVisualesCatalogo().forEach(cat => {
+                        const catClick = encodeURIComponent(cat);
+                        navMenu.innerHTML += `<button class="btn-categoria ${filtroActual === cat ? 'activo' : ''}" onclick="filtrarCatalogo(decodeURIComponent('${catClick}'))">${cat}</button>`;
+                    });
+                    return;
+                }
+                adminCont.innerHTML = "";
                 config.categorias.forEach((cat, idx) => {
                     const catClick = encodeURIComponent(cat);
                     adminCont.innerHTML += `<div class="tag-categoria" style="gap:6px; flex-wrap:wrap;"><button onclick="moverCategoria(${idx}, -1)" title="Subir categoria" style="color:#2980b9;">↑</button><button onclick="moverCategoria(${idx}, 1)" title="Bajar categoria" style="color:#2980b9;">↓</button><input type="text" id="edit-cat-${idx}" value="${escapeHtmlAttr(cat)}" style="border:1px solid #b3d7f0;border-radius:14px;padding:5px 8px;min-width:130px;font-weight:600;color:#2980b9;"><button onclick="renombrarCategoria(${idx})" title="Guardar nombre">✓</button><button onclick="eliminarCategoria(decodeURIComponent('${catClick}'))">X</button></div>`;
