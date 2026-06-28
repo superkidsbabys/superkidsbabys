@@ -805,6 +805,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             .producto { border-radius: 12px; }
             .info-producto { padding: 10px 12px 12px; }
             .btn-genero { font-size: 0.82em; padding: 10px 5px; }
+            /* ── Header compacto móvil ── */
+            .header-tienda { padding-bottom: 14px; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; }
+            .logo-circular { width: 68px !important; height: 68px !important; }
+            .titulo-tienda { font-size: 1.45em !important; margin: 4px 0 2px; }
+            .descripcion-tienda { font-size: 0.8em; padding: 2px 14px 4px; line-height: 1.4; }
+            .whatsapp-tienda { font-size: 0.78em; padding: 5px 12px; margin-top: 5px; }
+            .banner-top { padding: 5px 12px; font-size: 0.78em; }
+            .selector-genero { margin: 14px auto 10px; gap: 6px; }
         }
         @media (min-width: 1400px) {
             .catalogo { grid-template-columns: repeat(5, 1fr); }
@@ -830,9 +838,24 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         /* PANEL ADMIN */
         .btn-toggle-admin { position: fixed; bottom: 20px; right: 90px; background-color: #4a4a4a; color: white; border: none; padding: 12px 20px; border-radius: 30px; cursor: pointer; z-index: 10000; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .panel-admin-flotante { display: none; background: #fff; border: 3px solid #4a4a4a; padding: 25px; border-radius: 12px; margin-bottom: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); color: #333; }
-        .tabs-admin { display: flex; gap: 8px; margin-bottom: 25px; border-bottom: 2px solid #eee; padding-bottom: 12px; overflow-x: auto;}
-        .btn-tab { background: #f0f2f5; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; color: #555; white-space: nowrap;}
+        .tabs-admin {
+            display: flex; gap: 6px;
+            margin-bottom: 20px; border-bottom: 2px solid #eee;
+            padding-bottom: 10px; overflow-x: auto;
+            -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        }
+        .tabs-admin::-webkit-scrollbar { display: none; }
+        .btn-tab {
+            background: #f0f2f5; border: none;
+            padding: 8px 14px; border-radius: 20px;
+            cursor: pointer; font-weight: 700; color: #555;
+            white-space: nowrap; flex-shrink: 0;
+            font-size: 0.85em;
+        }
         .btn-tab.activo { background: #4a4a4a; color: white; }
+        @media (max-width: 480px) {
+            .btn-tab { padding: 7px 11px; font-size: 0.78em; }
+        }
         .seccion-tab { display: none; }
         .seccion-tab.activo { display: block; }
         .seccion-admin-sub { background: #fdfdfd; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e1e4e8; }
@@ -1348,10 +1371,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 <!-- FIN BANNER ESTÁTICO SCE -->
 
     <div class="selector-genero">
-        <button class="btn-genero activo" id="btn-gen-ninas" onclick="cambiarGenero('Niñas')">👧 Niñas</button>
-        <button class="btn-genero" id="btn-gen-ninos" onclick="cambiarGenero('Niños')">👦 Niños</button>
-        <button class="btn-genero" id="btn-gen-junior" onclick="cambiarGenero('Junior')">🧒 Junior</button>
-        <button class="btn-genero" id="btn-gen-accesorios" onclick="cambiarGenero('Accesorios')">🎀 Accesorios</button>
+        <button class="btn-genero activo" id="btn-gen-ninas" onclick="cambiarGenero('Niñas')">Niñas</button>
+        <button class="btn-genero" id="btn-gen-ninos" onclick="cambiarGenero('Niños')">Niños</button>
+        <button class="btn-genero" id="btn-gen-junior" onclick="cambiarGenero('Junior')">Junior</button>
+        <button class="btn-genero" id="btn-gen-accesorios" onclick="cambiarGenero('Accesorios')">Accesorios</button>
     </div>
 
     <div class="contenedor">
