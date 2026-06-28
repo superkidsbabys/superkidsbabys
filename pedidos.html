@@ -503,9 +503,32 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         /* PANEL ADMIN */
         .btn-toggle-admin { position: fixed; bottom: 20px; right: 90px; background-color: #4a4a4a; color: white; border: none; padding: 12px 20px; border-radius: 30px; cursor: pointer; z-index: 10000; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .panel-admin-flotante { display: none; background: #fff; border: 3px solid #4a4a4a; padding: 25px; border-radius: 12px; margin-bottom: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); color: #333; }
-        .tabs-admin { display: flex; gap: 8px; margin-bottom: 25px; border-bottom: 2px solid #eee; padding-bottom: 12px; overflow-x: auto;}
-        .btn-tab { background: #f0f2f5; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; color: #555; white-space: nowrap;}
+        .tabs-admin {
+            display: flex; gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        @media (max-width: 480px) {
+            .tabs-admin { gap: 5px; }
+            .btn-tab { flex: 1 1 auto; text-align: center; }
+        }
+        .tabs-admin::-webkit-scrollbar { display: none; }
+        .btn-tab {
+            background: #f0f2f5; border: none;
+            padding: 8px 14px; border-radius: 20px;
+            cursor: pointer; font-weight: 700; color: #555;
+            white-space: nowrap; flex-shrink: 0;
+            font-size: 0.85em;
+        }
         .btn-tab.activo { background: #4a4a4a; color: white; }
+        @media (max-width: 480px) {
+            .btn-tab { padding: 7px 11px; font-size: 0.78em; }
+            .panel-admin-flotante { padding: 12px 10px; }
+            .tabs-admin { margin-top: 16px; }
+        }
         .seccion-tab { display: none; }
         .seccion-tab.activo { display: block; }
         .seccion-admin-sub { background: #fdfdfd; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e1e4e8; }
