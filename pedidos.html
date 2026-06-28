@@ -762,7 +762,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
         .transp-card-logo img { max-width: 52px; max-height: 34px; object-fit: contain; }
         .transp-card-emoji { font-size: 1.8em; line-height: 1; margin-bottom: 6px; }
-        .transp-card-nombre { font-size: 0.82em; font-weight: 900; color: #1a1a1a; line-height: 1.2; margin-bottom: 5px; }
+        .transp-card-nombre { font-size: 1em; font-weight: 900; color: #1a1a1a; line-height: 1.2; margin-bottom: 5px; text-shadow: 0 1px 4px rgba(0,0,0,0.10); }
         .transp-card-meta { font-size: 0.68em; color: #555; font-weight: 700; line-height: 1.6; }
         .transp-card-badge {
             position: absolute; top: 8px; right: 8px;
@@ -4718,8 +4718,8 @@ table{width:100%;border-collapse:collapse}
 
                 const bg = bgMap[tr.key] || {emoji: '🚚', imgUrl: ''};
                 const logoHTML = bg.imgUrl
-                    ? `<div class="transp-card-logo"><img src="${bg.imgUrl}" alt="${tr.label}" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=\"font-size:1.8em;\">${bg.emoji}</span>'"></div>`
-                    : `<div class="transp-card-emoji">${bg.emoji}</div>`;
+                    ? ``
+                    : ``;
 
                 const card = document.createElement('button');
                 card.className = 'transp-card' + (tr.esSin ? ' transp-card-sin' : '') + (count === 0 ? ' sin-pedidos' : '');
