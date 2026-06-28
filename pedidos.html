@@ -517,13 +517,16 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
         .tabs-admin::-webkit-scrollbar { display: none; }
         .btn-tab {
-            background: #f0f2f5; border: none;
+            background: #e8f0fe; border: none;
             padding: 8px 14px; border-radius: 20px;
-            cursor: pointer; font-weight: 700; color: #555;
+            cursor: pointer; font-weight: 700; color: #1a1a2e;
             white-space: nowrap; flex-shrink: 0;
             font-size: 0.85em;
+            box-shadow: 0 1px 4px rgba(66,133,244,0.10);
+            transition: background 0.15s, box-shadow 0.15s;
         }
-        .btn-tab.activo { background: #4a4a4a; color: white; }
+        .btn-tab.activo { background: #4285f4; color: white; box-shadow: 0 2px 8px rgba(66,133,244,0.25); }
+        .btn-tab:hover:not(.activo) { background: #d2e3fc; }
         @media (max-width: 480px) {
             .btn-tab { padding: 7px 11px; font-size: 0.78em; }
             .panel-admin-flotante { padding: 12px 10px; }
@@ -707,43 +710,49 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         /* ══ MÓDULO TRANSPORTADORAS — 4 NIVELES ══ */
 
         /* NIVEL 1 – Barra resumen */
+        .transp-layout-principal {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            gap: 14px;
+            align-items: start;
+            margin-bottom: 16px;
+        }
         .transp-barra-resumen {
-            display: flex; align-items: center; gap: 0;
+            display: flex; flex-direction: column; gap: 0;
             background: white; border-radius: 12px;
             border: 1.5px solid #e8d5f5;
             box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-            padding: 0; margin-bottom: 16px; overflow: hidden;
+            padding: 0; overflow: hidden;
         }
         .transp-resumen-item {
-            flex: 1; display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            padding: 12px 8px; border-right: 1px solid #f0e4fb;
-            text-align: center;
+            display: flex; flex-direction: column;
+            align-items: flex-start; justify-content: center;
+            padding: 12px 16px; border-bottom: 1px solid #f0e4fb;
         }
-        .transp-resumen-item:last-child { border-right: none; }
+        .transp-resumen-item:last-child { border-bottom: none; }
         .transp-resumen-label { font-size: 0.68em; color: #999; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
-        .transp-resumen-valor { font-size: 1em; font-weight: 900; color: #2c3e50; }
-        .transp-resumen-valor.total { color: #8e44ad; font-size: 1.05em; }
+        .transp-resumen-valor { font-size: 1.1em; font-weight: 900; color: #2c3e50; }
+        .transp-resumen-valor.total { color: #8e44ad; font-size: 1.15em; }
 
         /* NIVEL 2 – Tarjetas transportadora */
         .transp-nivel2 {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 10px; margin-bottom: 12px;
+            gap: 10px;
         }
         .transp-card {
             background: white; border-radius: 14px;
-            border: 2px solid #f0e4fb;
+            border: 1.5px solid #e8f0fe;
             padding: 16px 10px 12px;
             display: flex; flex-direction: column;
             align-items: center; text-align: center;
             cursor: pointer; transition: all 0.18s ease;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-            position: relative; min-height: 110px;
+            box-shadow: 0 2px 8px rgba(66,133,244,0.08);
+            position: relative; min-height: 100px;
         }
-        .transp-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(142,68,173,0.14); border-color: #c9a0dc; }
-        .transp-card.activa { border-color: #8e44ad; box-shadow: 0 0 0 3px rgba(142,68,173,0.15); background: #fdf8ff; }
-        .transp-card.sin-pedidos { opacity: 0.55; }
+        .transp-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(66,133,244,0.16); border-color: #4285f4; }
+        .transp-card.activa { border-color: #4285f4; box-shadow: 0 0 0 3px rgba(66,133,244,0.15); background: #f8fbff; }
+        .transp-card.sin-pedidos { opacity: 0.45; }
         .transp-card-sin { background: #fffbeb; border-color: #fde68a; }
         .transp-card-sin:hover { border-color: #f59e0b; box-shadow: 0 6px 18px rgba(245,158,11,0.15); }
         .transp-card-logo {
@@ -753,23 +762,24 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
         .transp-card-logo img { max-width: 52px; max-height: 34px; object-fit: contain; }
         .transp-card-emoji { font-size: 1.8em; line-height: 1; margin-bottom: 6px; }
-        .transp-card-nombre { font-size: 0.78em; font-weight: 900; color: #2c3e50; line-height: 1.2; margin-bottom: 5px; }
-        .transp-card-meta { font-size: 0.68em; color: #888; font-weight: 700; line-height: 1.5; }
+        .transp-card-nombre { font-size: 0.82em; font-weight: 900; color: #1a1a2e; line-height: 1.2; margin-bottom: 5px; }
+        .transp-card-meta { font-size: 0.68em; color: #555; font-weight: 700; line-height: 1.6; }
         .transp-card-badge {
             position: absolute; top: 8px; right: 8px;
-            background: #8e44ad; color: white;
+            background: #4285f4; color: white;
             border-radius: 20px; padding: 1px 7px;
             font-size: 0.6em; font-weight: 900;
         }
-        .transp-card-sin .transp-card-badge { background: #f59e0b; color: #78350f; }
 
         /* NIVEL 3 – Lista de pedidos de una transportadora */
         .transp-nivel3 { display: none; }
         .transp-nivel3.visible { display: block; }
         .transp-nivel3-header {
-            display: flex; align-items: center; gap: 12px;
-            margin-bottom: 14px; padding-bottom: 10px;
-            border-bottom: 1.5px solid #e8d5f5;
+            display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+            margin-bottom: 20px; padding: 16px 20px;
+            background: white; border-radius: 12px;
+            border: 1.5px solid #e8d5f5;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
         }
         .transp-btn-volver {
             background: none; border: 1.5px solid #c9a0dc;
@@ -830,6 +840,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         @media (max-width: 600px) {
             .transp-nivel2 { grid-template-columns: repeat(2, 1fr); }
+            .transp-layout-principal { grid-template-columns: 1fr; }
             .transp-lista-pedidos .transp-td-fecha,
             .transp-lista-pedidos .transp-td-prendas { display: none; }
             .transp-resumen-item { padding: 8px 4px; }
@@ -1075,13 +1086,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             <!-- FIN INDICADOR NOTIFICACIONES -->
 
             <div class="tabs-admin">
-                <button class="btn-tab" onclick="cambiarTab('diseno')">🎨 Diseño</button>
-                <button class="btn-tab" onclick="cambiarTab('categorias')">📁 Categorías</button>
-                <button class="btn-tab" onclick="cambiarTab('productos')">🛍️ Productos</button>
-                <button class="btn-tab" onclick="cambiarTab('pedidos')" style="background-color: #4a90e2; color: white;">📦 Pedidos</button>
-                <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('inventario')" style="background-color: #27ae60; color: white; display:none;">📥 Inventario</button>
-                <button class="btn-tab" onclick="window.open('index.html', '_blank')" style="background-color: #8e44ad; color: white;">🛍️ Ver tienda</button>
-                <button class="btn-tab" onclick="window.fbLogout && window.fbLogout()" style="background-color: #e74c3c; color: white;">🚪 Cerrar sesión</button>
+                <button class="btn-tab" onclick="cambiarTab('diseno')">Diseño</button>
+                <button class="btn-tab" onclick="cambiarTab('categorias')">Categorías</button>
+                <button class="btn-tab" onclick="cambiarTab('productos')">Productos</button>
+                <button class="btn-tab" onclick="cambiarTab('pedidos')">Pedidos</button>
+                <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('inventario')" style="display:none;">Inventario</button>
+                <button class="btn-tab" onclick="cambiarTab('buscar')">Ver tienda</button>
+                <button class="btn-tab" onclick="window.fbLogout && window.fbLogout()" style="background-color: #e74c3c; color: white;">Cerrar sesión</button>
             </div>
 
             <!-- TAB DISEÑO -->
@@ -1404,6 +1415,22 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 </div>
                 <!-- FIN SECCIÓN STOCK ACTUAL -->
             </div><!-- cierre tab-inventario -->
+
+            <!-- TAB BUSCAR REFERENCIA -->
+            <div id="tab-buscar" class="seccion-tab">
+                <div style="max-width:600px;margin:0 auto;padding:20px 0;">
+                    <h3 style="font-size:1em;font-weight:900;color:#1a1a2e;margin-bottom:16px;">Buscar producto por referencia</h3>
+                    <div style="display:flex;gap:10px;margin-bottom:20px;">
+                        <input id="buscar-ref-input" type="text" placeholder="Ej: 3715, 2183, SK01246..." 
+                            style="flex:1;padding:12px 16px;border:2px solid #d2e3fc;border-radius:12px;font-size:1em;font-family:inherit;outline:none;color:#1a1a2e;"
+                            oninput="buscarPorReferencia(this.value)"
+                            onfocus="this.style.borderColor='#4285f4'" onblur="this.style.borderColor='#d2e3fc'">
+                        <button onclick="buscarPorReferencia(document.getElementById('buscar-ref-input').value)"
+                            style="background:#4285f4;color:white;border:none;border-radius:12px;padding:12px 20px;font-weight:800;font-size:0.9em;cursor:pointer;">Buscar</button>
+                    </div>
+                    <div id="buscar-ref-resultado"></div>
+                </div>
+            </div>
 
             <!-- TAB PUBLICAR -->
             <div id="tab-publicar" class="seccion-tab" style="display:none;">
@@ -4649,14 +4676,17 @@ table{width:100%;border-collapse:collapse}
                 granTotalEnvios  += parseInt((ped.valorEnvio || '0').toString().replace(/[^0-9]/g, '')) || 0;
             });
 
-            // ── NIVEL 1: Barra resumen ──
+            // ── NIVEL 1: Barra resumen + NIVEL 2: Tarjetas (lado a lado) ──
             cont.innerHTML = '';
-            cont.innerHTML += `<div class="transp-barra-resumen">
+            const layoutDiv = document.createElement('div');
+            layoutDiv.className = 'transp-layout-principal';
+            layoutDiv.innerHTML = `<div class="transp-barra-resumen">
                 <div class="transp-resumen-item"><span class="transp-resumen-label">📦 Pedidos</span><span class="transp-resumen-valor">${filtrados.length}</span></div>
                 <div class="transp-resumen-item"><span class="transp-resumen-label">👕 Total Pedidos</span><span class="transp-resumen-valor">${formatMoney(granTotalPrendas)}</span></div>
                 <div class="transp-resumen-item"><span class="transp-resumen-label">🚚 Total Envíos</span><span class="transp-resumen-valor">${formatMoney(granTotalEnvios)}</span></div>
                 <div class="transp-resumen-item"><span class="transp-resumen-label">💰 Gran Total</span><span class="transp-resumen-valor total">${formatMoney(granTotalPrendas + granTotalEnvios)}</span></div>
             </div>`;
+            cont.appendChild(layoutDiv);
 
             // ── NIVEL 2: Tarjetas transportadora ──
             const bgMap = {
@@ -4669,7 +4699,7 @@ table{width:100%;border-collapse:collapse}
             const nivel2 = document.createElement('div');
             nivel2.className = 'transp-nivel2';
             nivel2.id = 'transp-nivel2';
-            cont.appendChild(nivel2);
+            layoutDiv.appendChild(nivel2);
 
             // Tarjeta "Sin transportadora" al final
             const todasTransp = [...TRANSPORTADORAS_CONFIG.map(c => ({key: c.key, label: c.key, color: c.color, esSin: false}))];
@@ -4722,7 +4752,7 @@ table{width:100%;border-collapse:collapse}
 
                 // Ocultar nivel 2 Y barra de resumen, mostrar nivel 3 en ancho completo
                 if (n2) n2.style.display = 'none';
-                const resumen = document.querySelector('.transp-barra-resumen');
+                const resumen = document.querySelector('.transp-layout-principal');
                 if (resumen) resumen.style.display = 'none';
                 n3.classList.add('visible');
 
@@ -4740,7 +4770,7 @@ table{width:100%;border-collapse:collapse}
                         document.getElementById('transp-nivel2').style.display='';
                         document.getElementById('transp-nivel3').classList.remove('visible');
                         document.querySelectorAll('.transp-card').forEach(c=>c.classList.remove('activa'));
-                        var res=document.querySelector('.transp-barra-resumen'); if(res) res.style.display='';
+                        var res=document.querySelector('.transp-layout-principal'); if(res) res.style.display='';
                     ">← Volver</button>
                     <span class="transp-nivel3-titulo" style="color:${colorHead};">
                         ${esSin ? '⚠️' : '🚚'} ${titulo}
@@ -4912,7 +4942,41 @@ table{width:100%;border-collapse:collapse}
             ventana.document.write(html);
             ventana.document.close();
         }
-        window.generarPDFTransportadora = generarPDFTransportadora;
+        window.buscarPorReferencia = function(query) {
+            const res = document.getElementById('buscar-ref-resultado');
+            if (!res) return;
+            const q = (query || '').trim().toLowerCase();
+            if (!q) { res.innerHTML = ''; return; }
+            const prods = window.productosDB || [];
+            const encontrados = prods.filter(p =>
+                (p.codigo || '').toLowerCase().includes(q) ||
+                (p.nombre || '').toLowerCase().includes(q)
+            );
+            if (!encontrados.length) {
+                res.innerHTML = `<p style="color:#888;font-weight:700;text-align:center;padding:20px 0;">No se encontraron productos con esa referencia.</p>`;
+                return;
+            }
+            res.innerHTML = encontrados.map(p => {
+                const imgs = p.imagenes || [];
+                const img = imgs[0] ? `<img src="${imgs[0]}" style="width:80px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0;">` : `<div style="width:80px;height:80px;background:#f0f0f0;border-radius:10px;flex-shrink:0;"></div>`;
+                const stockTotal = (p.tallasObj || []).reduce((s, t) => s + (t.stock || 0), 0);
+                const tallas = (p.tallasObj || []).map(t => `<span style="background:#e8f0fe;color:#1a1a2e;border-radius:6px;padding:2px 8px;font-size:0.75em;font-weight:700;">${t.nombre}: ${t.stock}</span>`).join(' ');
+                const precio = p.precio ? '$' + p.precio.toLocaleString('es-CO') : '—';
+                const precioAnt = p.precioAnterior ? `<span style="text-decoration:line-through;color:#aaa;font-size:0.85em;margin-left:6px;">$${p.precioAnterior.toLocaleString('es-CO')}</span>` : '';
+                return `<div style="display:flex;gap:14px;align-items:flex-start;background:white;border:1.5px solid #e8f0fe;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(66,133,244,0.07);">
+                    ${img}
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:900;font-size:0.95em;color:#1a1a2e;margin-bottom:2px;">${p.nombre}</div>
+                        <div style="font-size:0.78em;color:#888;margin-bottom:6px;">Ref: <b style="color:#4285f4;">${p.codigo || '—'}</b> · ${p.categoria || '—'} · ${p.genero || '—'}</div>
+                        <div style="font-size:1em;font-weight:900;color:#1a1a2e;margin-bottom:6px;">${precio}${precioAnt}</div>
+                        <div style="font-size:0.78em;color:#555;margin-bottom:6px;">Stock total: <b>${stockTotal}</b> unidades</div>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px;">${tallas}</div>
+                        ${p.desc ? `<div style="font-size:0.75em;color:#999;margin-top:6px;">${p.desc}</div>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        };
+        window.buscarPorReferencia = window.buscarPorReferencia;
 
         async function anularFacturaPedido(numPed) {
             const motivo = (document.getElementById('motivo-anular-' + numPed) || {}).value || '';
@@ -5466,8 +5530,10 @@ table{width:100%;border-collapse:collapse}
         function cambiarTab(tab) {
             document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('activo'));
             document.querySelectorAll('.seccion-tab').forEach(s => s.classList.remove('activo'));
-            document.querySelector(`.btn-tab[onclick="cambiarTab('${tab}')"]`).classList.add('activo');
-            document.getElementById(`tab-${tab}`).classList.add('activo');
+            const btnActivo = document.querySelector(`.btn-tab[onclick="cambiarTab('${tab}')"]`);
+            if (btnActivo) btnActivo.classList.add('activo');
+            const tabEl = document.getElementById(`tab-${tab}`);
+            if (tabEl) tabEl.classList.add('activo');
             if (tab === 'inventario') {
                 cargarHistorialInventario();
                 cargarHistorialSalidas();
