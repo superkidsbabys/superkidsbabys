@@ -673,6 +673,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         .btn-filtro-ped:hover { border-color: #4a90e2; }
         .btn-filtro-ped.activo { background: #4a90e2; color: white; border-color: #4a90e2; box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3);}
         .grid-pedidos { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .grid-pedidos.modo-transp { display: block; width: 100%; }
         .tarjeta-pedido-cb { background: #fdfdfd; border: 1px solid #e8d5f5; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
         .tarjeta-pedido-cb.pedido-nuevo-resaltado { border-color: #2ecc71; box-shadow: 0 0 0 3px rgba(46,204,113,0.18), 0 8px 22px rgba(46,204,113,0.16); }
         .aviso-nuevo-pedido {
@@ -711,28 +712,27 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         /* NIVEL 1 – Barra resumen */
         .transp-layout-principal {
-            display: grid;
-            grid-template-columns: 220px 1fr;
+            display: flex;
+            flex-direction: column;
             gap: 14px;
-            align-items: start;
             margin-bottom: 16px;
         }
         .transp-barra-resumen {
-            display: flex; flex-direction: column; gap: 0;
+            display: flex; flex-direction: row; gap: 0;
             background: white; border-radius: 12px;
-            border: 1.5px solid #e8d5f5;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            border: 1.5px solid #e0e0e0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
             padding: 0; overflow: hidden;
         }
         .transp-resumen-item {
-            display: flex; flex-direction: column;
+            flex: 1; display: flex; flex-direction: column;
             align-items: flex-start; justify-content: center;
-            padding: 12px 16px; border-bottom: 1px solid #f0e4fb;
+            padding: 14px 20px; border-right: 1px solid #e0e0e0;
         }
-        .transp-resumen-item:last-child { border-bottom: none; }
+        .transp-resumen-item:last-child { border-right: none; }
         .transp-resumen-label { font-size: 0.68em; color: #999; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
-        .transp-resumen-valor { font-size: 1.1em; font-weight: 900; color: #2c3e50; }
-        .transp-resumen-valor.total { color: #8e44ad; font-size: 1.15em; }
+        .transp-resumen-valor { font-size: 1.1em; font-weight: 900; color: #1a1a1a; }
+        .transp-resumen-valor.total { color: #1a1a1a; font-size: 1.15em; }
 
         /* NIVEL 2 – Tarjetas transportadora */
         .transp-nivel2 {
@@ -742,19 +742,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
         .transp-card {
             background: white; border-radius: 14px;
-            border: 1.5px solid #e8f0fe;
+            border: 1.5px solid #e0e0e0;
             padding: 16px 10px 12px;
             display: flex; flex-direction: column;
             align-items: center; text-align: center;
             cursor: pointer; transition: all 0.18s ease;
-            box-shadow: 0 2px 8px rgba(66,133,244,0.08);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
             position: relative; min-height: 100px;
         }
-        .transp-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(66,133,244,0.16); border-color: #4285f4; }
-        .transp-card.activa { border-color: #4285f4; box-shadow: 0 0 0 3px rgba(66,133,244,0.15); background: #f8fbff; }
+        .transp-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.12); border-color: #999; }
+        .transp-card.activa { border-color: #333; box-shadow: 0 0 0 3px rgba(0,0,0,0.08); background: #f9f9f9; }
         .transp-card.sin-pedidos { opacity: 0.45; }
-        .transp-card-sin { background: #fffbeb; border-color: #fde68a; }
-        .transp-card-sin:hover { border-color: #f59e0b; box-shadow: 0 6px 18px rgba(245,158,11,0.15); }
+        .transp-card-sin { background: #fafafa; border-color: #ddd; }
+        .transp-card-sin:hover { border-color: #888; box-shadow: 0 6px 18px rgba(0,0,0,0.10); }
         .transp-card-logo {
             width: 52px; height: 36px;
             display: flex; align-items: center; justify-content: center;
@@ -762,11 +762,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
         .transp-card-logo img { max-width: 52px; max-height: 34px; object-fit: contain; }
         .transp-card-emoji { font-size: 1.8em; line-height: 1; margin-bottom: 6px; }
-        .transp-card-nombre { font-size: 0.82em; font-weight: 900; color: #1a1a2e; line-height: 1.2; margin-bottom: 5px; }
+        .transp-card-nombre { font-size: 0.82em; font-weight: 900; color: #1a1a1a; line-height: 1.2; margin-bottom: 5px; }
         .transp-card-meta { font-size: 0.68em; color: #555; font-weight: 700; line-height: 1.6; }
         .transp-card-badge {
             position: absolute; top: 8px; right: 8px;
-            background: #4285f4; color: white;
+            background: #333; color: white;
             border-radius: 20px; padding: 1px 7px;
             font-size: 0.6em; font-weight: 900;
         }
@@ -776,21 +776,21 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         .transp-nivel3.visible { display: block; }
         .transp-nivel3-header {
             display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-            margin-bottom: 20px; padding: 16px 20px;
+            margin-bottom: 20px; padding: 18px 24px;
             background: white; border-radius: 12px;
-            border: 1.5px solid #e8d5f5;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            border: 1.5px solid #e0e0e0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
         .transp-btn-volver {
-            background: none; border: 1.5px solid #c9a0dc;
+            background: none; border: 1.5px solid #ccc;
             border-radius: 20px; padding: 6px 14px;
-            color: #8e44ad; font-weight: 800; font-size: 0.8em;
+            color: #333; font-weight: 800; font-size: 0.8em;
             cursor: pointer; transition: all 0.15s;
             display: flex; align-items: center; gap: 5px;
         }
-        .transp-btn-volver:hover { background: #f3e8ff; }
+        .transp-btn-volver:hover { background: #f0f0f0; }
         .transp-nivel3-titulo {
-            font-size: 1em; font-weight: 900; color: #2c3e50;
+            font-size: 1em; font-weight: 900; color: #1a1a1a;
             display: flex; align-items: center; gap: 8px;
         }
         .transp-nivel3-subtotal {
@@ -801,30 +801,30 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             width: 100%; border-collapse: collapse; table-layout: auto;
         }
         .transp-lista-pedidos thead tr {
-            background: #f8f4ff; border-bottom: 2px solid #e8d5f5;
+            background: #f5f5f5; border-bottom: 2px solid #e0e0e0;
         }
         .transp-lista-pedidos th {
             padding: 10px 16px; font-size: 0.72em; font-weight: 900;
-            color: #8e44ad; text-transform: uppercase; letter-spacing: 0.4px;
+            color: #333; text-transform: uppercase; letter-spacing: 0.4px;
             text-align: left; white-space: nowrap;
         }
         .transp-lista-pedidos th:last-child { text-align: right; }
         .transp-lista-pedidos tbody tr {
-            border-bottom: 1px solid #f3e8ff;
+            border-bottom: 1px solid #eeeeee;
             transition: background 0.12s; cursor: pointer;
         }
-        .transp-lista-pedidos tbody tr:hover { background: #fdf8ff; }
-        .transp-lista-pedidos tbody tr.abierto { background: #f3e8ff; }
+        .transp-lista-pedidos tbody tr:hover { background: #f9f9f9; }
+        .transp-lista-pedidos tbody tr.abierto { background: #f2f2f2; }
         .transp-lista-pedidos td {
             padding: 12px 16px; font-size: 0.88em; color: #333; vertical-align: middle;
         }
-        .transp-td-num { font-weight: 900; color: #7e22ce; white-space: nowrap; font-size: 0.92em; }
+        .transp-td-num { font-weight: 900; color: #1a1a1a; white-space: nowrap; font-size: 0.92em; }
         .transp-td-cliente { font-weight: 700; }
         .transp-td-fecha { color: #aaa; font-size: 0.82em; white-space: nowrap; }
         .transp-td-prendas { color: #888; font-size: 0.82em; white-space: nowrap; }
-        .transp-td-total { font-weight: 900; color: #8e44ad; text-align: right; white-space: nowrap; font-size: 0.95em; padding-right: 20px; }
-        .transp-td-flecha { text-align: center; color: #c9a0dc; font-size: 0.8em; width: 28px; padding-right: 4px; transition: transform 0.18s; }
-        .transp-lista-pedidos tbody tr.abierto .transp-td-flecha { color: #8e44ad; transform: rotate(180deg); }
+        .transp-td-total { font-weight: 900; color: #1a1a1a; text-align: right; white-space: nowrap; font-size: 0.95em; padding-right: 20px; }
+        .transp-td-flecha { text-align: center; color: #bbb; font-size: 0.8em; width: 28px; padding-right: 4px; transition: transform 0.18s; }
+        .transp-lista-pedidos tbody tr.abierto .transp-td-flecha { color: #333; transform: rotate(180deg); }
 
         /* NIVEL 4 – Prefactura expandida debajo de la fila */
         .transp-prefactura-row { display: none; }
@@ -833,14 +833,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             padding: 0 !important; background: #fafafa !important;
         }
         .transp-prefactura-inner {
-            padding: 16px; border-top: 2px solid #e8d5f5;
-            border-bottom: 2px solid #e8d5f5;
+            padding: 16px; border-top: 2px solid #e0e0e0;
+            border-bottom: 2px solid #e0e0e0;
             animation: subcat-in 0.2s ease;
         }
 
         @media (max-width: 600px) {
             .transp-nivel2 { grid-template-columns: repeat(2, 1fr); }
-            .transp-layout-principal { grid-template-columns: 1fr; }
+            .transp-layout-principal { flex-direction: column; }
             .transp-lista-pedidos .transp-td-fecha,
             .transp-lista-pedidos .transp-td-prendas { display: none; }
             .transp-resumen-item { padding: 8px 4px; }
@@ -4648,6 +4648,7 @@ table{width:100%;border-collapse:collapse}
             }
 
             // Vista normal — sin subcategorías transportadora
+            cont.classList.remove('modo-transp');
             if (vistaPedidosActual !== 'enviado' && vistaPedidosActual !== 'entregado') {
                 const filtrados = historialPedidos.filter(p => normalizarEstadoPedido(p.estado) === vistaPedidosActual).sort(compararPedidosRecientes);
                 if (filtrados.length === 0) return cont.innerHTML = `<p style='text-align:center; grid-column: 1/-1; color: #888; font-weight: bold; margin-top: 20px;'>No hay pedidos en esta sección.</p>`;
@@ -4656,6 +4657,7 @@ table{width:100%;border-collapse:collapse}
             }
 
             // ══ MÓDULO TRANSPORTADORAS — 4 NIVELES ══
+            cont.classList.add('modo-transp');
             const filtrados = historialPedidos.filter(p => normalizarEstadoPedido(p.estado) === vistaPedidosActual).sort(compararPedidosRecientes);
             if (filtrados.length === 0) return cont.innerHTML = `<p style='text-align:center;color:#888;font-weight:bold;margin-top:20px;'>No hay pedidos en esta sección.</p>`;
 
@@ -4676,7 +4678,7 @@ table{width:100%;border-collapse:collapse}
                 granTotalEnvios  += parseInt((ped.valorEnvio || '0').toString().replace(/[^0-9]/g, '')) || 0;
             });
 
-            // ── NIVEL 1: Barra resumen + NIVEL 2: Tarjetas (lado a lado) ──
+            // ── NIVEL 1: Barra resumen arriba + NIVEL 2: Tarjetas abajo ──
             cont.innerHTML = '';
             const layoutDiv = document.createElement('div');
             layoutDiv.className = 'transp-layout-principal';
