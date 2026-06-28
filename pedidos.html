@@ -4481,8 +4481,8 @@ table{width:100%;border-collapse:collapse}
         function renderizarPedidosPanel() {
             const cont = document.getElementById('contenedor-historial-pedidos'); if (!cont) return;
             cont.innerHTML = "";
-            const esGina = usuarioActual && usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2';
-            const puedeVerAnuladas = usuarioActual && (usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' || usuarioActual.uid === 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3' || usuarioActual.uid === 'MtQpryHLGYab5v3UjhRZw88CAD63');
+            const esGina = window.usuarioActual && window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2';
+            const puedeVerAnuladas = window.usuarioActual && (window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' || window.usuarioActual.uid === 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3' || window.usuarioActual.uid === 'MtQpryHLGYab5v3UjhRZw88CAD63');
 
             // Mostrar/ocultar botón facturas anuladas según permisos
             const btnAnuladas = document.getElementById('fp-anuladas');
@@ -4652,10 +4652,10 @@ table{width:100%;border-collapse:collapse}
             // ── NIVEL 1: Barra resumen ──
             cont.innerHTML = '';
             cont.innerHTML += `<div class="transp-barra-resumen">
-                <div class="transp-resumen-item"><span class="transp-resumen-label">📦 Paquetes</span><span class="transp-resumen-valor">${filtrados.length}</span></div>
-                <div class="transp-resumen-item"><span class="transp-resumen-label">👕 Prendas</span><span class="transp-resumen-valor">${formatMoney(granTotalPrendas)}</span></div>
-                <div class="transp-resumen-item"><span class="transp-resumen-label">🚚 Envíos</span><span class="transp-resumen-valor">${formatMoney(granTotalEnvios)}</span></div>
-                <div class="transp-resumen-item"><span class="transp-resumen-label">💰 Total</span><span class="transp-resumen-valor total">${formatMoney(granTotalPrendas + granTotalEnvios)}</span></div>
+                <div class="transp-resumen-item"><span class="transp-resumen-label">📦 Pedidos</span><span class="transp-resumen-valor">${filtrados.length}</span></div>
+                <div class="transp-resumen-item"><span class="transp-resumen-label">👕 Total Pedidos</span><span class="transp-resumen-valor">${formatMoney(granTotalPrendas)}</span></div>
+                <div class="transp-resumen-item"><span class="transp-resumen-label">🚚 Total Envíos</span><span class="transp-resumen-valor">${formatMoney(granTotalEnvios)}</span></div>
+                <div class="transp-resumen-item"><span class="transp-resumen-label">💰 Gran Total</span><span class="transp-resumen-valor total">${formatMoney(granTotalPrendas + granTotalEnvios)}</span></div>
             </div>`;
 
             // ── NIVEL 2: Tarjetas transportadora ──
@@ -4696,7 +4696,7 @@ table{width:100%;border-collapse:collapse}
                     (count > 0 ? `<span class="transp-card-badge">${count}</span>` : '') +
                     logoHTML +
                     `<span class="transp-card-nombre">${tr.label}</span>` +
-                    `<span class="transp-card-meta">📦 ${count} pedido${count!==1?'s':''}<br>💰 ${formatMoney(subPrendas + subEnvios)}</span>`;
+                    `<span class="transp-card-meta">📦 ${count} pedido${count!==1?'s':''}<br>👕 ${formatMoney(subPrendas)}<br>🚚 ${formatMoney(subEnvios)}</span>`;
 
                 card.addEventListener('click', function() {
                     if (count === 0) return;
@@ -4748,6 +4748,13 @@ table{width:100%;border-collapse:collapse}
                     <span class="transp-nivel3-subtotal">
                         📦 ${pedidos.length} pedidos &nbsp;·&nbsp; 💰 ${formatMoney(subP + subE)}
                     </span>
+                    ${vistaPedidosActual === 'entregado' ? `
+                    <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+                        <input type="date" id="pdf-fecha-desde" style="border:1.5px solid #c9a0dc;border-radius:8px;padding:5px 8px;font-size:0.8em;color:#444;">
+                        <span style="font-size:0.8em;color:#888;">→</span>
+                        <input type="date" id="pdf-fecha-hasta" style="border:1.5px solid #c9a0dc;border-radius:8px;padding:5px 8px;font-size:0.8em;color:#444;">
+                        <button onclick="generarPDFTransportadora('${titulo}', ${JSON.stringify(pedidos).replace(/'/g,"\\'")})" style="background:#8e44ad;color:white;border:none;border-radius:8px;padding:6px 12px;font-size:0.78em;font-weight:800;cursor:pointer;">📄 PDF</button>
+                    </div>` : ''}
                 </div>
                 <div>
                 <table class="transp-lista-pedidos" id="transp-tabla-pedidos">
@@ -4819,6 +4826,93 @@ table{width:100%;border-collapse:collapse}
 
                 }
         // ══ FIN MÓDULO TRANSPORTADORAS ══
+
+        function generarPDFTransportadora(nombreTransp, todosPedidos) {
+            const desdeStr = (document.getElementById('pdf-fecha-desde') || {}).value;
+            const hastaStr = (document.getElementById('pdf-fecha-hasta') || {}).value;
+
+            // Filtrar por fechas si se seleccionaron
+            let pedidosFiltrados = todosPedidos;
+            if (desdeStr || hastaStr) {
+                pedidosFiltrados = todosPedidos.filter(p => {
+                    // fecha guardada como "27/6/2026, 10:00:00 a. m." → parseamos
+                    const partes = (p.fecha || '').split(',')[0].trim().split('/');
+                    if (partes.length < 3) return true;
+                    const fechaPed = new Date(partes[2], partes[1] - 1, partes[0]);
+                    if (desdeStr) { const d = new Date(desdeStr); d.setHours(0,0,0,0); if (fechaPed < d) return false; }
+                    if (hastaStr) { const h = new Date(hastaStr); h.setHours(23,59,59,999); if (fechaPed > h) return false; }
+                    return true;
+                });
+            }
+
+            if (pedidosFiltrados.length === 0) {
+                alert('No hay pedidos entregados en ese rango de fechas.');
+                return;
+            }
+
+            const totalPrendas = pedidosFiltrados.reduce((s, p) => s + (p.items||[]).reduce((ss,i)=>ss+((i.precio||0)*(i.cant||1)),0), 0);
+            const totalEnvios  = pedidosFiltrados.reduce((s, p) => s + (parseInt((p.valorEnvio||'0').toString().replace(/[^0-9]/g,''))||0), 0);
+            const rangoTexto   = desdeStr || hastaStr
+                ? `${desdeStr ? 'Desde: ' + desdeStr : ''} ${hastaStr ? 'Hasta: ' + hastaStr : ''}`.trim()
+                : 'Todos los pedidos entregados';
+
+            const filas = pedidosFiltrados.map(p => {
+                const guia        = p.guia || p.numeroGuia || p.numGuia || '';
+                const fechaCorta  = (p.fecha || '').split(',')[0];
+                const cliente     = p.nom || '—';
+                const ciudad      = p.ciudad || p.dir || '—';
+                const envio       = parseInt((p.valorEnvio||'0').toString().replace(/[^0-9]/g,''))||0;
+                const totalPed    = (p.items||[]).reduce((s,i)=>s+((i.precio||0)*(i.cant||1)),0);
+                return `<tr>
+                    <td>${guia}</td>
+                    <td>${fechaCorta}</td>
+                    <td>${cliente}</td>
+                    <td>${ciudad}</td>
+                    <td style="text-align:right;">${formatMoney(envio)}</td>
+                    <td style="text-align:right;font-weight:700;">${formatMoney(totalPed)}</td>
+                </tr>`;
+            }).join('');
+
+            const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+            <title>Reporte ${nombreTransp}</title>
+            <style>
+                body { font-family: Arial, sans-serif; font-size: 12px; color: #222; margin: 20px; }
+                h2 { color: #8e44ad; margin-bottom: 4px; }
+                .subtitulo { color: #888; font-size: 11px; margin-bottom: 16px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+                th { background: #f3e8ff; color: #8e44ad; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+                td { padding: 7px 10px; border-bottom: 1px solid #f0e4fb; }
+                tr:last-child td { border-bottom: none; }
+                .totales { margin-top: 16px; background: #fdf8ff; border: 1.5px solid #e8d5f5; border-radius: 8px; padding: 12px 16px; display: flex; gap: 30px; }
+                .tot-item { display: flex; flex-direction: column; }
+                .tot-label { font-size: 10px; color: #999; font-weight: 700; text-transform: uppercase; }
+                .tot-valor { font-size: 15px; font-weight: 900; color: #2c3e50; }
+                .tot-valor.morado { color: #8e44ad; }
+                @media print { body { margin: 10px; } }
+            </style></head><body>
+            <h2>🚚 ${nombreTransp} — Reporte de Entregados</h2>
+            <div class="subtitulo">SuperKids&Babys · ${rangoTexto} · ${pedidosFiltrados.length} pedido(s)</div>
+            <table>
+                <thead><tr>
+                    <th>N° Guía</th><th>Fecha</th><th>Cliente</th><th>Ciudad</th>
+                    <th style="text-align:right;">Flete</th><th style="text-align:right;">Valor Pedido</th>
+                </tr></thead>
+                <tbody>${filas}</tbody>
+            </table>
+            <div class="totales">
+                <div class="tot-item"><span class="tot-label">📦 Pedidos</span><span class="tot-valor">${pedidosFiltrados.length}</span></div>
+                <div class="tot-item"><span class="tot-label">👕 Total Pedidos</span><span class="tot-valor">${formatMoney(totalPrendas)}</span></div>
+                <div class="tot-item"><span class="tot-label">🚚 Total Envíos</span><span class="tot-valor">${formatMoney(totalEnvios)}</span></div>
+                <div class="tot-item"><span class="tot-label">💰 Gran Total</span><span class="tot-valor morado">${formatMoney(totalPrendas + totalEnvios)}</span></div>
+            </div>
+            <script>window.onload = function(){ window.print(); }<\/script>
+            </body></html>`;
+
+            const ventana = window.open('', '_blank');
+            ventana.document.write(html);
+            ventana.document.close();
+        }
+        window.generarPDFTransportadora = generarPDFTransportadora;
 
         async function anularFacturaPedido(numPed) {
             const motivo = (document.getElementById('motivo-anular-' + numPed) || {}).value || '';
