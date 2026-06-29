@@ -1336,9 +1336,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                                 <label style="font-size:0.8em;color:#555;font-weight:700;">📅 Fecha llegada</label>
                                 <input type="date" id="inv-fecha" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
                             </div>
-                            <div>
+                            <div style="position:relative;">
                                 <label style="font-size:0.8em;color:#555;font-weight:700;">🏷️ Referencia (SKU)</label>
-                                <input type="text" id="inv-ref" placeholder="Ej: 3607" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+                                <input type="text" id="inv-ref" placeholder="Ej: 3607 o nombre..." 
+                                    autocomplete="off"
+                                    oninput="invAutocompletar(this.value)"
+                                    style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+                                <div id="inv-autocomplete-list" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1.5px solid #a8e6c1;border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.12);margin-top:2px;"></div>
                             </div>
                         </div>
                         <div style="margin-bottom:10px;">
@@ -5021,6 +5025,67 @@ table{width:100%;border-collapse:collapse}
             div.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;';
             div.innerHTML = '<input type="text" class="inv-talla-nom" placeholder="Talla (ej: 3M)" style="flex:1;padding:7px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;"><input type="number" class="inv-talla-cant" placeholder="Cant." min="0" style="width:80px;padding:7px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;"><button onclick="this.parentElement.remove()" style="background:#e74c3c;color:white;border:none;border-radius:8px;padding:7px 10px;cursor:pointer;font-weight:700;">✕</button>';
             cont.appendChild(div);
+        }
+
+        function invAutocompletar(query) {
+            const list = document.getElementById('inv-autocomplete-list');
+            if (!query || query.length < 2) { list.style.display = 'none'; return; }
+            const q = query.toLowerCase();
+            const prods = window.productosDB || window.productosQ || [];
+            const matches = prods.filter(p =>
+                (p.codigo || '').toLowerCase().includes(q) ||
+                (p.nombre || '').toLowerCase().includes(q)
+            ).slice(0, 8);
+            if (matches.length === 0) { list.style.display = 'none'; return; }
+            list.innerHTML = matches.map(p => `
+                <div onclick="invSeleccionarProducto('${p.id}')" style="padding:10px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-family:Nunito,sans-serif;transition:background 0.15s;"
+                    onmouseover="this.style.background='#f0faf4'" onmouseout="this.style.background='white'">
+                    <div style="font-weight:800;font-size:0.88em;color:#2c3e50;">${p.nombre}</div>
+                    <div style="font-size:0.75em;color:#888;">Ref: ${p.codigo || '—'} &nbsp;·&nbsp; ${formatMoney(p.precio || 0)} &nbsp;·&nbsp; Stock: ${p.stockTotal || 0}</div>
+                </div>`).join('');
+            list.style.display = 'block';
+            // Cerrar al hacer click fuera
+            document.addEventListener('click', function cerrar(e) {
+                if (!list.contains(e.target) && e.target.id !== 'inv-ref') {
+                    list.style.display = 'none';
+                    document.removeEventListener('click', cerrar);
+                }
+            });
+        }
+
+        function invSeleccionarProducto(prodId) {
+            const prods = window.productosDB || window.productosQ || [];
+            const p = prods.find(x => x.id === prodId);
+            if (!p) return;
+            // Llenar campos
+            document.getElementById('inv-ref').value = p.codigo || '';
+            document.getElementById('inv-desc').value = p.nombre || '';
+            document.getElementById('inv-valor').value = p.precio || '';
+            document.getElementById('inv-autocomplete-list').style.display = 'none';
+            // Llenar tallas desde el producto
+            const cont = document.getElementById('inv-tallas-cont');
+            cont.innerHTML = '';
+            const tallas = p.tallasObj || [];
+            if (tallas.length > 0) {
+                tallas.forEach(t => {
+                    const fila = document.createElement('div');
+                    fila.className = 'inv-fila-talla';
+                    fila.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;';
+                    fila.innerHTML = `
+                        <input type="text" class="inv-talla-nom" value="${t.nombre}" placeholder="Talla (ej: 0M)" style="flex:1;padding:7px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+                        <input type="number" class="inv-talla-cant" value="${t.stock || 0}" placeholder="Cant." min="0" style="width:80px;padding:7px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+                        <button onclick="this.parentElement.remove()" style="background:#e74c3c;color:white;border:none;border-radius:8px;padding:7px 10px;cursor:pointer;font-weight:700;">✕</button>`;
+                    cont.appendChild(fila);
+                });
+            } else {
+                agregarFilaTallaInv();
+            }
+            // Mostrar confirmación
+            const msg = document.getElementById('inv-msg');
+            msg.textContent = `✅ Producto cargado: ${p.nombre} — ${tallas.length} talla(s)`;
+            msg.style.display = 'block';
+            msg.style.color = '#27ae60';
+            setTimeout(() => { msg.style.display = 'none'; }, 3000);
         }
 
         async function guardarEntradaInventario() {
