@@ -4747,7 +4747,11 @@ table{width:100%;border-collapse:collapse}
             nivel3.id = 'transp-nivel3';
             cont.appendChild(nivel3);
 
+            window._pdfTranspPedidos = null;
+            window._pdfTranspTitulo = '';
             function mostrarNivel3Transp(pedidos, titulo, esSin, color) {
+                window._pdfTranspPedidos = pedidos;
+                window._pdfTranspTitulo = titulo;
                 const n2 = document.getElementById('transp-nivel2');
                 const n3 = document.getElementById('transp-nivel3');
                 if (!n3) return;
@@ -4785,7 +4789,7 @@ table{width:100%;border-collapse:collapse}
                         <input type="date" id="pdf-fecha-desde" style="border:1.5px solid #c9a0dc;border-radius:8px;padding:5px 8px;font-size:0.8em;color:#444;">
                         <span style="font-size:0.8em;color:#888;">→</span>
                         <input type="date" id="pdf-fecha-hasta" style="border:1.5px solid #c9a0dc;border-radius:8px;padding:5px 8px;font-size:0.8em;color:#444;">
-                        <button onclick="generarPDFTransportadora('${titulo}', ${JSON.stringify(pedidos).replace(/'/g,"\\'")})" style="background:#8e44ad;color:white;border:none;border-radius:8px;padding:6px 12px;font-size:0.78em;font-weight:800;cursor:pointer;">📄 PDF</button>
+                        <button onclick="generarPDFTransportadora()" style="background:#1a1a1a;color:white;border:none;border-radius:8px;padding:6px 14px;font-size:0.8em;font-weight:800;cursor:pointer;letter-spacing:0.3px;">📄 PDF</button>
                     </div>` : ''}
                 </div>
                 <div>
@@ -4859,7 +4863,9 @@ table{width:100%;border-collapse:collapse}
                 }
         // ══ FIN MÓDULO TRANSPORTADORAS ══
 
-        function generarPDFTransportadora(nombreTransp, todosPedidos) {
+        function generarPDFTransportadora() {
+            const nombreTransp = window._pdfTranspTitulo || 'Transportadora';
+            const todosPedidos = window._pdfTranspPedidos || [];
             const desdeStr = (document.getElementById('pdf-fecha-desde') || {}).value;
             const hastaStr = (document.getElementById('pdf-fecha-hasta') || {}).value;
 
