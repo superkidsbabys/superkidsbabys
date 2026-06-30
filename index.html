@@ -1318,9 +1318,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 <script>
 (function() {
     var KEY = 'sce_envio_visto_v1';
+    var HORAS_REPETICION = 12; // cada cuántas horas vuelve a aparecer
     function sceMostrarModal() {
         try {
-            if (localStorage.getItem(KEY)) return;
+            var visto = localStorage.getItem(KEY);
+            if (visto) {
+                var horasPasadas = (Date.now() - parseInt(visto, 10)) / (1000 * 60 * 60);
+                if (horasPasadas < HORAS_REPETICION) return;
+            }
         } catch(e) {}
         var overlay = document.getElementById('sce-modal-overlay');
         if (overlay) {
@@ -1330,7 +1335,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
     window.sceCerrarModal = function() {
         var overlay = document.getElementById('sce-modal-overlay');
         if (overlay) overlay.style.display = 'none';
-        try { localStorage.setItem(KEY, '1'); } catch(e) {}
+        try { localStorage.setItem(KEY, Date.now().toString()); } catch(e) {}
     };
     // Mostrar con pequeño delay para que la página cargue primero
     setTimeout(sceMostrarModal, 800);
@@ -1373,7 +1378,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
     <div class="selector-genero">
         <button class="btn-genero activo" id="btn-gen-ninas" onclick="cambiarGenero('Niñas')">Niñas</button>
         <button class="btn-genero" id="btn-gen-ninos" onclick="cambiarGenero('Niños')">Niños</button>
-        <button class="btn-genero" id="btn-gen-junior" onclick="cambiarGenero('Junior')">Junior</button>
+        <button class="btn-genero" id="btn-gen-junior-ninas" onclick="cambiarGenero('Junior Niñas')">Junior Niñas</button>
+        <button class="btn-genero" id="btn-gen-junior-ninos" onclick="cambiarGenero('Junior Niños')">Junior Niños</button>
         <button class="btn-genero" id="btn-gen-accesorios" onclick="cambiarGenero('Accesorios')">Accesorios</button>
     </div>
 
@@ -1535,7 +1541,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             </div>
             <div style="display: flex; gap: 10px; margin-top: 8px;">
                 <div style="flex: 1;"><label>Categoría:</label><select id="edit-prod-categoria" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;"><option value="Mamelucos">Mamelucos</option><option value="Conjuntos pantalón">Conjuntos pantalón</option><option value="Conjuntos Short">Conjuntos Short</option><option value="Jardineras Short">Jardineras Short</option><option value="Jardineras Vestidos">Jardineras Vestidos</option><option value="conjuntos Falda">conjuntos Falda</option></select></div>
-                <div style="flex: 1;"><label>Género:</label><select id="edit-prod-genero" onchange="alCambiarGeneroEdit()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;"><option value="Niñas">Niñas</option><option value="Niños">Niños</option><option value="Junior">Junior</option><option value="Accesorios">Accesorios</option><option value="Unisex">Unisex</option></select></div>
+                <div style="flex: 1;"><label>Género:</label><select id="edit-prod-genero" onchange="alCambiarGeneroEdit()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;"><option value="Niñas">Niñas</option><option value="Niños">Niños</option><option value="Junior Niñas">Junior Niñas</option><option value="Junior Niños">Junior Niños</option><option value="Accesorios">Accesorios</option><option value="Unisex">Unisex</option></select></div>
             </div>
             <div id="wrap-edit-orden-genero" style="display:none; gap:10px; margin-top:6px;">
                 <div style="flex:1;"><label>Posición en Niñas:</label><input type="number" id="edit-prod-orden-ninas" placeholder="Ej: 1" style="width:100%;"></div>
@@ -1702,6 +1708,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         } else {
             productosDB = dbGuardada || [];
         }
+        // Migración: productos antiguos con género "Junior" (categoría unificada) pasan por defecto a "Junior Niñas".
+        // Puedes mover los que sean de niño a "Junior Niños" editando cada producto.
+        productosDB = productosDB.map(p => (p && p.genero === 'Junior') ? Object.assign({}, p, { genero: 'Junior Niñas' }) : p);
 
         let pedGuardados = safeParse('pedidosV36') || safeParse('pedidosV35') || safeParse('pedidosV34') || safeParse('pedidosV33') || safeParse('pedidosV25');
         // Regla: localStorage/Firebase mandan. pedidosQ quemado solo como semilla inicial.
@@ -1936,7 +1945,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         function obtenerOrdenVisual(p, genero) {
             let orden = p.orden || 100;
             if (p.genero === 'Unisex') {
-                orden = (esGeneroNinas(genero) ? p.ordenNinas : (genero === 'Junior' ? p.ordenJunior : p.ordenNinos)) || p.orden || 100;
+                orden = ((esGeneroNinas(genero) || genero === 'Junior Niñas') ? p.ordenNinas : ((genero === 'Junior Niños') ? p.ordenJunior : p.ordenNinos)) || p.orden || 100;
             }
             return orden;
         }
@@ -2049,8 +2058,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                         snap.forEach(d => productosFirebase.push(d.data()));
                         // Mezclar: Firebase gana sobre quemados (datos más actualizados)
                         const quemados = filtrarProductosEliminados(window.productosQ || []);
-                        const productosFirebaseActivos = filtrarProductosEliminados(productosFirebase);
-                        const soloQuemadosNoEnFirebase = quemados.filter(q => !productosFirebaseActivos.find(f => f.id === q.id));
+                        const productosFirebaseActivos = filtrarProductosEliminados(productosFirebase)
+                            .map(p => (p && p.genero === 'Junior') ? Object.assign({}, p, { genero: 'Junior Niñas' }) : p);
+                        const soloQuemadosNoEnFirebase = quemados.filter(q => !productosFirebaseActivos.find(f => f.id === q.id))
+                            .map(p => (p && p.genero === 'Junior') ? Object.assign({}, p, { genero: 'Junior Niñas' }) : p);
                         productosDB = aplicarOrdenGuardadoLocal([...productosFirebaseActivos, ...soloQuemadosNoEnFirebase]);
                         ordenarProductosPorOrdenVisual(productosDB, generoActual);
                         localStorage.setItem('productosV36', JSON.stringify(productosDB));
@@ -2068,7 +2079,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         };
 
         function aplicarDiseno() {
-            let cfg = generoActual === 'Niñas' ? config.ninas : (generoActual === 'Junior' ? (config.junior || config.ninos) : config.ninos);
+            let cfg = generoActual === 'Niñas' ? config.ninas : ((generoActual === 'Junior Niñas' || generoActual === 'Junior Niños') ? (config.junior || config.ninos) : config.ninos);
             let tema;
             if (cfg.temaActivo === 'Personalizado') {
                 tema = { banner: cfg.colorBanner, textoBanner: cfg.colorTextoPersonalizado, fondo: cfg.colorFondo, tarjeta: cfg.colorTarjeta, texto: cfg.colorTexto };
@@ -2176,7 +2187,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
 
         function actualizarBtnPromoVivo() {
-            let cfg = generoActual === 'Niñas' ? config.ninas : (generoActual === 'Junior' ? (config.junior || config.ninos) : config.ninos);
+            let cfg = generoActual === 'Niñas' ? config.ninas : ((generoActual === 'Junior Niñas' || generoActual === 'Junior Niños') ? (config.junior || config.ninos) : config.ninos);
             let nombre = document.getElementById('edit-nombre-btn-promo').value || 'Promociones';
             let color = document.getElementById('edit-color-btn-promo').value;
             let colorTexto = document.getElementById('edit-color-btn-promo-texto').value;
@@ -2194,7 +2205,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function actualizarBotonesCategoriaVivo() {
-            let cfg = generoActual === 'Niñas' ? config.ninas : (generoActual === 'Junior' ? (config.junior || config.ninos) : config.ninos);
+            let cfg = generoActual === 'Niñas' ? config.ninas : ((generoActual === 'Junior Niñas' || generoActual === 'Junior Niños') ? (config.junior || config.ninos) : config.ninos);
             cfg.colorCategoriaFondo = document.getElementById('edit-color-cat-fondo').value;
             cfg.colorCategoriaTexto = document.getElementById('edit-color-cat-texto').value;
             cfg.colorCategoriaBorde = document.getElementById('edit-color-cat-borde').value;
@@ -2214,7 +2225,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
                 function actualizarBtnCarritoVivo() {
-            let cfg = generoActual === 'Niñas' ? config.ninas : (generoActual === 'Junior' ? (config.junior || config.ninos) : config.ninos);
+            let cfg = generoActual === 'Niñas' ? config.ninas : ((generoActual === 'Junior Niñas' || generoActual === 'Junior Niños') ? (config.junior || config.ninos) : config.ninos);
             let color = document.getElementById('edit-color-btn-carrito').value;
             let colorTexto = document.getElementById('edit-color-btn-carrito-texto').value;
             cfg.colorBtnCarrito = color;
@@ -2227,7 +2238,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
 
         function actualizarEtiquetaCustomVivo() {
-            let cfg = generoActual === 'Niñas' ? config.ninas : (generoActual === 'Junior' ? (config.junior || config.ninos) : config.ninos);
+            let cfg = generoActual === 'Niñas' ? config.ninas : ((generoActual === 'Junior Niñas' || generoActual === 'Junior Niños') ? (config.junior || config.ninos) : config.ninos);
             let color = document.getElementById('edit-color-etiqueta-custom').value;
             let colorTexto = document.getElementById('edit-color-etiqueta-custom-texto').value;
             let opacidad = document.getElementById('edit-opacidad-etiqueta-custom').value;
@@ -2242,7 +2253,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
                 function actualizarEtiquetaDescVivo() {
-            let cfg = generoActual === 'Niñas' ? config.ninas : (generoActual === 'Junior' ? (config.junior || config.ninos) : config.ninos);
+            let cfg = generoActual === 'Niñas' ? config.ninas : ((generoActual === 'Junior Niñas' || generoActual === 'Junior Niños') ? (config.junior || config.ninos) : config.ninos);
             let color = document.getElementById('edit-color-etiqueta-desc').value;
             let colorTexto = document.getElementById('edit-color-etiqueta-desc-texto').value;
             let opacidad = document.getElementById('edit-opacidad-etiqueta').value;
@@ -2258,7 +2269,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
                 function actualizarColoresVivo() {
             if (window.datosQuemados) return;
-            let cfg = generoActual === 'Niñas' ? config.ninas : (generoActual === 'Junior' ? (config.junior || config.ninos) : config.ninos);
+            let cfg = generoActual === 'Niñas' ? config.ninas : ((generoActual === 'Junior Niñas' || generoActual === 'Junior Niños') ? (config.junior || config.ninos) : config.ninos);
             cfg.temaActivo = 'Personalizado';
             cfg.colorBanner = document.getElementById('edit-color-banner').value;
             cfg.colorTextoPersonalizado = document.getElementById('edit-color-texto-header').value;
@@ -2269,7 +2280,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function actualizarColorPrecioVivo() {
-            let cfg = generoActual === 'Niñas' ? config.ninas : (generoActual === 'Junior' ? (config.junior || config.ninos) : config.ninos);
+            let cfg = generoActual === 'Niñas' ? config.ninas : ((generoActual === 'Junior Niñas' || generoActual === 'Junior Niños') ? (config.junior || config.ninos) : config.ninos);
             let nuevoColor = document.getElementById('edit-color-precio').value;
             cfg.colorPrecio = nuevoColor;
             // Actualizar demo en tiempo real
@@ -2280,7 +2291,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         // ✅ NUEVA función: renderizar texturas con tarjetas visuales mejoradas
         function renderizarTexturas() {
-            let cfg = generoActual === 'Niñas' ? config.ninas : (generoActual === 'Junior' ? (config.junior || config.ninos) : config.ninos);
+            let cfg = generoActual === 'Niñas' ? config.ninas : ((generoActual === 'Junior Niñas' || generoActual === 'Junior Niños') ? (config.junior || config.ninos) : config.ninos);
             let cont = document.getElementById('selector-texturas');
             if (!cont) return;
             cont.innerHTML = texturas.map((t, i) => {
@@ -2299,7 +2310,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function seleccionarTextura(idx) {
-            let cfg = generoActual === 'Niñas' ? config.ninas : (generoActual === 'Junior' ? (config.junior || config.ninos) : config.ninos);
+            let cfg = generoActual === 'Niñas' ? config.ninas : ((generoActual === 'Junior Niñas' || generoActual === 'Junior Niños') ? (config.junior || config.ninos) : config.ninos);
             cfg.texturaBanner = texturas[idx].valor;
             cfg.texturaSize   = texturas[idx].size;
             aplicarDiseno();
@@ -2307,7 +2318,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function renderizarTemasAdmin() {
-            let cfg = generoActual === 'Niñas' ? config.ninas : (generoActual === 'Junior' ? (config.junior || config.ninos) : config.ninos);
+            let cfg = generoActual === 'Niñas' ? config.ninas : ((generoActual === 'Junior Niñas' || generoActual === 'Junior Niños') ? (config.junior || config.ninos) : config.ninos);
             const cont = document.getElementById('contenedor-temas'); cont.innerHTML = "";
             for (const [nombre, colores] of Object.entries(paletas)) {
                 let activo = nombre === cfg.temaActivo ? 'activo' : '';
@@ -2320,7 +2331,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         function seleccionarTema(nombre) {
             if (window.datosQuemados) return;
-            let cfg = generoActual === 'Niñas' ? config.ninas : (generoActual === 'Junior' ? (config.junior || config.ninos) : config.ninos);
+            let cfg = generoActual === 'Niñas' ? config.ninas : ((generoActual === 'Junior Niñas' || generoActual === 'Junior Niños') ? (config.junior || config.ninos) : config.ninos);
             cfg.temaActivo = nombre;
             if (nombre !== 'Personalizado') {
                 let t = paletas[nombre];
@@ -2657,7 +2668,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             generoActual = genero;
             document.getElementById('btn-gen-ninas').classList.toggle('activo', genero === 'Niñas');
             document.getElementById('btn-gen-ninos').classList.toggle('activo', genero === 'Niños');
-            document.getElementById('btn-gen-junior').classList.toggle('activo', genero === 'Junior');
+            document.getElementById('btn-gen-junior-ninas').classList.toggle('activo', genero === 'Junior Niñas');
+            document.getElementById('btn-gen-junior-ninos').classList.toggle('activo', genero === 'Junior Niños');
             filtroActual = 'Todos'; tallaFiltroActual = 'Todas'; modoCollage = true;
             aplicarDiseno();
             renderizarCategoriasAdminYPublic(); renderizarFiltroTallas(); renderizarCatalogo();
@@ -2711,7 +2723,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 return a.localeCompare(b);
             });
             if (arrTallas.length === 0) { menuTallas.innerHTML = ""; return; }
-            let cfg2 = generoActual === 'Niñas' ? config.ninas : (generoActual === 'Junior' ? (config.junior || config.ninos) : config.ninos);
+            let cfg2 = generoActual === 'Niñas' ? config.ninas : ((generoActual === 'Junior Niñas' || generoActual === 'Junior Niños') ? (config.junior || config.ninos) : config.ninos);
             let nombrePromo = (cfg2 && cfg2.nombreBtnPromo) || 'Promociones';
             let colorPromo = (cfg2 && cfg2.colorBtnPromo) || '#ff4db8';
             let colorPromoTxt = (cfg2 && cfg2.colorBtnPromoTexto) || '#fff';
