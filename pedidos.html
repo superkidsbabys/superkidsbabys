@@ -1092,7 +1092,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <button class="btn-tab" onclick="cambiarTab('productos')">Productos</button>
                 <button class="btn-tab" onclick="cambiarTab('pedidos')">Pedidos</button>
                 <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('inventario')" style="display:none;">Inventario</button>
-                <button class="btn-tab" onclick="cambiarTab('buscar')">Ver tienda</button>
+                <button class="btn-tab" onclick="window.open('https://superkidsbabys.com','_blank')">Ver tienda</button>
                 <button class="btn-tab" onclick="window.fbLogout && window.fbLogout()" style="background-color: #e74c3c; color: white;">Cerrar sesión</button>
             </div>
 
@@ -5604,12 +5604,6 @@ table{width:100%;border-collapse:collapse}
             if (btnActivo) btnActivo.classList.add('activo');
             const tabEl = document.getElementById(`tab-${tab}`);
             if (tabEl) tabEl.classList.add('activo');
-            // Mostrar u ocultar el catálogo con botones de editar
-            var secCatalogo = document.getElementById('seccion-catalogo-admin');
-            if (secCatalogo) secCatalogo.style.display = (tab === 'buscar') ? 'block' : 'none';
-            if (tab === 'buscar' && typeof renderizarCatalogo === 'function') {
-                setTimeout(function() { renderizarCatalogo(); }, 100);
-            }
             if (tab === 'inventario') {
                 cargarHistorialInventario();
                 cargarHistorialSalidas();
