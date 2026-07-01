@@ -1443,7 +1443,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         </div>
 
         <!-- ── FILTROS COLAPSABLES ── (oculto en panel) -->
-        <div id="seccion-ver-tienda" style="display:none;"><!-- filtros inicio -->
+        <div id="seccion-catalogo-admin" style="display:none;"><!-- filtros inicio -->
         <div class="filtros-accordion">
             <div class="filtros-row-toggle">
                 <div id="wrap-buscador-ref" style="display:none; flex:1;">
@@ -5604,20 +5604,11 @@ table{width:100%;border-collapse:collapse}
             if (btnActivo) btnActivo.classList.add('activo');
             const tabEl = document.getElementById(`tab-${tab}`);
             if (tabEl) tabEl.classList.add('activo');
-            var secVerTienda = document.getElementById('seccion-ver-tienda');
-            var selectorGenero = document.querySelector('.selector-genero');
-            if (tab === 'buscar') {
-                if (secVerTienda) secVerTienda.style.display = 'block';
-                if (selectorGenero) selectorGenero.style.display = 'flex';
-                modoEdicion = !!(window.usuarioActual && window.usuarioActual.rol === 'admin');
-                aplicarDiseno();
-                renderizarCategoriasAdminYPublic();
-                renderizarFiltroTallas();
-                renderizarCatalogo();
-            } else {
-                if (secVerTienda) secVerTienda.style.display = 'none';
-                if (selectorGenero) selectorGenero.style.display = 'none';
-                modoEdicion = false;
+            // Mostrar u ocultar el catálogo con botones de editar
+            var secCatalogo = document.getElementById('seccion-catalogo-admin');
+            if (secCatalogo) secCatalogo.style.display = (tab === 'buscar') ? 'block' : 'none';
+            if (tab === 'buscar' && typeof renderizarCatalogo === 'function') {
+                setTimeout(function() { renderizarCatalogo(); }, 100);
             }
             if (tab === 'inventario') {
                 cargarHistorialInventario();
