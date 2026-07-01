@@ -860,6 +860,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         .tp-btn-factura:hover { background: #c0392b; }
         .tp-btn-eliminar { background: #fff; color: #e74c3c; border: 1.5px solid #e74c3c; }
         .tp-btn-eliminar:hover { background: #e74c3c; color: white; }
+        .tp-comprobante-box { margin-top: 10px; border-top: 1px dashed #d8b4fe; padding-top: 8px; }
+        .tp-btn-comprobante { width: 100%; background: #f0faff; color: #1a6a8a; border: 1.5px solid #a8d8ea; border-radius: 8px; padding: 8px; font-size: 0.8em; font-weight: 700; cursor: pointer; font-family: Nunito, sans-serif; transition: 0.2s; }
+        .tp-btn-comprobante:hover { background: #a8d8ea; color: #fff; }
+        .tp-btn-comprobante.tiene-comprobante { background: #eafaf0; color: #1e8449; border-color: #7dd8a0; }
+        .tp-comprobante-thumb { display: block; margin-top: 6px; width: 100%; max-height: 140px; object-fit: cover; border-radius: 8px; border: 1.5px solid #7dd8a0; cursor: pointer; }
         /* ── CUERPO TARJETA ── */
         .tp-body { padding: 12px 14px; flex: 1; display: flex; flex-direction: column; }
         .tp-cliente { font-size: 0.98em; font-weight: 900; margin: 0 0 8px 0; color: #1a1a1a; }
@@ -4279,6 +4284,29 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
+        async function subirComprobantePedido(numPed, inputEl) {
+            const file = inputEl.files && inputEl.files[0];
+            if (!file) return;
+            const pedIndex = historialPedidos.findIndex(p => p.num === numPed);
+            if (pedIndex === -1) return;
+            const pedido = historialPedidos[pedIndex];
+            const btn = document.getElementById('btn-comprobante-' + numPed);
+            const textoOriginal = btn ? btn.innerHTML : '';
+            if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Subiendo comprobante...'; }
+            try {
+                const url = await subirACloudinary(file);
+                pedido.comprobanteUrl = url;
+                localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+                await persistirPedidoEnFirebase(pedido);
+                renderizarPedidosPanel();
+            } catch (e) {
+                alert('No se pudo subir el comprobante. Intenta de nuevo.\n' + e);
+                if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
+            } finally {
+                inputEl.value = '';
+            }
+        }
+
         function imprimirFactura(numPed) {
             let ped = historialPedidos.find(p => p.num === numPed); if (!ped) return;
 
@@ -4567,6 +4595,17 @@ table{width:100%;border-collapse:collapse}
                         <button onclick="anularFacturaPedido(${ped.num})" style="width:100%;background:#fcebeb;color:#a32d2d;border:1px solid #f7c1c1;border-radius:8px;padding:7px;font-size:0.8em;font-weight:700;cursor:pointer;">🚫 Anular factura</button>
                     </div>` : (ped.facturaAnulada ? `<div style="margin-top:6px;font-size:0.75em;color:#a32d2d;font-weight:700;">🚫 Factura anulada</div>` : '');
 
+                // Botón para adjuntar el comprobante de pago — solo en pedidos ENTREGADOS
+                const htmlComprobante = estadoActual === 'entregado' ? (
+                    '<div class="tp-comprobante-box">' +
+                      '<input type="file" accept="image/*" id="comprobante-input-' + ped.num + '" style="display:none" onchange="subirComprobantePedido(' + ped.num + ', this)">' +
+                      '<button type="button" class="tp-btn-comprobante' + (ped.comprobanteUrl ? ' tiene-comprobante' : '') + '" id="btn-comprobante-' + ped.num + '" onclick="document.getElementById(\'comprobante-input-' + ped.num + '\').click()">' +
+                        (ped.comprobanteUrl ? '✅ Comprobante cargado (toca para reemplazar)' : '📎 Cargar comprobante de pago') +
+                      '</button>' +
+                      (ped.comprobanteUrl ? '<img src="' + ped.comprobanteUrl + '" class="tp-comprobante-thumb" onclick="window.open(\'' + ped.comprobanteUrl + '\',\'_blank\')" title="Ver comprobante completo">' : '') +
+                    '</div>'
+                ) : '';
+
                 const numOrdenDisplay = ped.numOrden || ('#SK-' + String(ped.num));
                 const tipoVentaOpts = ['Contraentrega','Contado','Recaudo'].map(function(op) {
                     return '<option value="'+op+'"'+(ped.tipoVenta===op?' selected':'')+'>'+op+'</option>';
@@ -4601,6 +4640,7 @@ table{width:100%;border-collapse:collapse}
                       '<div class="tp-datos-completo">' + datosCliente + '</div>' +
                       '<div class="tp-items">' + htmlItems + '</div>' +
                       '<div class="tp-total">Total: ' + formatMoney(ped.tot) + '</div>' +
+                      htmlComprobante +
                       btnAnular +
                     '</div>' +
                     '</div>';
