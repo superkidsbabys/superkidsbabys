@@ -4410,6 +4410,14 @@ table{width:100%;border-collapse:collapse}
     <p style="color:#666;font-size:.82em;margin-top:2px;">💡 Guarda los cambios primero, luego genera el PDF.</p>
   </div>
 </div>
+${ped.comprobanteUrl ? `
+<div style="background:white;border-radius:10px;padding:16px;box-shadow:0 2px 8px rgba(39,174,96,0.12);border:2px solid #7dd8a0;margin-bottom:14px;">
+  <h4 style="color:#1e8449;font-size:0.78em;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;border-bottom:1px solid #c8f0d8;padding-bottom:6px;">✅ Comprobante de pago</h4>
+  <img src="${ped.comprobanteUrl}" style="width:100%;max-height:400px;object-fit:contain;border-radius:8px;border:1.5px solid #7dd8a0;display:block;">
+</div>` : (ped.estado === 'pagado' ? `
+<div style="background:#fff8f0;border-radius:10px;padding:14px;border:2px dashed #f0a050;margin-bottom:14px;text-align:center;color:#b36a00;font-size:0.85em;font-weight:700;">
+  ⚠️ Pedido marcado como pagado pero sin comprobante adjunto
+</div>` : '')}
 
 </body></html>`);
             // Inyectar función recalcularTotal de forma segura (no dentro del template literal)
@@ -4659,7 +4667,7 @@ table{width:100%;border-collapse:collapse}
 
             // Vista normal — sin subcategorías transportadora
             cont.classList.remove('modo-transp');
-            if (vistaPedidosActual !== 'enviado' && vistaPedidosActual !== 'entregado') {
+            if (vistaPedidosActual !== 'enviado' && vistaPedidosActual !== 'entregado' && vistaPedidosActual !== 'pagado') {
                 const filtrados = historialPedidos.filter(p => normalizarEstadoPedido(p.estado) === vistaPedidosActual).sort(compararPedidosRecientes);
                 if (filtrados.length === 0) return cont.innerHTML = `<p style='text-align:center; grid-column: 1/-1; color: #888; font-weight: bold; margin-top: 20px;'>No hay pedidos en esta sección.</p>`;
                 filtrados.forEach(ped => { cont.innerHTML += _htmlTarjetaPedido(ped); });
@@ -4794,7 +4802,7 @@ table{width:100%;border-collapse:collapse}
                     <span class="transp-nivel3-subtotal">
                         📦 ${pedidos.length} pedidos &nbsp;·&nbsp; 💰 ${formatMoney(subP + subE)}
                     </span>
-                    ${vistaPedidosActual === 'entregado' ? `
+                    ${(vistaPedidosActual === 'entregado' || vistaPedidosActual === 'pagado') ? `
                     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
                         <input type="date" id="pdf-fecha-desde" style="border:1.5px solid #c9a0dc;border-radius:8px;padding:5px 8px;font-size:0.8em;color:#444;">
                         <span style="font-size:0.8em;color:#888;">→</span>
