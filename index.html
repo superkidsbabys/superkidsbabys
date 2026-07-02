@@ -818,6 +818,21 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         .btn-editar-prod:hover { background-color: #d68910; }
         .btn-eliminar-prod { background-color: #e74c3c; color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 0.75em; font-weight: bold;}
         .btn-eliminar-prod:hover { background-color: #c0392b; }
+        .btn-stock-prod { background-color: #27ae60; color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 0.75em; font-weight: bold; }
+        .btn-stock-prod:hover { background-color: #1e8449; }
+        .panel-stock-rapido { background: #f8f9fa; border: 1.5px solid #e0e0e0; border-radius: 10px; padding: 10px; margin-top: 6px; display: none; }
+        .panel-stock-rapido.abierto { display: block; }
+        .stock-talla-fila { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; gap: 8px; }
+        .stock-talla-fila:last-child { border-bottom: none; }
+        .stock-talla-nombre { font-size: 0.8em; font-weight: 700; color: #333; min-width: 36px; }
+        .stock-talla-ctrl { display: flex; align-items: center; gap: 6px; }
+        .stock-btn { width: 26px; height: 26px; border: none; border-radius: 50%; font-size: 1em; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .stock-btn-menos { background: #e74c3c; color: white; }
+        .stock-btn-mas { background: #27ae60; color: white; }
+        .stock-btn:disabled { opacity: 0.4; cursor: default; }
+        .stock-num { width: 36px; text-align: center; font-size: 0.9em; font-weight: 800; color: #1a1a1a; border: 1.5px solid #ddd; border-radius: 6px; padding: 2px 0; }
+        .stock-guardar-btn { width: 100%; margin-top: 8px; background: #2c3e50; color: white; border: none; border-radius: 7px; padding: 7px; font-size: 0.8em; font-weight: 800; cursor: pointer; }
+        .stock-guardar-btn:hover { background: #1a252f; }
 
         .checkout-section { background: var(--color-tarjeta); padding: 30px; border-radius: 15px; box-shadow: 0 -4px 15px rgba(0,0,0,0.05); margin-top: 50px; }
         .item-carrito { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
@@ -2126,7 +2141,22 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                         const quemados = filtrarProductosEliminados(window.productosQ || []);
                         const productosFirebaseActivos = filtrarProductosEliminados(productosFirebase);
                         const soloQuemadosNoEnFirebase = quemados.filter(q => !productosFirebaseActivos.find(f => f.id === q.id));
-                        productosDB = aplicarOrdenGuardadoLocal([...productosFirebaseActivos, ...soloQuemadosNoEnFirebase]);
+                        const nuevosProds = aplicarOrdenGuardadoLocal([...productosFirebaseActivos, ...soloQuemadosNoEnFirebase]);
+                        // Preservar stock descontado en memoria: si el producto ya tiene stock menor en memoria, no pisarlo
+                        nuevosProds.forEach(p => {
+                            const enMem = productosDB.find(m => m.id === p.id);
+                            if (enMem && enMem.tallasObj && p.tallasObj) {
+                                p.tallasObj = p.tallasObj.map(t => {
+                                    const tMem = enMem.tallasObj.find(tm => tm.nombre === t.nombre);
+                                    // Si el stock en memoria es menor, respetar el descuento ya aplicado
+                                    if (tMem && typeof tMem.stock === 'number' && tMem.stock < t.stock) {
+                                        return Object.assign({}, t, { stock: tMem.stock });
+                                    }
+                                    return t;
+                                });
+                            }
+                        });
+                        productosDB = nuevosProds;
                         ordenarProductosPorOrdenVisual(productosDB, generoActual);
                         localStorage.setItem('productosV36', JSON.stringify(productosDB));
                         renderizarFiltroTallas();
@@ -2995,7 +3025,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 let btnAgregar = hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`;
 
                 const _esAdmin = modoEdicion && window.usuarioActual && window.usuarioActual.rol === 'admin';
-                const btnEditarEliminar = _esAdmin ? `<div style="display:flex;gap:6px;margin-top:6px;"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button><button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button></div>` : '';
+                const btnEditarEliminar = _esAdmin ? `<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+                    <button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button>
+                    <button class="btn-stock-prod" onclick="toggleStockRapido('${prod.id}', this)">📦 Stock</button>
+                    <button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button>
+                </div>
+                <div class="panel-stock-rapido" id="stock-panel-${prod.id}"></div>` : '';
                 cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgs[0]}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgs[0])}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><span class="etiqueta-categoria">${prod.categoria}</span><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p><div class="precio-contenedor">${pNew}</div>${htmlTallasChips}${btnAgregar}${btnEditarEliminar}</div></div>`;
             });
         }
@@ -3098,6 +3133,79 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             let wrapEd = document.getElementById('wrap-edit-orden-genero');
             if (wrapEd) wrapEd.style.display = genero === 'Unisex' ? 'flex' : 'none';
         }
+
+        // ===== STOCK RÁPIDO =====
+        function toggleStockRapido(prodId, btn) {
+            const panel = document.getElementById('stock-panel-' + prodId);
+            if (!panel) return;
+            if (panel.classList.contains('abierto')) {
+                panel.classList.remove('abierto');
+                return;
+            }
+            const prod = productosDB.find(p => p.id === prodId);
+            if (!prod) return;
+            const tallas = prod.tallasObj || [];
+            panel.innerHTML = tallas.length === 0
+                ? '<p style="font-size:0.78em;color:#888;text-align:center;margin:4px 0;">Sin tallas registradas</p>'
+                : tallas.map((t, i) => `
+                    <div class="stock-talla-fila">
+                        <span class="stock-talla-nombre">${t.nombre}</span>
+                        <div class="stock-talla-ctrl">
+                            <button class="stock-btn stock-btn-menos" onclick="cambiarStockRapido('${prodId}',${i},-1)" ${t.stock<=0?'disabled':''}>−</button>
+                            <input class="stock-num" id="stock-num-${prodId}-${i}" type="number" value="${t.stock||0}" min="0" onchange="stockNumChange('${prodId}',${i},this.value)">
+                            <button class="stock-btn stock-btn-mas" onclick="cambiarStockRapido('${prodId}',${i},1)">+</button>
+                        </div>
+                    </div>`).join('') +
+                `<button class="stock-guardar-btn" onclick="guardarStockRapido('${prodId}', this)">✅ Guardar cambios</button>`;
+            panel.classList.add('abierto');
+        }
+
+        function cambiarStockRapido(prodId, idx, delta) {
+            const input = document.getElementById('stock-num-' + prodId + '-' + idx);
+            if (!input) return;
+            const nuevo = Math.max(0, (parseInt(input.value) || 0) + delta);
+            input.value = nuevo;
+            // Actualizar el botón menos
+            const fila = input.closest('.stock-talla-fila');
+            if (fila) fila.querySelector('.stock-btn-menos').disabled = nuevo <= 0;
+        }
+
+        function stockNumChange(prodId, idx, val) {
+            const nuevo = Math.max(0, parseInt(val) || 0);
+            const input = document.getElementById('stock-num-' + prodId + '-' + idx);
+            if (input) input.value = nuevo;
+            const fila = input ? input.closest('.stock-talla-fila') : null;
+            if (fila) fila.querySelector('.stock-btn-menos').disabled = nuevo <= 0;
+        }
+
+        async function guardarStockRapido(prodId, btn) {
+            const prod = productosDB.find(p => p.id === prodId);
+            if (!prod) return;
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+            // Leer valores actuales del panel
+            prod.tallasObj = (prod.tallasObj || []).map((t, i) => {
+                const input = document.getElementById('stock-num-' + prodId + '-' + i);
+                return Object.assign({}, t, { stock: input ? Math.max(0, parseInt(input.value) || 0) : (t.stock || 0) });
+            });
+            prod.stockTotal = prod.tallasObj.reduce((s, t) => s + (t.stock || 0), 0);
+            prod.actualizadoEn = new Date().toISOString();
+            // Guardar en localStorage
+            localStorage.setItem('productosV36', JSON.stringify(productosDB));
+            // Guardar en Firebase
+            try {
+                const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                await setDoc(doc(db, 'productos', prodId), prod, { merge: true });
+                btn.textContent = '✅ Guardado';
+                setTimeout(() => { btn.textContent = '✅ Guardar cambios'; btn.disabled = false; }, 1500);
+            } catch(e) {
+                btn.textContent = '⚠️ Solo local';
+                btn.disabled = false;
+                console.log('Error guardando stock:', e);
+            }
+            renderizarCatalogo();
+        }
+        // ===== FIN STOCK RÁPIDO =====
 
         function abrirModalEditar(id) {
             if (window.datosQuemados) return;
@@ -3659,7 +3767,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     });
                     localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
                     renderizarPedidosPanel();
-                    pedidosNuevosDetectados.forEach(mostrarAvisoNuevoPedido);
+                    // Notificaciones solo en pedidos.html, no en el catálogo público
                 }, (error) => {
                     console.log('Error listener pedidos Firebase:', error);
                 });
