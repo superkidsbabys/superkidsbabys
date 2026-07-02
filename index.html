@@ -405,13 +405,34 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             background-size: var(--textura-size);
             color: var(--color-texto-banner);
             text-align: center;
-            padding-bottom: 14px;
+            padding-bottom: 10px;
             border-bottom-left-radius: 20px;
             border-bottom-right-radius: 20px;
             position: relative;
             transition: background-color 0.3s, color 0.3s;
             box-shadow: 0 6px 20px rgba(0,0,0,0.07);
         }
+        .redes-sociales {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 6px 0 4px;
+        }
+        .red-social-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            color: inherit;
+            font-size: 0.78em;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.25);
+            backdrop-filter: blur(4px);
+            transition: background 0.2s;
+        }
+        .red-social-btn:hover { background: rgba(255,255,255,0.42); }
         .banner-top {
             padding: 6px 16px;
             display: flex;
@@ -1380,7 +1401,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
     <header class="header-tienda">
         <div class="banner-top">
-            <a id="wa-top-link" href="https://wa.me/573025451526" target="_blank" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:inherit;font-weight:600;font-size:0.9em;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="#25D366" style="flex-shrink:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.15))"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"></path></svg>Pedidos por WhatsApp</a>
+            <a href="https://wa.me/573025451526" target="_blank" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:inherit;font-weight:600;font-size:0.9em;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="#25D366" style="flex-shrink:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.15))"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"></path></svg>Pedidos por WhatsApp</a>
             <button class="btn-compartir" onclick="compartirCatalogo()">📤 Compartir</button>
         </div>
         <div class="logo-contenedor">
@@ -1389,6 +1410,20 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         <h1 class="titulo-tienda" id="titulo-header">SuperKids&amp;Babys</h1>
         <p class="descripcion-tienda" id="desc-header">¡La ropa que tu bebé merece! Carter's y otras marcas importadas.<br>Tallas desde 0 meses hasta 10 años. <br>Enviamos a todo el país con pago contra entrega. <br>¡Compra segura y sin riesgo! </p>
         <a href="https://wa.me/573025451526" target="_blank" class="whatsapp-tienda" id="wa-header" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;cursor:pointer;">📱 3025451526</a>
+        <div class="redes-sociales">
+            <a href="https://www.instagram.com/superkidsbabys?igsh=MTd0d2huazFha3UzOQ==" target="_blank" class="red-social-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="ig" x1="0" y1="24" x2="24" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#f09433"/><stop offset="25%" stop-color="#e6683c"/><stop offset="50%" stop-color="#dc2743"/><stop offset="75%" stop-color="#cc2366"/><stop offset="100%" stop-color="#bc1888"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="5" fill="url(#ig)"/><path d="M12 7a5 5 0 100 10A5 5 0 0012 7zm0 8a3 3 0 110-6 3 3 0 010 6zm5.2-8.8a1.2 1.2 0 100 2.4 1.2 1.2 0 000-2.4z" fill="white"/></svg>
+                Instagram
+            </a>
+            <a href="https://www.facebook.com/share/1BY27tbq7k/" target="_blank" class="red-social-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#1877F2" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="5" fill="#1877F2"/><path d="M16 8h-2a1 1 0 00-1 1v2h3l-.5 3H13v7h-3v-7H8v-3h2V9a4 4 0 014-4h2v3z" fill="white"/></svg>
+                Facebook
+            </a>
+            <a href="https://www.tiktok.com/@superkidssbabys?_r=1&_t=ZS-97gRyZs8DZZ" target="_blank" class="red-social-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="5" fill="#010101"/><path d="M19 9.5a5.5 5.5 0 01-3.5-1.2V15a4.5 4.5 0 11-4.5-4.5h.5v2.3a2.2 2.2 0 10.2 4.4 2.2 2.2 0 002-2.2V5h2.3A5.5 5.5 0 0019 9.5z" fill="white"/></svg>
+                TikTok
+            </a>
+        </div>
     </header>
 
 <!-- ====================================================
