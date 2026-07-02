@@ -344,14 +344,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     <style id="dynamic-theme">:root { --color-banner: #f5d6ed; --color-texto-banner: #1c1717; --color-fondo: #fbeaf8; --color-tarjeta: #f9e2ed; --color-texto: #2a2222; --color-precio: #ff5cd6; --textura-banner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E"); --textura-size: 20px 20px; --tamano-titulo: 32px; --tamano-descripcion: 14px; --tamano-logo: 130px; --color-btn-carrito: #35c700; --color-btn-carrito-texto: #ffffff; --color-etiqueta-desc: #e74c3c; --color-etiqueta-desc-texto: #ffffff; --opacidad-etiqueta-desc: 0.7; }</style>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--color-fondo); margin: 0; color: var(--color-texto); padding-bottom: 80px; transition: background-color 0.3s, color 0.3s; }
-        .header-tienda { background-color: var(--color-banner); background-image: var(--textura-banner); background-size: var(--textura-size); color: var(--color-texto-banner); text-align: center; padding-bottom: 10px; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; position: relative; transition: background-color 0.3s, color 0.3s; }
+        .header-tienda { background-color: var(--color-banner); background-image: var(--textura-banner); background-size: var(--textura-size); color: var(--color-texto-banner); text-align: center; padding-bottom: 10px; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; position: relative; overflow: hidden; min-height: 260px; transition: background-color 0.3s, color 0.3s; }
+        .header-contenido { position: relative; z-index: 2; }
+        .header-contenido .titulo-tienda, .header-contenido .descripcion-tienda, .header-contenido .whatsapp-tienda { text-shadow: 0 1px 4px rgba(0,0,0,0.35); }
         .banner-top { padding: 8px 16px; display: flex; justify-content: space-between; font-size: 0.9em; align-items: center;}
         .btn-compartir { background: none; border: none; color: inherit; cursor: pointer; font-size: 1.3em; display: flex; align-items: center; gap: 5px; opacity: 0.9; }
         .btn-compartir:hover { opacity: 1; }
         .logo-contenedor { position: relative; width: calc(var(--tamano-logo, 80px) * 1.8); height: calc(var(--tamano-logo, 80px) * 1.8); margin: 0 auto; display: flex; align-items: center; justify-content: center; }
-        .banner-slideshow { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; height: 100%; border-radius: 50%; overflow: hidden; z-index: 1; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .banner-slideshow img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1.5s ease-in-out; }
-        .banner-slideshow img.activa { opacity: 1; }
+        .banner-slideshow { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; z-index: 0; }
+        .banner-slideshow img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 2s ease-in-out, transform 2s ease-in-out; }
+        .banner-slideshow img.dir-a { transform: translate(-5%, -5%) scale(1.15); }
+        .banner-slideshow img.dir-b { transform: translate(5%, 5%) scale(1.15); }
+        .banner-slideshow img.activa { opacity: 1; transform: translate(0, 0) scale(1.03); }
+        .banner-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.08) 42%, rgba(0,0,0,0.42) 100%); z-index: 1; pointer-events: none; display: none; }
         .logo-circular { position: relative; z-index: 2; width: var(--tamano-logo, 80px); height: var(--tamano-logo, 80px); border-radius: 50%; border: 3px solid var(--color-tarjeta); object-fit: cover; background-color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 2px; }
         .titulo-tienda { font-size: clamp(20px, 7vw, var(--tamano-titulo)); white-space: nowrap; margin: 5px 0 2px 0; font-weight: bold; line-height: 1.2;}
         .descripcion-tienda { font-size: var(--tamano-descripcion); margin: 0 auto; max-width: 600px; padding: 4px 16px 6px; line-height: 1.4; white-space: pre-wrap; }
@@ -1017,17 +1022,20 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     <button class="btn-toggle-admin" onclick="toggleAdmin()">⚙️ Yohana</button>
 
     <header class="header-tienda" style="display:none;">
+        <div class="banner-slideshow" id="banner-slideshow"></div>
+        <div class="banner-overlay" id="banner-overlay"></div>
+        <div class="header-contenido">
         <div class="banner-top">
             <a id="wa-top-link" href="https://wa.me/573025451526" target="_blank" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:inherit;font-weight:600;font-size:0.9em;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="#25D366" style="flex-shrink:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.15))"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"></path></svg>Pedidos por WhatsApp</a>
             <button class="btn-compartir" onclick="compartirCatalogo()">📤 Compartir</button>
         </div>
         <div class="logo-contenedor">
-            <div class="banner-slideshow" id="banner-slideshow"></div>
             <img id="logo-header" src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_200/v1778172025/vvlqhry7jrsdmc2cdtsq.jpg" alt="Logo" class="logo-circular" style="width: 130px; height: 130px;">
         </div>
         <h1 class="titulo-tienda" id="titulo-header">SuperKids&amp;Babys</h1>
         <p class="descripcion-tienda" id="desc-header">¡La ropa que tu bebé merece! Carter's y otras marcas importadas.<br>Tallas desde 0 meses hasta 10 años. <br>Enviamos a todo el país con pago contra entrega. <br>¡Compra segura y sin riesgo! </p>
         <a href="https://wa.me/573025451526" target="_blank" class="whatsapp-tienda" id="wa-header" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;cursor:pointer;">📱 3025451526</a>
+        </div>
     </header>
 
 <!-- ====================================================
@@ -2154,11 +2162,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         function renderizarBannerSlideshow() {
             const cont = document.getElementById('banner-slideshow');
+            const overlay = document.getElementById('banner-overlay');
             if (!cont) return;
             const fotos = (config.bannerFotos && config.bannerFotos.length) ? config.bannerFotos : [];
             if (window._bannerInterval) { clearInterval(window._bannerInterval); window._bannerInterval = null; }
+            if (overlay) overlay.style.display = fotos.length ? 'block' : 'none';
             if (!fotos.length) { cont.innerHTML = ''; return; }
-            cont.innerHTML = fotos.map((url, i) => `<img src="${optimizarUrl(url, 300)}" class="${i === 0 ? 'activa' : ''}">`).join('');
+            cont.innerHTML = fotos.map((url, i) => `<img src="${optimizarUrl(url, 800)}" class="${i % 2 === 0 ? 'dir-a' : 'dir-b'}${i === 0 ? ' activa' : ''}">`).join('');
             if (fotos.length > 1) {
                 let idx = 0;
                 window._bannerInterval = setInterval(() => {

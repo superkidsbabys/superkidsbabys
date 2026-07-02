@@ -409,8 +409,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             border-bottom-left-radius: 20px;
             border-bottom-right-radius: 20px;
             position: relative;
+            overflow: hidden;
+            min-height: 260px;
             transition: background-color 0.3s, color 0.3s;
             box-shadow: 0 6px 20px rgba(0,0,0,0.07);
+        }
+        .header-contenido {
+            position: relative;
+            z-index: 2;
+        }
+        .header-contenido .titulo-tienda,
+        .header-contenido .descripcion-tienda,
+        .header-contenido .whatsapp-tienda {
+            text-shadow: 0 1px 4px rgba(0,0,0,0.35);
         }
         .redes-sociales {
             display: flex;
@@ -459,20 +470,27 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             display: flex; align-items: center; justify-content: center;
         }
         .banner-slideshow {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
+            position: absolute; inset: 0;
             width: 100%; height: 100%;
-            border-radius: 50%; overflow: hidden;
-            z-index: 1;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.13);
+            overflow: hidden;
+            z-index: 0;
         }
         .banner-slideshow img {
             position: absolute; inset: 0;
             width: 100%; height: 100%;
             object-fit: cover; opacity: 0;
-            transition: opacity 1.5s ease-in-out;
+            transition: opacity 2s ease-in-out, transform 2s ease-in-out;
         }
-        .banner-slideshow img.activa { opacity: 1; }
+        .banner-slideshow img.dir-a { transform: translate(-5%, -5%) scale(1.15); }
+        .banner-slideshow img.dir-b { transform: translate(5%, 5%) scale(1.15); }
+        .banner-slideshow img.activa { opacity: 1; transform: translate(0, 0) scale(1.03); }
+        .banner-overlay {
+            position: absolute; inset: 0;
+            background: linear-gradient(180deg, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.08) 42%, rgba(0,0,0,0.42) 100%);
+            z-index: 1;
+            pointer-events: none;
+            display: none;
+        }
         .logo-circular {
             position: relative; z-index: 2;
             width: var(--tamano-logo, 80px); height: var(--tamano-logo, 80px);
@@ -1424,12 +1442,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
 
     <header class="header-tienda">
+        <div class="banner-slideshow" id="banner-slideshow"></div>
+        <div class="banner-overlay" id="banner-overlay"></div>
+        <div class="header-contenido">
         <div class="banner-top">
             <span></span>
             <button class="btn-compartir" onclick="compartirCatalogo()">📤 Compartir</button>
         </div>
         <div class="logo-contenedor">
-            <div class="banner-slideshow" id="banner-slideshow"></div>
             <img id="logo-header" src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_200/v1778172025/vvlqhry7jrsdmc2cdtsq.jpg" alt="Logo" class="logo-circular" style="width: 140px; height: 140px;">
         </div>
         <h1 class="titulo-tienda" id="titulo-header">SuperKids&amp;Babys</h1>
@@ -1448,6 +1468,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="5" fill="#010101"/><path d="M19 9.5a5.5 5.5 0 01-3.5-1.2V15a4.5 4.5 0 11-4.5-4.5h.5v2.3a2.2 2.2 0 10.2 4.4 2.2 2.2 0 002-2.2V5h2.3A5.5 5.5 0 0019 9.5z" fill="white"/></svg>
                 TikTok
             </a>
+        </div>
         </div>
     </header>
 
@@ -2184,11 +2205,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         function renderizarBannerSlideshow() {
             const cont = document.getElementById('banner-slideshow');
+            const overlay = document.getElementById('banner-overlay');
             if (!cont) return;
             const fotos = (config.bannerFotos && config.bannerFotos.length) ? config.bannerFotos : [];
             if (window._bannerInterval) { clearInterval(window._bannerInterval); window._bannerInterval = null; }
+            if (overlay) overlay.style.display = fotos.length ? 'block' : 'none';
             if (!fotos.length) { cont.innerHTML = ''; return; }
-            cont.innerHTML = fotos.map((url, i) => `<img src="${optimizarUrl(url, 300)}" class="${i === 0 ? 'activa' : ''}">`).join('');
+            cont.innerHTML = fotos.map((url, i) => `<img src="${optimizarUrl(url, 800)}" class="${i % 2 === 0 ? 'dir-a' : 'dir-b'}${i === 0 ? ' activa' : ''}">`).join('');
             if (fotos.length > 1) {
                 let idx = 0;
                 window._bannerInterval = setInterval(() => {
