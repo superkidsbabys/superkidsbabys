@@ -418,11 +418,30 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             position: relative;
             z-index: 2;
         }
-        .header-contenido .titulo-tienda,
-        .header-contenido .descripcion-tienda,
-        .header-contenido .whatsapp-tienda {
-            text-shadow: 0 1px 4px rgba(0,0,0,0.35);
+        .banner-fotos-dobles {
+            position: absolute; inset: 0;
+            z-index: 0;
+            pointer-events: none;
         }
+        .banner-foto-panel {
+            position: absolute;
+            top: 16px; bottom: 16px;
+            width: clamp(70px, 23%, 230px);
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+        }
+        .banner-foto-panel.izq { left: 14px; }
+        .banner-foto-panel.der { right: 14px; }
+        .banner-foto-panel img {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            object-fit: cover; opacity: 0;
+            transition: opacity 1.8s ease-in-out, transform 1.8s ease-in-out;
+        }
+        .banner-foto-panel.izq img { transform: translateX(-18%); }
+        .banner-foto-panel.der img { transform: translateX(18%); }
+        .banner-foto-panel img.activa { opacity: 1; transform: translateX(0); }
         .redes-sociales {
             display: flex;
             justify-content: center;
@@ -468,28 +487,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             height: calc(var(--tamano-logo, 80px) * 1.8);
             margin: 0 auto;
             display: flex; align-items: center; justify-content: center;
-        }
-        .banner-slideshow {
-            position: absolute; inset: 0;
-            width: 100%; height: 100%;
-            overflow: hidden;
-            z-index: 0;
-        }
-        .banner-slideshow img {
-            position: absolute; inset: 0;
-            width: 100%; height: 100%;
-            object-fit: cover; opacity: 0;
-            transition: opacity 2s ease-in-out, transform 2s ease-in-out;
-        }
-        .banner-slideshow img.dir-a { transform: translate(-5%, -5%) scale(1.15); }
-        .banner-slideshow img.dir-b { transform: translate(5%, 5%) scale(1.15); }
-        .banner-slideshow img.activa { opacity: 1; transform: translate(0, 0) scale(1.03); }
-        .banner-overlay {
-            position: absolute; inset: 0;
-            background: linear-gradient(180deg, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.08) 42%, rgba(0,0,0,0.42) 100%);
-            z-index: 1;
-            pointer-events: none;
-            display: none;
         }
         .logo-circular {
             position: relative; z-index: 2;
@@ -1442,8 +1439,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
 
     <header class="header-tienda">
-        <div class="banner-slideshow" id="banner-slideshow"></div>
-        <div class="banner-overlay" id="banner-overlay"></div>
+        <div class="banner-fotos-dobles">
+            <div class="banner-foto-panel izq" id="banner-foto-izq"></div>
+            <div class="banner-foto-panel der" id="banner-foto-der"></div>
+        </div>
         <div class="header-contenido">
         <div class="banner-top">
             <span></span>
@@ -2204,22 +2203,26 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         };
 
         function renderizarBannerSlideshow() {
-            const cont = document.getElementById('banner-slideshow');
-            const overlay = document.getElementById('banner-overlay');
-            if (!cont) return;
+            const contIzq = document.getElementById('banner-foto-izq');
+            const contDer = document.getElementById('banner-foto-der');
+            if (!contIzq || !contDer) return;
             const fotos = (config.bannerFotos && config.bannerFotos.length) ? config.bannerFotos : [];
             if (window._bannerInterval) { clearInterval(window._bannerInterval); window._bannerInterval = null; }
-            if (overlay) overlay.style.display = fotos.length ? 'block' : 'none';
-            if (!fotos.length) { cont.innerHTML = ''; return; }
-            cont.innerHTML = fotos.map((url, i) => `<img src="${optimizarUrl(url, 800)}" class="${i % 2 === 0 ? 'dir-a' : 'dir-b'}${i === 0 ? ' activa' : ''}">`).join('');
+            if (!fotos.length) { contIzq.innerHTML = ''; contDer.innerHTML = ''; return; }
+            const generarHtml = (activaIdx) => fotos.map((url, i) => `<img src="${optimizarUrl(url, 400)}" class="${i === activaIdx ? 'activa' : ''}">`).join('');
+            contIzq.innerHTML = generarHtml(0);
+            contDer.innerHTML = generarHtml(fotos.length > 1 ? 1 : 0);
             if (fotos.length > 1) {
                 let idx = 0;
                 window._bannerInterval = setInterval(() => {
-                    const imgs = cont.querySelectorAll('img');
-                    if (!imgs.length) return;
-                    imgs[idx].classList.remove('activa');
-                    idx = (idx + 1) % imgs.length;
-                    imgs[idx].classList.add('activa');
+                    idx = (idx + 1) % fotos.length;
+                    const idx2 = (idx + 1) % fotos.length;
+                    contIzq.querySelectorAll('img').forEach(im => im.classList.remove('activa'));
+                    contDer.querySelectorAll('img').forEach(im => im.classList.remove('activa'));
+                    const imgsIzq = contIzq.querySelectorAll('img');
+                    const imgsDer = contDer.querySelectorAll('img');
+                    if (imgsIzq[idx]) imgsIzq[idx].classList.add('activa');
+                    if (imgsDer[idx2]) imgsDer[idx2].classList.add('activa');
                 }, 4500);
             }
         }
