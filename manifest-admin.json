@@ -1,0 +1,25 @@
+{
+  "name": "SuperKids&Babys - Gestión",
+  "short_name": "SK Gestión",
+  "description": "Panel de Gestión SuperKids&Babys",
+  "start_url": "./pedidos.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fbeaf8",
+  "theme_color": "#f5d6ed",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
