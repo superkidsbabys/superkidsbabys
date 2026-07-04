@@ -4526,6 +4526,7 @@ table{width:100%;border-collapse:collapse}
                 '  var guiaEl  = document.getElementById("fac-guia");' +
                 '  var transpEl = document.getElementById("fac-transportadora");' +
                 '  var obsEl   = document.getElementById("fac-observaciones");' +
+                '  var numOrdenEl = document.getElementById("fac-num-orden");' +
                 '  var envio   = envioEl ? parseInt((envioEl.value||"0").replace(/[^0-9]/g,""))||0 : 0;' +
                 '  var cambios = {' +
                 '    valorEnvio: envioEl ? envioEl.value.trim() : "",' +
@@ -4535,6 +4536,7 @@ table{width:100%;border-collapse:collapse}
                 '    tot: sub + envio,' +
                 '    tipoVenta: document.getElementById(\'fac-tipo-venta-display\') ? document.getElementById(\'fac-tipo-venta-display\').textContent.trim() : \'Contraentrega\'' +
                 '  };' +
+                '  if (numOrdenEl && numOrdenEl.textContent.trim()) { cambios.numOrden = numOrdenEl.textContent.trim(); }' +
                 '  if (window.opener && !window.opener.closed) {' +
                 '    try {' +
                 '      window.opener.actualizarPedidoDesdePrefactura({num: window._numPedFactura}, cambios);' +
