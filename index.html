@@ -494,10 +494,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         .btn-compartir:hover { background: rgba(255,255,255,0.38); }
         .logo-contenedor {
             position: relative;
-            width: var(--tamano-logo, 80px);
-            height: var(--tamano-logo, 80px);
-            margin: 4px auto 2px;
-            display: flex; align-items: center; justify-content: center;
+            margin: 4px 0 2px;
+            display: inline-flex; align-items: center; justify-content: center;
         }
         .logo-circular {
             position: relative; z-index: 2;
@@ -2225,15 +2223,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             const imgIzq = cont.querySelector('.izq');
             const paso = fotos.length > 1 ? 2 : 1;
             let idxDer = 0, idxIzq = fotos.length > 1 ? 1 : 0;
-            imgDer.src = optimizarUrl(fotos[idxDer], 800);
-            imgIzq.src = optimizarUrl(fotos[idxIzq], 800);
+            imgDer.src = optimizarUrl(fotos[idxDer], 1600);
+            imgIzq.src = optimizarUrl(fotos[idxIzq], 1600);
             imgDer.addEventListener('animationiteration', () => {
                 idxDer = (idxDer + paso) % fotos.length;
-                imgDer.src = optimizarUrl(fotos[idxDer], 800);
+                imgDer.src = optimizarUrl(fotos[idxDer], 1600);
             });
             imgIzq.addEventListener('animationiteration', () => {
                 idxIzq = (idxIzq + paso) % fotos.length;
-                imgIzq.src = optimizarUrl(fotos[idxIzq], 800);
+                imgIzq.src = optimizarUrl(fotos[idxIzq], 1600);
             });
         }
 
