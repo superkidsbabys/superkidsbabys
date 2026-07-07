@@ -1524,15 +1524,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <input type="text" id="cart-ciudad" placeholder="🏙️ Ciudad" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <input type="tel" id="cart-telefono" placeholder="📱 WhatsApp / Teléfono" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <input type="email" id="cart-correo" placeholder="✉️ Correo electrónico" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
-                <select id="cart-transportadora" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box; background:white; color:#555;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
-                  <option value="">🚚 Transportadora (opcional)</option>
-                  <option value="Interrapidísimo">Interrapidísimo</option>
-                  <option value="Servientrega">Servientrega</option>
-                  <option value="Coordinadora">Coordinadora</option>
-                  <option value="TCC">TCC</option>
-                  <option value="Deprisa">Deprisa</option>
-                  <option value="Domicilio">Domicilio local</option>
-                </select>
                 <textarea id="cart-observaciones" placeholder="📝 Observaciones (opcional)" rows="2" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 16px; outline: none; box-sizing: border-box; resize: none; font-family: inherit;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'"></textarea>
 
 <!-- ====================================================
@@ -2019,6 +2010,62 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const ta = timestampPedido(a);
             if (tb !== ta) return tb - ta;
             return (b.num || 0) - (a.num || 0);
+        }
+
+        function numeroPedidoValor(pedido) {
+            if (!pedido) return 0;
+            if (pedido.numOrden) {
+                const desdeOrden = parseInt(String(pedido.numOrden).replace(/\D/g, ''), 10);
+                if (!isNaN(desdeOrden) && desdeOrden > 0) return desdeOrden;
+            }
+            const desdeNum = parseInt(pedido.num, 10);
+            return (!isNaN(desdeNum) && desdeNum > 0 && desdeNum < 1000000) ? desdeNum : 0;
+        }
+
+        function formatoNumeroPedido(numero) {
+            return 'SK' + String(parseInt(numero, 10) || 0).padStart(5, '0');
+        }
+
+        function maximoNumeroPedidoLocal() {
+            return (historialPedidos || []).reduce(function(max, p) {
+                return Math.max(max, numeroPedidoValor(p));
+            }, 0);
+        }
+
+        async function sincronizarContadorPedidos(minimo) {
+            const numeroMinimo = parseInt(minimo, 10) || 0;
+            if (!numeroMinimo) return;
+            try {
+                const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const contadorRef = doc(window.db, 'contadores', 'pedidos');
+                await runTransaction(window.db, async function(txn) {
+                    const snap = await txn.get(contadorRef);
+                    const actual = snap.exists() ? (parseInt(snap.data().ultimo, 10) || 0) : 0;
+                    if (actual < numeroMinimo) {
+                        txn.set(contadorRef, { ultimo: numeroMinimo }, { merge: true });
+                    }
+                });
+            } catch(e) {
+                console.log('No se pudo sincronizar contador de pedidos:', e.message);
+            }
+        }
+
+        async function obtenerSiguienteNumeroPedido() {
+            const maxLocal = maximoNumeroPedidoLocal();
+            try {
+                const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const contadorRef = doc(window.db, 'contadores', 'pedidos');
+                return await runTransaction(window.db, async function(txn) {
+                    const snap = await txn.get(contadorRef);
+                    const actual = snap.exists() ? (parseInt(snap.data().ultimo, 10) || 0) : 0;
+                    const siguiente = Math.max(actual, maxLocal) + 1;
+                    txn.set(contadorRef, { ultimo: siguiente }, { merge: true });
+                    return siguiente;
+                });
+            } catch(e) {
+                console.warn('Contador Firebase no disponible, usando fallback local:', e.message);
+                return maxLocal + 1;
+            }
         }
 
         function esGeneroNinas(genero) {
@@ -3709,6 +3756,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     historialPedidos = pedidosFirebase;
                     // Ordenar por número descendente
                     historialPedidos.sort(compararPedidosRecientes);
+                    sincronizarContadorPedidos(maximoNumeroPedidoLocal());
                     // Descontar stock de pedidos nuevos que lleguen de Firebase sin stockDescontado
                     pedidosNuevosDetectados.forEach(function(ped) {
                         if (!ped.stockDescontado) {
@@ -3810,7 +3858,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
-        async function persistirPedidoEnFirebase(pedido) {
+        async function persistirPedidoEnFirebase(pedido, numAnteriorPedido) {
             try {
                 const { collection, query, where, getDocs, doc, setDoc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const datosPedido = Object.assign({}, pedido, {
@@ -3818,17 +3866,25 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     actualizadoEn: new Date().toISOString()
                 });
                 delete datosPedido._firebaseId;
+                delete datosPedido._numAnterior;
                 if (pedido._firebaseId) {
                     await setDoc(doc(db, 'pedidos', pedido._firebaseId), datosPedido, { merge: true });
                     return;
                 }
-                const q = query(collection(db, 'pedidos'), where('num', '==', pedido.num));
-                const snap = await getDocs(q);
-                if (snap.empty) {
+                const candidatosNum = [pedido.num, numAnteriorPedido, pedido._numAnterior].filter(function(v, i, arr) {
+                    return v !== undefined && v !== null && arr.indexOf(v) === i;
+                });
+                const docsEncontrados = [];
+                for (const numBuscar of candidatosNum) {
+                    const q = query(collection(db, 'pedidos'), where('num', '==', numBuscar));
+                    const snap = await getDocs(q);
+                    snap.forEach(function(d) { docsEncontrados.push(d); });
+                }
+                if (!docsEncontrados.length) {
                     await setDoc(doc(db, 'pedidos', 'pedido-' + pedido.num), datosPedido, { merge: true });
                     return;
                 }
-                await Promise.all(snap.docs.map(d => updateDoc(doc(db, 'pedidos', d.id), datosPedido)));
+                await Promise.all(docsEncontrados.map(d => updateDoc(doc(db, 'pedidos', d.id), datosPedido)));
             } catch(e) {
                 console.log('Pedido guardado localmente, Firebase no disponible:', e.message);
             }
@@ -3877,31 +3933,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 let numOrden = 0;
                 let numOrdenFormato = 'SK00001';
                 try {
-                    const { doc, runTransaction, getDoc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                    const dbRef = window.db;
-                    const contadorRef = doc(dbRef, 'contadores', 'pedidos');
+                    numOrden = await obtenerSiguienteNumeroPedido();
+                    numOrdenFormato = formatoNumeroPedido(numOrden);
                     // Asegurar que el documento existe antes de la transacción
-                    const contSnap = await getDoc(contadorRef);
-                    if (!contSnap.exists()) {
-                        await setDoc(contadorRef, { ultimo: 0 });
-                    }
-                    numOrden = await runTransaction(dbRef, async (txn) => {
-                        const snap = await txn.get(contadorRef);
-                        const actual = snap.exists() ? (snap.data().ultimo || 0) : 0;
-                        const siguiente = actual + 1;
-                        txn.set(contadorRef, { ultimo: siguiente });
-                        return siguiente;
-                    });
-                    numOrdenFormato = 'SK' + String(numOrden).padStart(5, '0');
                     console.log('✅ Número de orden asignado:', numOrdenFormato);
                 } catch(e) {
                     // Fallback: usar contador local basado en historial
-                    const maxLocal = historialPedidos.reduce((max, p) => {
-                        const n = typeof p.num === 'number' && p.num < 100000 ? p.num : 0;
-                        return Math.max(max, n);
-                    }, 0);
+                    const maxLocal = maximoNumeroPedidoLocal();
                     numOrden = maxLocal + 1;
-                    numOrdenFormato = 'SK' + String(numOrden).padStart(5, '0');
+                    numOrdenFormato = formatoNumeroPedido(numOrden);
                     console.warn('Contador Firebase no disponible, usando fallback local:', numOrdenFormato, e.message);
                 }
 
@@ -4254,12 +4294,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         window.actualizarPedidoDesdePrefactura = function(ref, cambios) {
             var idx = historialPedidos.findIndex(function(p) { return p.num === ref.num; });
             if (idx === -1) return;
+            var numAnteriorPedido = historialPedidos[idx].num;
             Object.assign(historialPedidos[idx], cambios);
+            var nuevoNumeroPedido = numeroPedidoValor(historialPedidos[idx]);
+            if (nuevoNumeroPedido) {
+                historialPedidos[idx].num = nuevoNumeroPedido;
+                historialPedidos[idx].numOrden = formatoNumeroPedido(nuevoNumeroPedido);
+                sincronizarContadorPedidos(nuevoNumeroPedido);
+            }
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
             renderizarPedidosPanel();
             // Persistir en Firebase
             if (typeof persistirPedidoEnFirebase === 'function') {
-                persistirPedidoEnFirebase(historialPedidos[idx]);
+                persistirPedidoEnFirebase(historialPedidos[idx], numAnteriorPedido);
             }
             console.log('✅ Pedido actualizado desde prefactura:', ref.num, cambios);
         };
