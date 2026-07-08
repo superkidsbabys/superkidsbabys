@@ -2070,6 +2070,23 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             }, 0);
         }
 
+        async function maximoNumeroPedidoFirebase() {
+            let max = 0;
+            try {
+                const { collection, getDocs, limit, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const porNum = query(collection(db, 'pedidos'), orderBy('num', 'desc'), limit(1));
+                const snapNum = await getDocs(porNum);
+                snapNum.forEach(function(d) { max = Math.max(max, numeroPedidoValor(d.data())); });
+
+                const porNumOrden = query(collection(db, 'pedidos'), orderBy('numOrden', 'desc'), limit(1));
+                const snapNumOrden = await getDocs(porNumOrden);
+                snapNumOrden.forEach(function(d) { max = Math.max(max, numeroPedidoValor(d.data())); });
+            } catch(e) {
+                console.log('No se pudo leer maximo global de pedidos:', e.message);
+            }
+            return max;
+        }
+
         async function sincronizarContadorPedidos(minimo) {
             const numeroMinimo = parseInt(minimo, 10) || 0;
             if (!numeroMinimo) return;
@@ -2089,20 +2106,20 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         async function obtenerSiguienteNumeroPedido() {
-            const maxLocal = maximoNumeroPedidoLocal();
+            const maxGlobal = Math.max(maximoNumeroPedidoLocal(), await maximoNumeroPedidoFirebase());
             try {
                 const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const contadorRef = doc(window.db, 'contadores', 'pedidos');
                 return await runTransaction(window.db, async function(txn) {
                     const snap = await txn.get(contadorRef);
                     const actual = snap.exists() ? (parseInt(snap.data().ultimo, 10) || 0) : 0;
-                    const siguiente = Math.max(actual, maxLocal) + 1;
+                    const siguiente = Math.max(actual, maxGlobal) + 1;
                     txn.set(contadorRef, { ultimo: siguiente }, { merge: true });
                     return siguiente;
                 });
             } catch(e) {
                 console.warn('Contador Firebase no disponible, usando fallback local:', e.message);
-                return maxLocal + 1;
+                return maxGlobal + 1;
             }
         }
 
@@ -4332,6 +4349,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             if (idx === -1) return;
             var numAnteriorPedido = historialPedidos[idx].num;
             Object.assign(historialPedidos[idx], cambios);
+            if (Array.isArray(cambios.preciosItems) && historialPedidos[idx].items) {
+                historialPedidos[idx].items.forEach(function(item, itemIdx) {
+                    var nuevoPrecio = parseInt(cambios.preciosItems[itemIdx], 10);
+                    if (!isNaN(nuevoPrecio) && nuevoPrecio >= 0) item.precio = nuevoPrecio;
+                });
+                delete historialPedidos[idx].preciosItems;
+            }
             var nuevoNumeroPedido = numeroPedidoValor(historialPedidos[idx]);
             if (nuevoNumeroPedido) {
                 historialPedidos[idx].num = nuevoNumeroPedido;
@@ -4553,7 +4577,9 @@ table{width:100%;border-collapse:collapse}
             var scriptEl = vent.document.createElement('script');
             scriptEl.textContent = 'function recalcularTotal(){' +
                 '  var subEl=document.getElementById("subtotal-productos");' +
-                '  var sub=subEl?parseInt((subEl.dataset.sub||"0").replace(/[^0-9]/g,""))||0:0;' +
+                '  var sub=0;' +
+                '  document.querySelectorAll(".precio-editable").forEach(function(el){ sub += parseInt((el.textContent||"0").replace(/[^0-9]/g,""))||0; });' +
+                '  if(subEl){ subEl.dataset.sub=String(sub); subEl.textContent="$"+sub.toLocaleString("es-CO"); }' +
                 '  var envioEl=document.getElementById("fac-valor-envio");' +
                 '  var envio=envioEl?parseInt((envioEl.value||"0").replace(/[^0-9]/g,""))||0:0;' +
                 '  var total=sub+envio;' +
@@ -4570,7 +4596,8 @@ table{width:100%;border-collapse:collapse}
                 'window.guardarCambiosPrefactura = function() {' +
                 '  var precios = document.querySelectorAll(".precio-editable");' +
                 '  var sub = 0;' +
-                '  precios.forEach(function(el){ sub += parseInt(el.textContent.replace(/[^0-9]/g,""))||0; });' +
+                '  var preciosItems = [];' +
+                '  precios.forEach(function(el){ var precio = parseInt(el.textContent.replace(/[^0-9]/g,""))||0; preciosItems.push(precio); sub += precio; });' +
                 '  var envioEl = document.getElementById("fac-valor-envio");' +
                 '  var guiaEl  = document.getElementById("fac-guia");' +
                 '  var transpEl = document.getElementById("fac-transportadora");' +
@@ -4582,6 +4609,7 @@ table{width:100%;border-collapse:collapse}
                 '    guia: guiaEl ? guiaEl.value.trim() : "",' +
                 '    transportadora: transpEl ? transpEl.value.trim() : "",' +
                 '    observaciones: obsEl ? obsEl.value.trim() : "",' +
+                '    preciosItems: preciosItems,' +
                 '    tot: sub + envio,' +
                 '    tipoVenta: document.getElementById(\'fac-tipo-venta-display\') ? document.getElementById(\'fac-tipo-venta-display\').textContent.trim() : \'Contraentrega\'' +
                 '  };' +
