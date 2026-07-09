@@ -2099,9 +2099,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             }, 0);
         }
 
+        const LIMITE_SERIE_ACTUAL_PEDIDOS = 1000;
+
         function esNumeroPedidoCorrelativoValido(numero) {
             numero = parseInt(numero, 10) || 0;
-            return numero > 0 && numero < 90000;
+            return numero > 0 && numero < LIMITE_SERIE_ACTUAL_PEDIDOS;
         }
 
         function maximoNumeroPedidoCorrelativoLocal() {
@@ -2113,7 +2115,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         function pedidoConConsecutivoCorruptoReciente(pedido) {
             const numero = numeroPedidoValor(pedido);
-            if (!pedido || numero < 90000) return false;
+            if (!pedido || numero < LIMITE_SERIE_ACTUAL_PEDIDOS) return false;
             if (normalizarEstadoPedido(pedido.estado || 'nuevo') !== 'nuevo') return false;
             const ts = timestampPedido(pedido);
             if (!ts) return true;
@@ -4143,7 +4145,20 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function cargarClienteLocalNavegador() {
+            if (Date.now() < (window._bloquearAutorrellenoCheckoutHasta || 0)) return;
             try { llenarDatosClienteFormulario(JSON.parse(localStorage.getItem(CLIENTE_LOCAL_KEY) || 'null'), true); } catch(e) {}
+        }
+
+        function limpiarFormularioCheckoutDespuesDeEnviar() {
+            window._bloquearAutorrellenoCheckoutHasta = Date.now() + 15000;
+            ['cart-nombre','cart-cc','cart-direccion','cart-barrio','cart-ciudad','cart-telefono','cart-correo'].forEach(function(id) {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const elObs = document.getElementById('cart-observaciones');
+            if (elObs) elObs.value = '';
+            const elTr = document.getElementById('cart-transportadora');
+            if (elTr) elTr.value = '';
         }
 
         function clienteParaFirestore(cliente) {
@@ -4337,9 +4352,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 renderizarPedidosPanel();
                 cerrarModalCheckout();
                 carrito = []; renderCarrito();
-                ['cart-nombre','cart-cc','cart-direccion','cart-barrio','cart-ciudad','cart-telefono','cart-correo'].forEach(id => { let el = document.getElementById(id); if(el) el.value = ''; });
-                let elObs = document.getElementById('cart-observaciones'); if (elObs) elObs.value = '';
-                let elTr = document.getElementById('cart-transportadora'); if (elTr) elTr.value = '';
+                limpiarFormularioCheckoutDespuesDeEnviar();
 
                 // PASO 1: Persistir y descontar stock
                 localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
