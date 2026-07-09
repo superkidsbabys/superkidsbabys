@@ -1934,6 +1934,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         function mostrarAvisoNuevoPedido(pedido) {
             const clave = clavePedidoNotificacion(pedido);
             if (clave) pedidosResaltadosNotificacion.add(clave);
+            if (clave) {
+                try { localStorage.setItem('sceUltimoPedidoAvisado', clave); } catch(e) {}
+            }
             let aviso = document.getElementById('aviso-nuevo-pedido');
             if (!aviso) {
                 aviso = document.createElement('div');
@@ -1994,6 +1997,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
+        function pedidoNuevoPendienteDeAviso(pedidos) {
+            let ultimoAvisado = '';
+            try { ultimoAvisado = localStorage.getItem('sceUltimoPedidoAvisado') || ''; } catch(e) {}
+            const nuevos = (pedidos || []).filter(function(p) {
+                return normalizarEstadoPedido(p.estado || 'nuevo') === 'nuevo';
+            }).sort(compararPedidosRecientes);
+            const ped = nuevos[0];
+            if (!ped) return null;
+            const clave = clavePedidoNotificacion(ped);
+            if (!clave || clave === ultimoAvisado) return null;
+            return ped;
+        }
+
         function timestampPedido(pedido) {
             if (!pedido) return 0;
             if (pedido.timestampPedido) return pedido.timestampPedido;
@@ -2049,7 +2065,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             return max;
         }
 
-        async function sincronizarContadorPedidos(minimo) {
+        async function sincronizarContadorPedidos(minimo, forzar) {
             const numeroMinimo = parseInt(minimo, 10) || 0;
             if (!numeroMinimo) return;
             try {
@@ -2058,7 +2074,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 await runTransaction(window.db, async function(txn) {
                     const snap = await txn.get(contadorRef);
                     const actual = snap.exists() ? (parseInt(snap.data().ultimo, 10) || 0) : 0;
-                    if (actual < numeroMinimo) {
+                    if (forzar || actual < numeroMinimo) {
                         txn.set(contadorRef, { ultimo: numeroMinimo }, { merge: true });
                     }
                 });
@@ -2068,20 +2084,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         async function obtenerSiguienteNumeroPedido() {
-            const maxGlobal = Math.max(maximoNumeroPedidoLocal(), await maximoNumeroPedidoFirebase());
             try {
                 const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const contadorRef = doc(window.db, 'contadores', 'pedidos');
                 return await runTransaction(window.db, async function(txn) {
                     const snap = await txn.get(contadorRef);
                     const actual = snap.exists() ? (parseInt(snap.data().ultimo, 10) || 0) : 0;
-                    const siguiente = Math.max(actual, maxGlobal) + 1;
+                    const siguiente = actual + 1;
                     txn.set(contadorRef, { ultimo: siguiente }, { merge: true });
                     return siguiente;
                 });
             } catch(e) {
                 console.warn('Contador Firebase no disponible, usando fallback local:', e.message);
-                return maxGlobal + 1;
+                return maximoNumeroPedidoLocal() + 1;
             }
         }
 
@@ -3768,12 +3783,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                             pedidosConocidosNotificacion.add(clavePedido);
                         }
                     });
-                    if (!snapshotPedidosInicialCargado) snapshotPedidosInicialCargado = true;
+                    let pedidoInicialParaAviso = null;
+                    if (!snapshotPedidosInicialCargado) {
+                        pedidoInicialParaAviso = pedidoNuevoPendienteDeAviso(pedidosFirebase);
+                        snapshotPedidosInicialCargado = true;
+                    }
                     // Reemplazar completamente con los de Firebase (fuente de verdad)
                     historialPedidos = pedidosFirebase;
                     // Ordenar por número descendente
                     historialPedidos.sort(compararPedidosRecientes);
-                    sincronizarContadorPedidos(maximoNumeroPedidoLocal());
                     // Descontar stock de pedidos nuevos que lleguen de Firebase sin stockDescontado
                     pedidosNuevosDetectados.forEach(function(ped) {
                         if (!ped.stockDescontado) {
@@ -3782,6 +3800,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     });
                     localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
                     renderizarPedidosPanel();
+                    if (pedidoInicialParaAviso) mostrarAvisoNuevoPedido(pedidoInicialParaAviso);
                     pedidosNuevosDetectados.forEach(mostrarAvisoNuevoPedido);
                 }, (error) => {
                     console.log('Error listener pedidos Firebase:', error);
@@ -4324,7 +4343,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (nuevoNumeroPedido) {
                 historialPedidos[idx].num = nuevoNumeroPedido;
                 historialPedidos[idx].numOrden = formatoNumeroPedido(nuevoNumeroPedido);
-                sincronizarContadorPedidos(nuevoNumeroPedido);
+                sincronizarContadorPedidos(nuevoNumeroPedido, true);
             }
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
             renderizarPedidosPanel();
