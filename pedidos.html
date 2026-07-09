@@ -1109,6 +1109,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <button class="btn-tab" onclick="cambiarTab('productos')">Productos</button>
                 <button class="btn-tab" onclick="cambiarTab('pedidos')">Pedidos</button>
                 <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('inventario')" style="display:none;">Inventario</button>
+                <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('clientes')" style="display:none;">Clientes</button>
                 <button class="btn-tab" onclick="window.open('https://superkidsbabys.com','_blank')">Ver tienda</button>
                 <button class="btn-tab" onclick="window.fbLogout && window.fbLogout()" style="background-color: #e74c3c; color: white;">Cerrar sesión</button>
             </div>
@@ -1443,6 +1444,54 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 </div>
                 <!-- FIN SECCIÓN STOCK ACTUAL -->
             </div><!-- cierre tab-inventario -->
+
+            <!-- TAB CLIENTES -->
+            <div id="tab-clientes" class="seccion-tab">
+                <div class="seccion-admin-sub" style="background:#fbfdff;border:1.5px solid #d7e8ff;border-radius:12px;padding:16px;">
+                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+                        <div>
+                            <h3 style="margin:0;color:#246b9b;">Base de clientes</h3>
+                            <p style="margin:4px 0 0;color:#667085;font-size:0.86em;">Clientes construidos automaticamente desde los pedidos.</p>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button onclick="renderizarClientesGestion()" style="background:#4285f4;color:white;border:none;border-radius:9px;padding:9px 14px;font-weight:800;cursor:pointer;">Actualizar</button>
+                            <button onclick="exportarClientesCSV()" style="background:#1a7a4a;color:white;border:none;border-radius:9px;padding:9px 14px;font-weight:800;cursor:pointer;">Exportar CSV</button>
+                        </div>
+                    </div>
+                    <div id="clientes-resumen" style="display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px;margin-bottom:14px;"></div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                        <input id="clientes-buscar" type="text" placeholder="Buscar por nombre, cedula, telefono o ciudad..." oninput="renderizarClientesGestion()" style="flex:1;min-width:220px;padding:10px 12px;border:1.5px solid #b8d7f0;border-radius:10px;font-family:Nunito,sans-serif;outline:none;">
+                        <select id="clientes-filtro" onchange="renderizarClientesGestion()" style="padding:10px 12px;border:1.5px solid #b8d7f0;border-radius:10px;font-family:Nunito,sans-serif;background:white;color:#344054;">
+                            <option value="todos">Todos</option>
+                            <option value="recientes">Compraron ultimos 30 dias</option>
+                            <option value="inactivos">Sin comprar +30 dias</option>
+                            <option value="frecuentes">Frecuentes (2+ pedidos)</option>
+                            <option value="vip">VIP ($200.000+)</option>
+                        </select>
+                    </div>
+                    <div style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,0.8fr);gap:14px;align-items:start;">
+                        <div style="overflow:auto;border:1.5px solid #d7e8ff;border-radius:12px;background:white;max-height:620px;">
+                            <table style="width:100%;border-collapse:collapse;font-family:Nunito,sans-serif;font-size:0.84em;">
+                                <thead style="position:sticky;top:0;background:#eff6ff;color:#246b9b;z-index:1;">
+                                    <tr>
+                                        <th style="text-align:left;padding:10px;">Cliente</th>
+                                        <th style="text-align:left;padding:10px;">Contacto</th>
+                                        <th style="text-align:center;padding:10px;">Pedidos</th>
+                                        <th style="text-align:right;padding:10px;">Total</th>
+                                        <th style="text-align:left;padding:10px;">Ultima compra</th>
+                                        <th style="text-align:center;padding:10px;">Accion</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="clientes-tbody"></tbody>
+                            </table>
+                            <p id="clientes-vacio" style="display:none;text-align:center;color:#98a2b3;font-weight:700;padding:26px;">No hay clientes para mostrar.</p>
+                        </div>
+                        <div id="cliente-detalle" style="background:white;border:1.5px solid #d7e8ff;border-radius:12px;padding:14px;min-height:260px;">
+                            <p style="color:#98a2b3;font-weight:800;text-align:center;margin:80px 0;">Selecciona un cliente para ver su historial.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- TAB BUSCAR REFERENCIA -->
             <div id="tab-buscar" class="seccion-tab">
@@ -6082,6 +6131,216 @@ ${ped.comprobanteUrl ? `
             renderizarCatalogo();
         }
 
+        let clientesGestionSeleccionado = '';
+
+        function clienteGestionKey(pedido) {
+            const cc = soloDigitosCliente(pedido && pedido.cc);
+            const tel = soloDigitosCliente(pedido && pedido.tel);
+            const nom = normalizarTextoCliente(pedido && pedido.nom);
+            return cc ? 'cc_' + cc : (tel ? 'tel_' + tel : (nom ? 'nom_' + nom.replace(/[^a-z0-9]+/g, '_') : 'sin_datos'));
+        }
+
+        function fechaPedidoCliente(pedido) {
+            const ts = timestampPedido(pedido);
+            return ts ? new Date(ts) : null;
+        }
+
+        function totalPedidoCliente(pedido) {
+            const totalItems = (pedido.items || []).reduce(function(s, i) {
+                return s + ((parseInt(i.precio, 10) || 0) * (parseInt(i.cant, 10) || 1));
+            }, 0);
+            const totalPedido = parseInt(pedido.tot, 10) || 0;
+            return Math.max(totalItems, totalPedido);
+        }
+
+        function construirBaseClientesDesdePedidos() {
+            const mapa = {};
+            (historialPedidos || []).forEach(function(pedido) {
+                if (!pedido || (!pedido.nom && !pedido.tel && !pedido.cc)) return;
+                const key = clienteGestionKey(pedido);
+                if (!mapa[key]) {
+                    mapa[key] = {
+                        key: key,
+                        nom: pedido.nom || 'Cliente sin nombre',
+                        cc: pedido.cc || '',
+                        tel: pedido.tel || '',
+                        correo: pedido.correo || '',
+                        ciudad: pedido.ciudad || '',
+                        barrio: pedido.barrio || '',
+                        dir: pedido.dir || '',
+                        pedidos: [],
+                        total: 0,
+                        prendas: 0,
+                        ultimaCompraTs: 0
+                    };
+                }
+                const c = mapa[key];
+                ['nom','cc','tel','correo','ciudad','barrio','dir'].forEach(function(k) {
+                    if (!c[k] && pedido[k]) c[k] = pedido[k];
+                });
+                const ts = timestampPedido(pedido);
+                c.pedidos.push(pedido);
+                c.total += totalPedidoCliente(pedido);
+                c.prendas += (pedido.items || []).reduce((s, i) => s + (parseInt(i.cant, 10) || 1), 0);
+                if (ts > c.ultimaCompraTs) {
+                    c.ultimaCompraTs = ts;
+                    c.ultimoPedido = pedido;
+                }
+            });
+            return Object.values(mapa).sort(function(a, b) {
+                return (b.ultimaCompraTs || 0) - (a.ultimaCompraTs || 0);
+            });
+        }
+
+        function diasDesdeCompra(cliente) {
+            if (!cliente || !cliente.ultimaCompraTs) return 9999;
+            return Math.floor((Date.now() - cliente.ultimaCompraTs) / (1000 * 60 * 60 * 24));
+        }
+
+        function etiquetaUltimaCompra(cliente) {
+            const dias = diasDesdeCompra(cliente);
+            if (dias === 0) return 'Hoy';
+            if (dias === 1) return 'Ayer';
+            if (dias < 9999) return 'Hace ' + dias + ' dias';
+            return 'Sin fecha';
+        }
+
+        function filtrarClientesGestion(clientes) {
+            const q = normalizarTextoCliente((document.getElementById('clientes-buscar') || {}).value || '');
+            const dig = soloDigitosCliente((document.getElementById('clientes-buscar') || {}).value || '');
+            const filtro = (document.getElementById('clientes-filtro') || {}).value || 'todos';
+            return clientes.filter(function(c) {
+                const texto = normalizarTextoCliente([c.nom, c.cc, c.tel, c.ciudad, c.barrio, c.correo].filter(Boolean).join(' '));
+                const numeros = soloDigitosCliente([c.cc, c.tel].filter(Boolean).join(' '));
+                if (q && !texto.includes(q) && (!dig || !numeros.includes(dig))) return false;
+                const dias = diasDesdeCompra(c);
+                if (filtro === 'recientes') return dias <= 30;
+                if (filtro === 'inactivos') return dias > 30 && dias < 9999;
+                if (filtro === 'frecuentes') return c.pedidos.length >= 2;
+                if (filtro === 'vip') return c.total >= 200000;
+                return true;
+            });
+        }
+
+        function pintarResumenClientes(clientes) {
+            const cont = document.getElementById('clientes-resumen');
+            if (!cont) return;
+            const recientes = clientes.filter(c => diasDesdeCompra(c) <= 30).length;
+            const frecuentes = clientes.filter(c => c.pedidos.length >= 2).length;
+            const totalVentas = clientes.reduce((s, c) => s + c.total, 0);
+            const cards = [
+                ['Clientes', clientes.length],
+                ['Compraron ultimos 30 dias', recientes],
+                ['Frecuentes', frecuentes],
+                ['Total historico', formatMoney(totalVentas)]
+            ];
+            cont.innerHTML = cards.map(function(c) {
+                return '<div style="background:white;border:1.5px solid #d7e8ff;border-radius:10px;padding:12px;">' +
+                    '<div style="font-size:0.72em;color:#667085;font-weight:900;text-transform:uppercase;">' + c[0] + '</div>' +
+                    '<div style="font-size:1.25em;color:#246b9b;font-weight:900;margin-top:3px;">' + c[1] + '</div>' +
+                '</div>';
+            }).join('');
+        }
+
+        function renderizarClientesGestion() {
+            const todos = construirBaseClientesDesdePedidos();
+            pintarResumenClientes(todos);
+            const clientes = filtrarClientesGestion(todos);
+            const tbody = document.getElementById('clientes-tbody');
+            const vacio = document.getElementById('clientes-vacio');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (vacio) vacio.style.display = clientes.length ? 'none' : 'block';
+            clientes.forEach(function(c) {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid #eef4ff';
+                tr.style.cursor = 'pointer';
+                tr.onclick = function() { mostrarDetalleClienteGestion(c.key); };
+                const tel = soloDigitosCliente(c.tel);
+                tr.innerHTML =
+                    '<td style="padding:10px;min-width:190px;"><strong style="color:#1d2939;">' + (c.nom || 'Cliente') + '</strong><br><span style="color:#667085;font-size:0.82em;">' + (c.cc ? 'CC ' + c.cc : 'Sin cedula') + '</span></td>' +
+                    '<td style="padding:10px;color:#344054;">' + (c.tel || '-') + '<br><span style="color:#667085;font-size:0.82em;">' + (c.ciudad || '') + '</span></td>' +
+                    '<td style="padding:10px;text-align:center;font-weight:900;color:#246b9b;">' + c.pedidos.length + '</td>' +
+                    '<td style="padding:10px;text-align:right;font-weight:900;color:#8e44ad;">' + formatMoney(c.total) + '</td>' +
+                    '<td style="padding:10px;color:#344054;">' + etiquetaUltimaCompra(c) + '</td>' +
+                    '<td style="padding:10px;text-align:center;">' + (tel ? '<button onclick="event.stopPropagation();enviarWhatsAppCliente(\'' + c.key + '\',\'promo\')" style="background:#25d366;color:white;border:none;border-radius:8px;padding:7px 10px;font-weight:800;cursor:pointer;">WhatsApp</button>' : '-') + '</td>';
+                tbody.appendChild(tr);
+            });
+            if (clientesGestionSeleccionado) mostrarDetalleClienteGestion(clientesGestionSeleccionado);
+        }
+
+        function obtenerClienteGestionPorKey(key) {
+            return construirBaseClientesDesdePedidos().find(c => c.key === key) || null;
+        }
+
+        function mostrarDetalleClienteGestion(key) {
+            const c = obtenerClienteGestionPorKey(key);
+            const cont = document.getElementById('cliente-detalle');
+            if (!cont || !c) return;
+            clientesGestionSeleccionado = key;
+            const pedidos = c.pedidos.slice().sort(compararPedidosRecientes);
+            const productos = {};
+            pedidos.forEach(p => (p.items || []).forEach(i => {
+                const nombre = i.nom || 'Producto';
+                productos[nombre] = (productos[nombre] || 0) + (parseInt(i.cant, 10) || 1);
+            }));
+            const topProductos = Object.keys(productos).sort((a,b)=>productos[b]-productos[a]).slice(0, 5);
+            cont.innerHTML =
+                '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">' +
+                    '<div><h3 style="margin:0;color:#1d2939;">' + (c.nom || 'Cliente') + '</h3>' +
+                    '<p style="margin:4px 0;color:#667085;font-size:0.86em;">' + [c.cc ? 'CC ' + c.cc : '', c.tel, c.ciudad].filter(Boolean).join(' · ') + '</p></div>' +
+                    (soloDigitosCliente(c.tel) ? '<button onclick="enviarWhatsAppCliente(\'' + c.key + '\',\'promo\')" style="background:#25d366;color:white;border:none;border-radius:9px;padding:9px 12px;font-weight:900;cursor:pointer;">WhatsApp</button>' : '') +
+                '</div>' +
+                '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0;">' +
+                    '<div style="background:#f8fbff;border-radius:9px;padding:10px;"><b>' + pedidos.length + '</b><br><span style="font-size:0.78em;color:#667085;">Pedidos</span></div>' +
+                    '<div style="background:#f8fbff;border-radius:9px;padding:10px;"><b>' + formatMoney(c.total) + '</b><br><span style="font-size:0.78em;color:#667085;">Total</span></div>' +
+                    '<div style="background:#f8fbff;border-radius:9px;padding:10px;"><b>' + etiquetaUltimaCompra(c) + '</b><br><span style="font-size:0.78em;color:#667085;">Ultima compra</span></div>' +
+                '</div>' +
+                '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' +
+                    '<button onclick="enviarWhatsAppCliente(\'' + c.key + '\',\'gracias\')" style="background:#eef6ff;color:#246b9b;border:1px solid #b8d7f0;border-radius:8px;padding:8px 10px;font-weight:800;cursor:pointer;">Gracias</button>' +
+                    '<button onclick="enviarWhatsAppCliente(\'' + c.key + '\',\'promo\')" style="background:#eef6ff;color:#246b9b;border:1px solid #b8d7f0;border-radius:8px;padding:8px 10px;font-weight:800;cursor:pointer;">Promo</button>' +
+                    '<button onclick="enviarWhatsAppCliente(\'' + c.key + '\',\'reactivar\')" style="background:#eef6ff;color:#246b9b;border:1px solid #b8d7f0;border-radius:8px;padding:8px 10px;font-weight:800;cursor:pointer;">Volver a comprar</button>' +
+                '</div>' +
+                '<h4 style="margin:10px 0 6px;color:#246b9b;">Productos mas comprados</h4>' +
+                (topProductos.length ? '<ul style="margin:0 0 12px 18px;padding:0;color:#344054;">' + topProductos.map(p => '<li>' + p + ' <b>x' + productos[p] + '</b></li>').join('') + '</ul>' : '<p style="color:#98a2b3;">Sin productos.</p>') +
+                '<h4 style="margin:10px 0 6px;color:#246b9b;">Historial</h4>' +
+                '<div style="max-height:240px;overflow:auto;">' + pedidos.map(function(p) {
+                    const items = (p.items || []).map(i => i.nom + (i.talla ? ' (' + i.talla + ')' : '')).join(', ');
+                    return '<div style="border-top:1px solid #eef4ff;padding:8px 0;">' +
+                        '<b>' + (p.numOrden || ('SK' + String(p.num).padStart(5,'0'))) + '</b> · ' + (p.fecha || '') + '<br>' +
+                        '<span style="color:#667085;font-size:0.84em;">' + items + '</span><br>' +
+                        '<span style="color:#8e44ad;font-weight:900;">' + formatMoney(totalPedidoCliente(p)) + '</span>' +
+                    '</div>';
+                }).join('') + '</div>';
+        }
+
+        function mensajeWhatsAppCliente(cliente, tipo) {
+            const nombre = (cliente.nom || 'Hola').split(' ')[0];
+            if (tipo === 'gracias') return 'Hola ' + nombre + ', muchas gracias por tu compra en SuperKids & Babys. Nos encanto atenderte. Si necesitas otra tallita o quieres ver novedades, con gusto te ayudamos.';
+            if (tipo === 'reactivar') return 'Hola ' + nombre + ', como estas? Hace dias no sabemos de ti y tenemos prendas nuevas hermosas para bebe. Si quieres, te envio opciones disponibles por WhatsApp.';
+            return 'Hola ' + nombre + ', tenemos nueva coleccion y promociones especiales en SuperKids & Babys. Si quieres, te envio foticos de prendas disponibles para que elijas.';
+        }
+
+        function enviarWhatsAppCliente(key, tipo) {
+            const c = obtenerClienteGestionPorKey(key);
+            if (!c || !soloDigitosCliente(c.tel)) return alert('Este cliente no tiene telefono guardado.');
+            const tel = soloDigitosCliente(c.tel);
+            window.open('https://wa.me/57' + tel.replace(/^57/, '') + '?text=' + encodeURIComponent(mensajeWhatsAppCliente(c, tipo || 'promo')), '_blank');
+        }
+
+        function exportarClientesCSV() {
+            const clientes = filtrarClientesGestion(construirBaseClientesDesdePedidos());
+            const filas = [['Nombre','Cedula','Telefono','Correo','Ciudad','Barrio','Direccion','Pedidos','Prendas','Total','Ultima compra']];
+            clientes.forEach(c => filas.push([c.nom,c.cc,c.tel,c.correo,c.ciudad,c.barrio,c.dir,c.pedidos.length,c.prendas,c.total,etiquetaUltimaCompra(c)]));
+            const csv = filas.map(row => row.map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'clientes-superkids.csv';
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
         function cambiarTab(tab) {
             document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('activo'));
             document.querySelectorAll('.seccion-tab').forEach(s => s.classList.remove('activo'));
@@ -6106,6 +6365,9 @@ ${ped.comprobanteUrl ? `
                 var aviso = document.getElementById('aviso-nuevo-pedido');
                 if (aviso) aviso.style.display = 'none';
                 clearTimeout(window._nuevoPedidoAvisoTimer);
+            }
+            if (tab === 'clientes') {
+                renderizarClientesGestion();
             }
         }
 
@@ -6178,10 +6440,11 @@ ${ped.comprobanteUrl ? `
             'cambiarImg','cambiarTab','cerrarModalCheckout','cerrarModalEditar','cerrarModalFoto',
             'compartirCatalogo','eliminarCategoria','eliminarEntradaInventario','eliminarFotoEdit',
             'eliminarPedido','eliminarProducto','eliminarSalidaInventario','exportarEditable',
-            'exportarInventarioExcel','exportarInventarioPDF','exportarParaInternet','filtrarCatalogo',
+            'exportarClientesCSV','exportarInventarioExcel','exportarInventarioPDF','exportarParaInternet','filtrarCatalogo',
             'filtrarPorTalla','filtrarVistaPedidos','guardarDatosTienda','guardarEdicionEntrada',
             'guardarEdicionProducto','guardarEntradaInventario','imprimirFactura','moverCategoria',
-            'moverCategoriaVisual','procesarOrdenWA','procesarYAgregarProducto','renombrarCategoria',
+            'moverCategoriaVisual','procesarOrdenWA','procesarYAgregarProducto','renderizarClientesGestion',
+            'enviarWhatsAppCliente','mostrarDetalleClienteGestion','renombrarCategoria',
             'renombrarCategoriaVisual','resetearOrdenEnFirebase','seleccionarTallaChip','seleccionarTema',
             'seleccionarTextura','subirFotosNuevasEdit','toggleAcordeon','toggleAdmin','togglePromociones'
         ].forEach(nombre => {
