@@ -1327,7 +1327,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
                     <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; margin-top: 10px;">
                         <label>📏 Tallas (Inventario)</label>
-                        <div id="contenedor-tallas-stock"><div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"></div></div>
+                        <div id="contenedor-tallas-stock"><div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"></div></div>
                         <button type="button" class="btn-secundario" onclick="agregarFilaTalla()">+ Añadir renglón</button>
                     </div>
 
@@ -1627,7 +1627,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             <label>Etiqueta Especial:</label> <input type="text" id="edit-prod-etiqueta" placeholder="Ej: Oferta, Nuevo">
             <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; margin-top: 10px;">
                 <label>📏 Editar Tallas y Cantidades</label>
-                <div id="contenedor-edit-tallas-stock"><div class="fila-talla"><input type="text" class="inp-talla-nombre-edit" placeholder="Talla" value="0M"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="4"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button></div><div class="fila-talla"><input type="text" class="inp-talla-nombre-edit" placeholder="Talla" value="9M"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="2"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button></div></div>
+                <div id="contenedor-edit-tallas-stock"><div class="fila-talla"><input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color" value="0M"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="4"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button></div><div class="fila-talla"><input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color" value="9M"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="2"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button></div></div>
                 <button type="button" class="btn-secundario" style="margin-top: 10px;" onclick="agregarFilaTallaEdit()">+ Añadir otro renglón</button>
             </div>
             <button class="btn-guardar" id="btn-guardar-edicion" style="margin-top: 15px; width: 100%; padding: 15px; font-size: 1.1em;" onclick="guardarEdicionProducto()">💾 Guardar Cambios</button>
@@ -2955,7 +2955,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         function agregarFilaTalla() {
             const div = document.createElement('div'); div.className = 'fila-talla';
-            div.innerHTML = `<input type="text" class="inp-talla-nombre" placeholder="Talla"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>`;
+            div.innerHTML = `<input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1" title="Numero de foto para esta talla/color"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>`;
             document.getElementById('contenedor-tallas-stock').appendChild(div);
         }
 
@@ -3109,7 +3109,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
             cont.className = 'catalogo';
             filtrados.forEach(prod => {
-                let htmlTallasChips = "", hayStockTotal = false;
+                let htmlTallasChips = "", hayStockTotal = false, tallaInicialSeleccionada = null;
                 if (prod.tallasObj && prod.tallasObj.length > 0) {
                     let primeraDisponibleMarcada = false;
                     let chips = prod.tallasObj.map(t => {
@@ -3118,6 +3118,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         let preSeleccionada = false;
                         if (tallaFiltroActual !== 'Todas' && t.nombre.toString().trim().toUpperCase() === tallaFiltroActual.toUpperCase() && !esAgotada) preSeleccionada = true;
                         else if (tallaFiltroActual === 'Todas' && !esAgotada && !primeraDisponibleMarcada) { preSeleccionada = true; primeraDisponibleMarcada = true; }
+                        if (preSeleccionada) tallaInicialSeleccionada = t.nombre;
                         return `<div class="chip-talla ${esAgotada ? 'agotada' : (preSeleccionada ? 'seleccionada' : '')}" data-talla="${t.nombre}" onclick="seleccionarTallaChip('${prod.id}', this, ${esAgotada})">${t.nombre}</div>`;
                     }).join('');
                     htmlTallasChips = `<div class="contenedor-tallas-chips" id="contenedor-tallas-${prod.id}">${chips}</div>`;
@@ -3130,17 +3131,50 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 }
                 if (prod.etiquetaPersonalizada) customH = `<div class="etiqueta-custom">${prod.etiquetaPersonalizada}</div>`;
                 let imgs = prod.imagenes || [prod.img || "https://via.placeholder.com/600?text=Sin+Imagen"];
-                let htmlGal = imgs.length > 1 ? `<div class="galeria-miniaturas">${imgs.map((img, i) => `<img src="${optimizarUrl(img, 150)}" class="thumb ${i === 0 ? 'activo' : ''}" onclick="cambiarImg('${prod.id}', '${img}', this)">`).join('')}</div>` : "";
+                let imgPrincipal = obtenerImagenProducto(prod, tallaInicialSeleccionada);
+                let htmlGal = imgs.length > 1 ? `<div class="galeria-miniaturas">${imgs.map((img, i) => `<img src="${optimizarUrl(img, 150)}" data-url="${img}" class="thumb ${img === imgPrincipal ? 'activo' : ''}" onclick="cambiarImg('${prod.id}', '${img}', this)">`).join('')}</div>` : "";
                 let btnAgregar = hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`;
 
-                cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgs[0]}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgs[0])}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><span class="etiqueta-categoria">${prod.categoria}</span><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p><div class="precio-contenedor">${pNew}</div>${htmlTallasChips}${btnAgregar}<div class="acciones-admin-prod" style="display:${(modoEdicion || (window.usuarioActual && window.usuarioActual.editarPrecio)) ? 'flex' : 'none'}"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">${(window.usuarioActual && window.usuarioActual.editarPrecio && window.usuarioActual.rol !== 'admin') ? '✏️ Precio' : '✏️ Editar'}</button>${modoEdicion ? '<button class="btn-eliminar-prod" onclick="eliminarProducto(\''+prod.id+'\')" >🗑️ Eliminar</button>' : ''}</div></div></div>`;
+                cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><span class="etiqueta-categoria">${prod.categoria}</span><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p><div class="precio-contenedor">${pNew}</div>${htmlTallasChips}${btnAgregar}<div class="acciones-admin-prod" style="display:${(modoEdicion || (window.usuarioActual && window.usuarioActual.editarPrecio)) ? 'flex' : 'none'}"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">${(window.usuarioActual && window.usuarioActual.editarPrecio && window.usuarioActual.rol !== 'admin') ? '✏️ Precio' : '✏️ Editar'}</button>${modoEdicion ? '<button class="btn-eliminar-prod" onclick="eliminarProducto(\''+prod.id+'\')" >🗑️ Eliminar</button>' : ''}</div></div></div>`;
             });
+        }
+
+        function obtenerTallaObjProducto(prod, talla) {
+            if (!prod || !talla) return null;
+            return (prod.tallasObj || []).find(function(t) {
+                return String(t.nombre || '').trim().toUpperCase() === String(talla || '').trim().toUpperCase();
+            }) || null;
+        }
+
+        function obtenerImagenProducto(prod, talla) {
+            const imgs = (prod && prod.imagenes && prod.imagenes.length) ? prod.imagenes : [prod && prod.img || "https://via.placeholder.com/600?text=Sin+Imagen"];
+            const tallaObj = obtenerTallaObjProducto(prod, talla);
+            if (tallaObj) {
+                if (tallaObj.imagen) return tallaObj.imagen;
+                const idx = parseInt(tallaObj.imgIndex, 10);
+                if (!isNaN(idx) && idx > 0 && imgs[idx - 1]) return imgs[idx - 1];
+            }
+            return imgs[0];
         }
 
         function seleccionarTallaChip(prodId, elemento, esAgotada) {
             if (esAgotada) return;
             document.getElementById(`contenedor-tallas-${prodId}`).querySelectorAll('.chip-talla').forEach(chip => chip.classList.remove('seleccionada'));
             elemento.classList.add('seleccionada');
+            const prod = productosDB.find(x => x.id === prodId);
+            const talla = elemento.getAttribute('data-talla');
+            const img = obtenerImagenProducto(prod, talla);
+            const princ = document.getElementById(`img-pr-${prodId}`);
+            if (princ && img) {
+                princ.src = optimizarUrl(img);
+                princ.parentElement.onclick = () => abrirFotoGrande(img, prodId);
+                const gal = princ.closest('.producto').querySelector('.galeria-miniaturas');
+                if (gal) {
+                    gal.querySelectorAll('.thumb').forEach(t => t.classList.remove('activo'));
+                    const thumb = Array.from(gal.querySelectorAll('.thumb')).find(t => t.getAttribute('data-url') === img);
+                    if (thumb) thumb.classList.add('activo');
+                }
+            }
         }
 
         function cambiarImg(pid, url, th) {
@@ -3172,7 +3206,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 document.querySelectorAll('#contenedor-tallas-stock .fila-talla').forEach(fila => {
                     let nom = fila.querySelector('.inp-talla-nombre').value.trim();
                     let stk = parseInt(fila.querySelector('.inp-talla-stock').value);
-                    if (nom && !isNaN(stk)) tallasObjArr.push({ nombre: nom, stock: stk });
+                    let imgIndex = parseInt((fila.querySelector('.inp-talla-img-index') || {value:''}).value);
+                    let tallaObj = { nombre: nom, stock: stk };
+                    if (!isNaN(imgIndex) && imgIndex > 0) tallaObj.imgIndex = imgIndex;
+                    if (nom && !isNaN(stk)) tallasObjArr.push(tallaObj);
                 });
 
                 let nuevoProducto = {
@@ -3202,7 +3239,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 ['nuevo-nombre','nuevo-codigo','nuevo-orden','nueva-desc','nuevo-precio','nuevo-precio-ant','nueva-etiqueta-badge'].forEach(id => document.getElementById(id).value = '');
                 document.getElementById('nueva-foto-princ').value = '';
                 document.getElementById('nuevas-fotos-extra').value = '';
-                document.getElementById('contenedor-tallas-stock').innerHTML = `<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"></div>`;
+                document.getElementById('contenedor-tallas-stock').innerHTML = `<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"></div>`;
                 alert("✅ ¡Producto subido con éxito!");
             } catch(error) {
                 alert("Error subiendo el producto. Verifica el preset 'superkids_upload' en Cloudinary.\n\nDetalle: " + error);
@@ -3267,7 +3304,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             document.getElementById('edit-prod-precio-ant').value = p.precioAnterior || '';
             document.getElementById('edit-prod-etiqueta').value = p.etiquetaPersonalizada || '';
             let contTallas = document.getElementById('contenedor-edit-tallas-stock'); contTallas.innerHTML = '';
-            if (p.tallasObj && p.tallasObj.length > 0) p.tallasObj.forEach(t => agregarFilaTallaEdit(t.nombre, t.stock));
+            if (p.tallasObj && p.tallasObj.length > 0) p.tallasObj.forEach(t => agregarFilaTallaEdit(t.nombre, t.stock, t.imgIndex || ''));
             else agregarFilaTallaEdit('', '');
             document.getElementById('modal-editar-producto').style.display = 'block';
 
@@ -3304,9 +3341,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
-        function agregarFilaTallaEdit(nom = '', stk = '') {
+        function agregarFilaTallaEdit(nom = '', stk = '', imgIndex = '') {
             const div = document.createElement('div'); div.className = 'fila-talla';
-            div.innerHTML = `<input type="text" class="inp-talla-nombre-edit" placeholder="Talla" value="${nom}"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="${stk}"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>`;
+            div.innerHTML = `<input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color" value="${nom}"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="${stk}"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1" value="${imgIndex || ''}" title="Numero de foto para esta talla/color"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>`;
             document.getElementById('contenedor-edit-tallas-stock').appendChild(div);
         }
 
@@ -3493,7 +3530,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 document.querySelectorAll('#contenedor-edit-tallas-stock .fila-talla').forEach(fila => {
                     let nom = fila.querySelector('.inp-talla-nombre-edit').value.trim();
                     let stk = parseInt(fila.querySelector('.inp-talla-stock-edit').value);
-                    if (nom && !isNaN(stk)) tallasObjArr.push({ nombre: nom, stock: stk });
+                    let imgIndex = parseInt((fila.querySelector('.inp-talla-img-index-edit') || {value:''}).value);
+                    let tallaObj = { nombre: nom, stock: stk };
+                    if (!isNaN(imgIndex) && imgIndex > 0) tallaObj.imgIndex = imgIndex;
+                    if (nom && !isNaN(stk)) tallasObjArr.push(tallaObj);
                 });
                 p.tallasObj = tallasObjArr;
                 // Guardar orden primero (reordena productosDB internamente)
@@ -3660,8 +3700,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     tallas.forEach(function(talla) {
                         var div = document.createElement('div');
                         div.className = 'fila-talla';
-                        div.innerHTML = '<input type="text" class="inp-talla-nombre" placeholder="Talla" value="'+talla+'">'
+                        div.innerHTML = '<input type="text" class="inp-talla-nombre" placeholder="Talla / Color" value="'+talla+'">'
                             + '<input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0" value="'+tallaMap[talla]+'">'
+                            + '<input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1">'
                             + '<button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>';
                         cont.appendChild(div);
                     });
@@ -3725,7 +3766,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (yaEnCarrito >= stockDisponible) {
                 return alert('Solo hay ' + stockDisponible + ' unidad(es) disponible(s) en talla ' + (tallaSeleccionada || 'Única') + '.');
             }
-            carrito.push({ id: p.id, codigo: p.codigo, nombre: p.nombre, precio: p.precio, talla: tallaSeleccionada });
+            carrito.push({ id: p.id, codigo: p.codigo, nombre: p.nombre, precio: p.precio, talla: tallaSeleccionada, imagen: obtenerImagenProducto(p, tallaSeleccionada) });
             renderCarrito();
         }
 
@@ -3947,7 +3988,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 let codText = i.codigo ? ` (REF: ${i.codigo})` : '';
                 txtProductos += `* ${i.nombre}${codText} - Talla: ${i.talla || 'Única'} (${formatMoney(i.precio)})\n`;
                 t += i.precio;
-                itemsParaPanel.push({ id_prod: i.id, cant: 1, talla: i.talla, nom: i.nombre, cod: i.codigo, precio: i.precio });
+                itemsParaPanel.push({ id_prod: i.id, cant: 1, talla: i.talla, nom: i.nombre, cod: i.codigo, precio: i.precio, imagen: i.imagen || '' });
             });
             let ahoraPedido = Date.now();
             let fechaHoy = new Date(ahoraPedido).toLocaleString('es-CO', { hour12: true });
@@ -4483,8 +4524,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             // Buscar imagen de cada producto en productosDB
             let htmlProductos = ped.items.map(i => {
                 let prod = productosDB.find(x => x.id === i.id_prod);
-                let imgUrl = (prod && prod.imagenes && prod.imagenes[0])
-                    ? prod.imagenes[0].replace('/image/upload/', '/image/upload/f_auto,q_auto,w_160/')
+                let imgBase = i.imagen || (prod && prod.imagenes && prod.imagenes[0]);
+                let imgUrl = imgBase
+                    ? imgBase.replace('/image/upload/', '/image/upload/f_auto,q_auto,w_160/')
                     : 'https://via.placeholder.com/80x80?text=Sin+foto';
                 return `<tr>
                   <td style="padding:10px 8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;">
@@ -4722,9 +4764,8 @@ ${ped.comprobanteUrl ? `
                 const opcionesEstado = ESTADOS_PEDIDO.map(e => `<option value="${e.valor}" ${estadoActual === e.valor ? 'selected' : ''}>${e.label}</option>`).join('');
                 let htmlItems = ped.items.map((i, iIdx) => {
                     let prodImg = productosDB.find(x => x.id === i.id_prod);
-                    let thumb = (prodImg && prodImg.imagenes && prodImg.imagenes[0])
-                        ? prodImg.imagenes[0].replace('/image/upload/', '/image/upload/f_auto,q_auto,w_100/')
-                        : '';
+                    let imgBase = i.imagen || (prodImg && prodImg.imagenes && prodImg.imagenes[0]);
+                    let thumb = imgBase ? imgBase.replace('/image/upload/', '/image/upload/f_auto,q_auto,w_100/') : '';
                     let imgTag = thumb
                         ? `<img src="${thumb}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'">`
                         : `<div style="width:44px;height:44px;border-radius:6px;background:#f5e6fb;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2em;">👗</div>`;
