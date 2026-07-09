@@ -2056,6 +2056,54 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }, 0);
         }
 
+        function esNumeroPedidoCorrelativoValido(numero) {
+            numero = parseInt(numero, 10) || 0;
+            return numero > 0 && numero < 90000;
+        }
+
+        function maximoNumeroPedidoCorrelativoLocal() {
+            return (historialPedidos || []).reduce(function(max, p) {
+                const numero = numeroPedidoValor(p);
+                return esNumeroPedidoCorrelativoValido(numero) ? Math.max(max, numero) : max;
+            }, 0);
+        }
+
+        function pedidoConConsecutivoCorruptoReciente(pedido) {
+            const numero = numeroPedidoValor(pedido);
+            if (!pedido || numero < 90000) return false;
+            if (normalizarEstadoPedido(pedido.estado || 'nuevo') !== 'nuevo') return false;
+            const ts = timestampPedido(pedido);
+            if (!ts) return true;
+            return (Date.now() - ts) <= 1000 * 60 * 60 * 24 * 7;
+        }
+
+        async function corregirPedidosConsecutivoCorrupto(pedidos) {
+            const pendientes = (pedidos || []).filter(pedidoConConsecutivoCorruptoReciente).sort(function(a, b) {
+                return timestampPedido(a) - timestampPedido(b);
+            });
+            if (!pendientes.length) return;
+            window._pedidosCorrigiendoConsecutivo = window._pedidosCorrigiendoConsecutivo || new Set();
+            let siguiente = maximoNumeroPedidoCorrelativoLocal();
+            for (const pedido of pendientes) {
+                const clave = clavePedidoNotificacion(pedido) || String(pedido.id || pedido.numOrden || pedido.num || '');
+                if (clave && window._pedidosCorrigiendoConsecutivo.has(clave)) continue;
+                if (clave) window._pedidosCorrigiendoConsecutivo.add(clave);
+                siguiente += 1;
+                pedido.num = siguiente;
+                pedido.numOrden = formatoNumeroPedido(siguiente);
+                try {
+                    await persistirPedidoEnFirebase(pedido);
+                    await sincronizarContadorPedidos(siguiente, true);
+                    console.warn('Consecutivo corregido automaticamente a ' + pedido.numOrden);
+                } catch(e) {
+                    console.warn('No se pudo corregir consecutivo corrupto:', e.message);
+                } finally {
+                    if (clave) window._pedidosCorrigiendoConsecutivo.delete(clave);
+                }
+            }
+            localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+        }
+
         async function maximoNumeroPedidoFirebase() {
             let max = 0;
             try {
@@ -2076,6 +2124,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         async function sincronizarContadorPedidos(minimo, forzar) {
             const numeroMinimo = parseInt(minimo, 10) || 0;
             if (!numeroMinimo) return;
+            if (!forzar && !esNumeroPedidoCorrelativoValido(numeroMinimo)) return;
             try {
                 const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const contadorRef = doc(window.db, 'contadores', 'pedidos');
@@ -2095,16 +2144,18 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             try {
                 const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const contadorRef = doc(window.db, 'contadores', 'pedidos');
+                const maxLocalCorrelativo = maximoNumeroPedidoCorrelativoLocal();
                 return await runTransaction(window.db, async function(txn) {
                     const snap = await txn.get(contadorRef);
                     const actual = snap.exists() ? (parseInt(snap.data().ultimo, 10) || 0) : 0;
-                    const siguiente = actual + 1;
+                    const base = esNumeroPedidoCorrelativoValido(actual) ? Math.max(actual, maxLocalCorrelativo) : maxLocalCorrelativo;
+                    const siguiente = base + 1;
                     txn.set(contadorRef, { ultimo: siguiente }, { merge: true });
                     return siguiente;
                 });
             } catch(e) {
                 console.warn('Contador Firebase no disponible, usando fallback local:', e.message);
-                return maximoNumeroPedidoLocal() + 1;
+                return maximoNumeroPedidoCorrelativoLocal() + 1;
             }
         }
 
@@ -2213,6 +2264,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             aplicarDiseno();
             renderizarCatalogo();
             renderizarPedidosPanel();
+            inicializarAutorrellenoClientes();
 
             // ✅ CARGAR PRODUCTOS DESDE FIREBASE en tiempo real con onSnapshot
             try {
@@ -3825,6 +3877,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         function abrirModalCheckout() {
             document.getElementById('modal-checkout').style.display = 'block';
             document.body.style.overflow = 'hidden';
+            cargarClienteLocalNavegador();
+            cargarClientesGestion();
         }
 
         function cerrarModalCheckout() {
@@ -3860,6 +3914,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     }
                     // Reemplazar completamente con los de Firebase (fuente de verdad)
                     historialPedidos = pedidosFirebase;
+                    guardarClientesGestionDesdePedidos(historialPedidos);
+                    corregirPedidosConsecutivoCorrupto(historialPedidos);
                     // Ordenar por número descendente
                     historialPedidos.sort(compararPedidosRecientes);
                     // Descontar stock de pedidos nuevos aunque hayan llegado mientras la pantalla estaba cerrada
@@ -3997,6 +4053,171 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
+        const CLIENTE_LOCAL_KEY = 'sceClienteCheckoutLocalV1';
+        window.clientesGestionCache = window.clientesGestionCache || [];
+
+        function normalizarTextoCliente(valor) {
+            return String(valor || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        }
+
+        function soloDigitosCliente(valor) {
+            return String(valor || '').replace(/\D/g, '');
+        }
+
+        function leerDatosClienteFormulario() {
+            const val = id => ((document.getElementById(id) || {}).value || '').trim();
+            return {
+                nom: val('cart-nombre'),
+                cc: val('cart-cc'),
+                dir: val('cart-direccion'),
+                barrio: val('cart-barrio'),
+                ciudad: val('cart-ciudad'),
+                tel: val('cart-telefono'),
+                correo: val('cart-correo')
+            };
+        }
+
+        function llenarDatosClienteFormulario(cliente, soloCamposVacios) {
+            if (!cliente) return;
+            const mapa = {
+                'cart-nombre': cliente.nom || cliente.nombre || '',
+                'cart-cc': cliente.cc || '',
+                'cart-direccion': cliente.dir || cliente.direccion || '',
+                'cart-barrio': cliente.barrio || '',
+                'cart-ciudad': cliente.ciudad || '',
+                'cart-telefono': cliente.tel || cliente.telefono || '',
+                'cart-correo': cliente.correo || ''
+            };
+            Object.keys(mapa).forEach(function(id) {
+                const el = document.getElementById(id);
+                if (!el || !mapa[id]) return;
+                if (!soloCamposVacios || !String(el.value || '').trim()) el.value = mapa[id];
+            });
+        }
+
+        function guardarClienteLocalNavegador(cliente) {
+            if (!cliente || (!cliente.nom && !cliente.tel && !cliente.cc)) return;
+            try { localStorage.setItem(CLIENTE_LOCAL_KEY, JSON.stringify(cliente)); } catch(e) {}
+        }
+
+        function cargarClienteLocalNavegador() {
+            try { llenarDatosClienteFormulario(JSON.parse(localStorage.getItem(CLIENTE_LOCAL_KEY) || 'null'), true); } catch(e) {}
+        }
+
+        function clienteParaFirestore(cliente) {
+            return {
+                nom: cliente.nom || cliente.nombre || '',
+                nombre: cliente.nom || cliente.nombre || '',
+                cc: soloDigitosCliente(cliente.cc),
+                dir: cliente.dir || cliente.direccion || '',
+                direccion: cliente.dir || cliente.direccion || '',
+                barrio: cliente.barrio || '',
+                ciudad: cliente.ciudad || '',
+                tel: soloDigitosCliente(cliente.tel || cliente.telefono),
+                telefono: soloDigitosCliente(cliente.tel || cliente.telefono),
+                correo: cliente.correo || '',
+                actualizadoEn: new Date().toISOString()
+            };
+        }
+
+        async function guardarClienteGestion(cliente) {
+            if (!window.usuarioActual || !cliente) return;
+            const data = clienteParaFirestore(cliente);
+            if (!data.cc && !data.tel && !data.nombre) return;
+            try {
+                const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const id = data.cc ? ('cc_' + data.cc) : (data.tel ? ('tel_' + data.tel) : ('nom_' + normalizarTextoCliente(data.nombre).replace(/\s+/g, '_').slice(0, 40)));
+                await setDoc(doc(db, 'clientes', id), data, { merge: true });
+                const idx = window.clientesGestionCache.findIndex(c => (data.cc && c.cc === data.cc) || (data.tel && c.tel === data.tel));
+                if (idx >= 0) window.clientesGestionCache[idx] = Object.assign({}, window.clientesGestionCache[idx], data);
+                else window.clientesGestionCache.push(data);
+                actualizarDatalistClientesGestion();
+            } catch(e) {
+                console.log('No se pudo guardar cliente en gestion:', e.message);
+            }
+        }
+
+        async function cargarClientesGestion() {
+            if (!window.usuarioActual) return;
+            try {
+                const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const snap = await getDocs(collection(db, 'clientes'));
+                window.clientesGestionCache = [];
+                snap.forEach(d => window.clientesGestionCache.push(d.data()));
+                actualizarDatalistClientesGestion();
+            } catch(e) {
+                console.log('No se pudieron cargar clientes de gestion:', e.message);
+            }
+        }
+
+        function actualizarDatalistClientesGestion() {
+            let lista = document.getElementById('clientes-gestion-lista');
+            if (!lista) {
+                lista = document.createElement('datalist');
+                lista.id = 'clientes-gestion-lista';
+                document.body.appendChild(lista);
+            }
+            lista.innerHTML = '';
+            if (!window.usuarioActual) return;
+            (window.clientesGestionCache || []).slice(0, 300).forEach(function(c) {
+                const texto = [c.nombre || c.nom, c.cc ? 'CC ' + c.cc : '', c.tel || c.telefono].filter(Boolean).join(' - ');
+                if (!texto) return;
+                const opt = document.createElement('option');
+                opt.value = texto;
+                lista.appendChild(opt);
+            });
+        }
+
+        function buscarClienteGestion(valor) {
+            if (!window.usuarioActual) return null;
+            const raw = String(valor || '').trim();
+            const dig = soloDigitosCliente(raw);
+            const txt = normalizarTextoCliente(raw);
+            return (window.clientesGestionCache || []).find(function(c) {
+                const cc = soloDigitosCliente(c.cc);
+                const tel = soloDigitosCliente(c.tel || c.telefono);
+                const nom = normalizarTextoCliente(c.nombre || c.nom);
+                const etiqueta = normalizarTextoCliente([c.nombre || c.nom, c.cc, c.tel || c.telefono].filter(Boolean).join(' - '));
+                return (dig && (cc === dig || tel === dig)) || (txt.length >= 3 && (nom.includes(txt) || etiqueta.includes(txt)));
+            }) || null;
+        }
+
+        function intentarAutocompletarClienteGestion(ev) {
+            const cliente = buscarClienteGestion(ev && ev.target ? ev.target.value : '');
+            if (cliente) llenarDatosClienteFormulario(cliente, false);
+        }
+
+        function inicializarAutorrellenoClientes() {
+            ['cart-nombre','cart-cc','cart-telefono'].forEach(function(id) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.setAttribute('list', 'clientes-gestion-lista');
+                el.addEventListener('change', intentarAutocompletarClienteGestion);
+                el.addEventListener('blur', intentarAutocompletarClienteGestion);
+            });
+            ['cart-nombre','cart-cc','cart-direccion','cart-barrio','cart-ciudad','cart-telefono','cart-correo'].forEach(function(id) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('blur', function() { guardarClienteLocalNavegador(leerDatosClienteFormulario()); });
+            });
+            cargarClienteLocalNavegador();
+            cargarClientesGestion();
+            setTimeout(cargarClientesGestion, 1500);
+        }
+
+        async function guardarClientesGestionDesdePedidos(pedidos) {
+            if (!window.usuarioActual || window._clientesGestionImportados) return;
+            window._clientesGestionImportados = true;
+            const vistos = new Set();
+            for (const p of (pedidos || [])) {
+                const cliente = { nom: p.nom, cc: p.cc, dir: p.dir, barrio: p.barrio, ciudad: p.ciudad, tel: p.tel, correo: p.correo };
+                const key = soloDigitosCliente(cliente.cc) || soloDigitosCliente(cliente.tel) || normalizarTextoCliente(cliente.nom);
+                if (!key || vistos.has(key)) continue;
+                vistos.add(key);
+                await guardarClienteGestion(cliente);
+            }
+        }
+
         function procesarOrdenWA() {
             let n = document.getElementById('cart-nombre').value.trim();
             let cc = (document.getElementById('cart-cc') || {value:''}).value.trim();
@@ -4046,7 +4267,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     console.log('✅ Número de orden asignado:', numOrdenFormato);
                 } catch(e) {
                     // Fallback: usar contador local basado en historial
-                    const maxLocal = maximoNumeroPedidoLocal();
+                    const maxLocal = maximoNumeroPedidoCorrelativoLocal();
                     numOrden = maxLocal + 1;
                     numOrdenFormato = formatoNumeroPedido(numOrden);
                     console.warn('Contador Firebase no disponible, usando fallback local:', numOrdenFormato, e.message);
@@ -4068,6 +4289,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     asesora: asesoraVal
                 };
 
+                guardarClienteLocalNavegador(objetoOrden);
+                guardarClienteGestion(objetoOrden);
                 historialPedidos.unshift(objetoOrden);
                 renderizarPedidosPanel();
                 cerrarModalCheckout();
