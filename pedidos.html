@@ -483,10 +483,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         .precio-tachado { font-size: 0.8em; color: #aaa; text-decoration: line-through; margin-right: 6px; }
         .precio-nuevo { font-size: 1.1em; font-weight: bold; color: var(--color-precio, var(--color-banner)); }
 
-        .contenedor-tallas-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
-        .chip-talla { border: 1px solid #ddd; padding: 3px 8px; border-radius: 20px; font-size: 0.7em; cursor: pointer; background: var(--color-tarjeta); color: var(--color-texto); transition: 0.2s; font-weight: 600; text-align: center; }
-        .chip-talla:hover:not(.agotada) { border-color: var(--color-banner); color: var(--color-banner); }
-        .chip-talla.seleccionada { background: var(--color-banner); color: var(--color-texto-banner); border-color: var(--color-banner); }
+        .contenedor-tallas-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+        .chip-talla { border: 1.8px solid #b8b8b8; padding: 6px 11px; border-radius: 18px; font-size: 0.78em; cursor: pointer; background: #fff; color: #333; transition: 0.2s; font-weight: 900; text-align: center; min-width: 46px; box-shadow: 0 2px 7px rgba(0,0,0,0.08); }
+        .chip-talla:hover:not(.agotada) { border-color: var(--color-banner); color: var(--color-banner); transform: translateY(-1px); }
+        .chip-talla.seleccionada { background: var(--color-banner); color: var(--color-texto-banner); border-color: var(--color-banner); box-shadow: 0 0 0 2px rgba(255,255,255,0.95), 0 0 0 4px var(--color-banner), 0 5px 14px rgba(0,0,0,0.18); }
         .chip-talla.agotada { opacity: 0.4; cursor: not-allowed; background: #f9f9f9; text-decoration: line-through; color: #aaa; border-color: #eee;}
 
         .btn-agregar { background: var(--color-btn-carrito, linear-gradient(135deg, #ff80c8, #ff4db8)); color: var(--color-btn-carrito-texto, white); border: none; padding: 10px; border-radius: 20px; cursor: pointer; width: 100%; font-weight: 800; font-size: 0.85em; margin-top: auto; box-shadow: 0 4px 12px rgba(255,77,184,0.3); transition: all 0.25s ease; letter-spacing: 0.3px; }
@@ -2010,6 +2010,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             return ped;
         }
 
+        function pedidoDebeDescontarStock(pedido) {
+            if (!pedido || pedido.stockDescontado) return false;
+            if (normalizarEstadoPedido(pedido.estado || 'nuevo') !== 'nuevo') return false;
+            const ts = timestampPedido(pedido);
+            if (!ts) return true;
+            return (Date.now() - ts) <= 1000 * 60 * 60 * 24 * 30;
+        }
+
         function timestampPedido(pedido) {
             if (!pedido) return 0;
             if (pedido.timestampPedido) return pedido.timestampPedido;
@@ -3157,6 +3165,17 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             return imgs[0];
         }
 
+        function obtenerTallaPorImagenProducto(prod, url) {
+            if (!prod || !url) return null;
+            const imgs = (prod.imagenes && prod.imagenes.length) ? prod.imagenes : [];
+            const idxUrl = imgs.indexOf(url) + 1;
+            return (prod.tallasObj || []).find(function(t) {
+                if (t.imagen && t.imagen === url) return true;
+                const idx = parseInt(t.imgIndex, 10);
+                return idxUrl > 0 && !isNaN(idx) && idx === idxUrl;
+            }) || null;
+        }
+
         function seleccionarTallaChip(prodId, elemento, esAgotada) {
             if (esAgotada) return;
             document.getElementById(`contenedor-tallas-${prodId}`).querySelectorAll('.chip-talla').forEach(chip => chip.classList.remove('seleccionada'));
@@ -3183,6 +3202,16 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             princ.src = optimizarUrl(url); princ.parentElement.onclick = () => abrirFotoGrande(url, prodIdActual);
             th.parentElement.querySelectorAll('.thumb').forEach(t => t.classList.remove('activo'));
             th.classList.add('activo');
+            const prod = productosDB.find(x => x.id === pid);
+            const tallaObj = obtenerTallaPorImagenProducto(prod, url);
+            if (tallaObj) {
+                const cont = document.getElementById(`contenedor-tallas-${pid}`);
+                if (cont) {
+                    cont.querySelectorAll('.chip-talla').forEach(chip => chip.classList.remove('seleccionada'));
+                    const chip = Array.from(cont.querySelectorAll('.chip-talla')).find(chip => chip.getAttribute('data-talla') === tallaObj.nombre);
+                    if (chip && !chip.classList.contains('agotada')) chip.classList.add('seleccionada');
+                }
+            }
         }
 
         async function procesarYAgregarProducto() {
@@ -3833,12 +3862,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     historialPedidos = pedidosFirebase;
                     // Ordenar por número descendente
                     historialPedidos.sort(compararPedidosRecientes);
-                    // Descontar stock de pedidos nuevos que lleguen de Firebase sin stockDescontado
-                    pedidosNuevosDetectados.forEach(function(ped) {
-                        if (!ped.stockDescontado) {
-                            descontarStockPedido(ped);
-                        }
-                    });
+                    // Descontar stock de pedidos nuevos aunque hayan llegado mientras la pantalla estaba cerrada
+                    historialPedidos.filter(pedidoDebeDescontarStock).forEach(descontarStockPedido);
                     localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
                     renderizarPedidosPanel();
                     if (pedidoInicialParaAviso) mostrarAvisoNuevoPedido(pedidoInicialParaAviso);
@@ -3863,13 +3888,17 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 let prod = productosDB.find(p => p.id === idProd);
                 if (!prod) continue;
                 items.forEach(item => {
-                    const tallaItem = (item.talla || '').toString().trim().toUpperCase();
-                    const tallaObj = (prod.tallasObj || []).find(t => t.nombre.toString().trim().toUpperCase() === tallaItem);
+                    const tallaItem = normalizarTallaValor(item.talla);
+                    const tallaObj = (prod.tallasObj || []).find(t => normalizarTallaValor(t.nombre) === tallaItem);
                     if (tallaObj) {
                         tallaObj.stock = Math.max(0, (tallaObj.stock || 0) - (item.cant || 1));
                         huboAlgunDescuento = true;
                     }
                 });
+            }
+            if (!huboAlgunDescuento) {
+                console.warn('No se encontro stock para descontar en pedido #' + pedido.num);
+                return;
             }
             pedido.stockDescontado = true;
             // PASO 2: Guardar en localStorage inmediatamente
@@ -3888,6 +3917,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         actualizadoEn: new Date().toISOString()
                     }), { merge: true });
                 }
+                await persistirPedidoEnFirebase(pedido);
                 console.log('✅ Stock también guardado en Firebase para pedido #' + pedido.num);
             } catch(e) {
                 console.log('Firebase no disponible, stock guardado solo localmente:', e.message);
