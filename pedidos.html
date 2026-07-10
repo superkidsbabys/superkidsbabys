@@ -4649,40 +4649,56 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         };
 
         window.eliminarProductoDePedido = async function(numPed, itemIdx) {
-            if (!confirm('¿Estás segura de eliminar este producto del pedido? Se devolverá el stock.')) return;
-            let pedIdx = historialPedidos.findIndex(p => p.num === numPed);
+            if (!confirm('Estas segura de eliminar este producto del pedido? Se devolvera el stock de esa prenda.')) return;
+            let pedIdx = historialPedidos.findIndex(p => String(p.num) === String(numPed));
             if (pedIdx === -1) return;
             let ped = historialPedidos[pedIdx];
             if (!ped.items || ped.items.length <= itemIdx) return;
-            // Devolver stock de ese producto
+
             let item = ped.items[itemIdx];
-            let prod = productosDB.find(x => x.id === item.id_prod);
-            if (prod && prod.tallasObj) {
-                let tObj = prod.tallasObj.find(t => t.nombre === item.talla);
-                if (tObj) { tObj.stock = (tObj.stock || 0) + (item.cant || 1); }
-                prod.stockTotal = prod.tallasObj.reduce((s, t) => s + (t.stock || 0), 0);
-                // Guardar stock actualizado en Firebase para que quede correcto en todos los dispositivos
-                if (window.fbGuardarProducto) {
-                    try { await window.fbGuardarProducto(prod); }
-                    catch(e) { console.log('Error guardando stock en Firebase:', e); }
+            let stockDevueltoItem = false;
+            let prod = productosDB.find(x => String(x.id) === String(item.id_prod))
+                || productosDB.find(x => String(x.codigo || '') === String(item.cod || ''));
+
+            if (ped.stockDescontado && !ped.stockDevuelto && prod && prod.tallasObj) {
+                const tallaItem = normalizarTallaValor(item.talla);
+                let tObj = (prod.tallasObj || []).find(t => normalizarTallaValor(t.nombre) === tallaItem);
+                if (tObj) {
+                    tObj.stock = (parseInt(tObj.stock, 10) || 0) + (parseInt(item.cant, 10) || 1);
+                    prod.stockTotal = (prod.tallasObj || []).reduce((s, t) => s + (parseInt(t.stock, 10) || 0), 0);
+                    stockDevueltoItem = true;
+                    localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                } else {
+                    console.warn('No se encontro la talla para devolver stock:', item.talla, item);
                 }
-                localStorage.setItem('productosV36', JSON.stringify(productosDB));
             }
-            // Quitar el producto del pedido
+
             ped.items.splice(itemIdx, 1);
-            // Recalcular total
-            ped.tot = ped.items.reduce((s, i) => s + (i.precio * (i.cant || 1)), 0);
-            // Guardar
+            ped.tot = ped.items.reduce((s, i) => s + ((parseInt(i.precio, 10) || 0) * (parseInt(i.cant, 10) || 1)), 0);
+            ped.actualizadoEn = new Date().toISOString();
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-            renderizarPedidosPanel();
-            // Sincronizar con Firebase
+
             try {
-                const { collection, query, where, getDocs, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const q = query(collection(db, 'pedidos'), where('num', '==', numPed));
+                const { collection, query, where, getDocs, updateDoc, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                if (stockDevueltoItem && prod) {
+                    await setDoc(doc(db, 'productos', prod.id), Object.assign({}, prod, {
+                        stockTotal: (prod.tallasObj||[]).reduce((s,t)=>s+(parseInt(t.stock,10)||0),0),
+                        actualizadoEn: new Date().toISOString()
+                    }), { merge: true });
+                }
+                const q = query(collection(db, 'pedidos'), where('num', '==', ped.num));
                 const snap = await getDocs(q);
-                snap.forEach(async docSnap => { await updateDoc(docSnap.ref, { items: ped.items, tot: ped.tot }); });
-                console.log('✅ Producto eliminado y pedido actualizado en Firebase');
-            } catch(e) { console.log('Error sync Firebase al eliminar producto:', e); }
+                const updates = [];
+                snap.forEach(docSnap => updates.push(updateDoc(docSnap.ref, { items: ped.items, tot: ped.tot, actualizadoEn: ped.actualizadoEn })));
+                await Promise.all(updates);
+                console.log(stockDevueltoItem ? 'Stock devuelto y pedido actualizado en Firebase' : 'Pedido actualizado; no aplicaba devolucion de stock');
+            } catch(e) {
+                console.log('Error sync Firebase al eliminar producto:', e);
+            }
+
+            renderizarPedidosPanel();
+            if (typeof renderStockActual === 'function') renderStockActual();
+            if (typeof renderizarCatalogo === 'function') renderizarCatalogo();
         };
 
         window.actualizarPedidoDesdePrefactura = function(ref, cambios) {
