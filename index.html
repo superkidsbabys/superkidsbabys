@@ -2204,6 +2204,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             }
         }
 
+        async function asegurarNumeroPedidoActual(numero) {
+            numero = parseInt(numero, 10) || 0;
+            if (esNumeroPedidoCorrelativoValido(numero)) return numero;
+            console.warn('Numero de pedido fuera de la serie actual, reasignando:', numero);
+            return await obtenerSiguienteNumeroPedido();
+        }
+
         function esGeneroNinas(genero) {
             return genero === 'Ni\u00f1as' || genero === 'Ni\u00c3\u00b1as' || genero === 'Junior Ni\u00f1as' || genero === 'Junior Ni\u00c3\u00b1as';
         }
@@ -4319,6 +4326,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 let numOrdenFormato = 'SK00001';
                 try {
                     numOrden = await obtenerSiguienteNumeroPedido();
+                    numOrden = await asegurarNumeroPedidoActual(numOrden);
                     numOrdenFormato = formatoNumeroPedido(numOrden);
                     // Asegurar que el documento existe antes de la transacción
                     console.log('✅ Número de orden asignado:', numOrdenFormato);
@@ -5407,14 +5415,51 @@ table{width:100%;border-collapse:collapse}
 
 
 
-        function agregarFilaTallaInv() {
-            let cont = document.getElementById('inv-tallas-cont');
-            let div = document.createElement('div');
-            div.className = 'inv-fila-talla';
-            div.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;';
-            div.innerHTML = '<input type="text" class="inv-talla-nom" placeholder="Talla (ej: 3M)" style="flex:1;padding:7px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;"><input type="number" class="inv-talla-cant" placeholder="Cant." min="0" style="width:80px;padding:7px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;"><button onclick="this.parentElement.remove()" style="background:#e74c3c;color:white;border:none;border-radius:8px;padding:7px 10px;cursor:pointer;font-weight:700;">✕</button>';
-            cont.appendChild(div);
+        var INV_GRUPOS_TALLAS = [
+            { titulo: 'Bebes 0M a 36M', tallas: ['0M','3M','6M','9M','12M','18M','24M','36M'] },
+            { titulo: 'Ninos 2T a 10T', tallas: ['2T','3T','4T','5T','6T','7T','8T','9T','10T'] },
+            { titulo: 'Juvenil 11T a 16T', tallas: ['11T','12T','13T','14T','15T','16T'] }
+        ];
+
+        function renderizarTallasInventario(valores) {
+            var cont = document.getElementById('inv-tallas-cont');
+            if (!cont) return;
+            valores = valores || {};
+            cont.innerHTML = INV_GRUPOS_TALLAS.map(function(grupo, idx) {
+                var campos = grupo.tallas.map(function(talla) {
+                    var valor = valores[talla] || '';
+                    return '<label class="inv-fila-talla" style="display:grid;grid-template-columns:42px minmax(58px,76px);align-items:center;gap:5px;background:white;border:1px solid #c8f1d8;border-radius:8px;padding:5px 6px;">'
+                        + '<span class="inv-talla-nom" data-talla="'+talla+'" style="font-size:0.76em;font-weight:900;color:#1a6636;text-align:center;">'+talla+'</span>'
+                        + '<input type="number" class="inv-talla-cant" data-talla="'+talla+'" value="'+valor+'" placeholder="0" min="0" inputmode="numeric" style="width:100%;padding:5px 4px;border:1.4px solid #a8e6c1;border-radius:7px;font-family:Nunito,sans-serif;font-size:0.82em;font-weight:800;text-align:center;">'
+                        + '</label>';
+                }).join('');
+                return '<details '+(idx===0?'open':'')+' style="background:#f8fffb;border:1.5px solid #a8e6c1;border-radius:10px;margin-bottom:7px;overflow:hidden;">'
+                    + '<summary style="cursor:pointer;list-style:none;padding:8px 10px;background:#e8f8ef;color:#1a6636;font-size:0.82em;font-weight:900;display:flex;justify-content:space-between;align-items:center;">'
+                    + '<span>'+grupo.titulo+'</span><span style="font-size:0.78em;color:#56836a;">'+grupo.tallas.length+' tallas</span></summary>'
+                    + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(106px,1fr));gap:6px;padding:8px;">'+campos+'</div>'
+                    + '</details>';
+            }).join('');
         }
+
+        function obtenerTallasInventarioFormulario() {
+            var tallasArr = [];
+            document.querySelectorAll('#inv-tallas-cont .inv-talla-cant').forEach(function(input) {
+                var talla = input.dataset.talla || '';
+                var cant = parseInt(input.value, 10) || 0;
+                if (talla && cant > 0) tallasArr.push({ talla: talla, cantidad: cant });
+            });
+            return tallasArr;
+        }
+
+        function limpiarTallasInventario() {
+            renderizarTallasInventario();
+        }
+
+        function agregarFilaTallaInv() {
+            renderizarTallasInventario();
+        }
+
+        setTimeout(function(){ renderizarTallasInventario(); }, 0);
 
         async function guardarEntradaInventario() {
             const fecha = document.getElementById('inv-fecha').value;
@@ -5431,12 +5476,13 @@ table{width:100%;border-collapse:collapse}
                 return;
             }
 
-            let tallasArr = [];
-            document.querySelectorAll('.inv-fila-talla').forEach(f => {
-                let nom = f.querySelector('.inv-talla-nom').value.trim();
-                let cant = parseInt(f.querySelector('.inv-talla-cant').value) || 0;
-                if (nom) tallasArr.push({ talla: nom, cantidad: cant });
-            });
+            let tallasArr = obtenerTallasInventarioFormulario();
+            if (tallasArr.length === 0) {
+                msg.style.color = '#e74c3c';
+                msg.textContent = 'Ingresa al menos una talla con cantidad';
+                msg.style.display = 'block';
+                return;
+            }
 
             const entrada = {
                 fecha, ref, desc,
@@ -5459,7 +5505,7 @@ table{width:100%;border-collapse:collapse}
                 document.getElementById('inv-desc').value = '';
                 document.getElementById('inv-valor').value = '';
                 document.getElementById('inv-obs').value = '';
-                document.getElementById('inv-tallas-cont').innerHTML = '<div class="inv-fila-talla" style="display:flex;gap:6px;margin-bottom:6px;"><input type="text" class="inv-talla-nom" placeholder="Talla (ej: 0M)" style="flex:1;padding:7px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;"><input type="number" class="inv-talla-cant" placeholder="Cant." min="0" style="width:80px;padding:7px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;"><button onclick="this.parentElement.remove()" style="background:#e74c3c;color:white;border:none;border-radius:8px;padding:7px 10px;cursor:pointer;font-weight:700;">✕</button></div>';
+                limpiarTallasInventario();
                 cargarHistorialInventario();
                 setTimeout(() => { msg.style.display = 'none'; }, 3000);
             } catch(e) {
@@ -5737,83 +5783,111 @@ table{width:100%;border-collapse:collapse}
         async function exportarInventarioPDF() {
             try {
                 const data = await obtenerTodosInventario();
-                const entradas = (data.entradas||[]).slice().sort(function(a,b){ return (a.timestamp||0)-(b.timestamp||0); });
+                const entradas = (data.entradas||[]).slice().sort(function(a,b){ return (b.timestamp||0)-(a.timestamp||0); });
                 var hoy = new Date().toLocaleDateString('es-CO');
-                var totalEntradas = entradas.reduce(function(s,e){ return s+(e.tallas||[]).reduce(function(ss,t){ return ss+(t.cantidad||0); },0); }, 0);
-                var totalValor = entradas.reduce(function(s,e){ return s+(e.valor||0); }, 0);
+                function esc(v) {
+                    return String(v == null ? '' : v).replace(/[&<>"']/g, function(s) {
+                        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s];
+                    });
+                }
+                function ordenarTallas(tallas) {
+                    var orden = ['RN','0M','3M','6M','9M','12M','18M','24M','36M','2T','3T','4T','5T','6T','7T','8T','9T','10T','11T','12T','13T','14T','15T','16T'];
+                    return (tallas||[]).slice().sort(function(a,b){
+                        var ia = orden.indexOf(String(a.talla||'').toUpperCase());
+                        var ib = orden.indexOf(String(b.talla||'').toUpperCase());
+                        if (ia === -1) ia = 999;
+                        if (ib === -1) ib = 999;
+                        return ia - ib || String(a.talla||'').localeCompare(String(b.talla||''));
+                    });
+                }
+                function chipTalla(talla, cant, idx) {
+                    var colores = [
+                        {bg:'#fff7cc',border:'#fde68a',txt:'#92400e'},
+                        {bg:'#dbeafe',border:'#93c5fd',txt:'#1d4ed8'},
+                        {bg:'#dcfce7',border:'#86efac',txt:'#166534'},
+                        {bg:'#f3e8ff',border:'#c4b5fd',txt:'#6d28d9'}
+                    ];
+                    var c = colores[idx % colores.length];
+                    return '<span class="talla-chip" style="background:'+c.bg+';border-color:'+c.border+';color:'+c.txt+';">'
+                        + esc(talla) + '<b>'+Number(cant||0).toLocaleString('es-CO')+'</b></span>';
+                }
 
-                // Recopilar todas las tallas en orden estándar
-                var tallaOrden = ['0M','3M','6M','9M','12M','18M','24M','36M','2T','3T','4T','5T','6T'];
-                var todasTallas = new Set();
-                entradas.forEach(function(e){ (e.tallas||[]).forEach(function(t){ todasTallas.add(t.talla); }); });
-                var tallasCol = tallaOrden.filter(function(t){ return todasTallas.has(t); });
-                todasTallas.forEach(function(t){ if(tallasCol.indexOf(t)===-1) tallasCol.push(t); });
-
-                // Encabezados de tallas — pares Talla | Cant
-                var thTallas = tallasCol.map(function(t){
-                    return '<th style="background:#d4edda;color:#155724;border:1px solid #a8e6c1;padding:5px;text-align:center;">'+t+'</th>';
-                }).join('');
-
-                // Fila por producto (1 sola fila, tallas en columnas)
-                var filas = '';
-                entradas.forEach(function(e, idx) {
-                    var stockMap = {};
-                    (e.tallas||[]).forEach(function(t){ stockMap[t.talla] = t.cantidad||0; });
-                    var totalUnd = (e.tallas||[]).reduce(function(s,t){ return s+(t.cantidad||0); },0);
-                    var bg = idx%2===0 ? '#fff' : '#f9f9f9';
-                    var celdas = tallasCol.map(function(t){
-                        var c = stockMap[t];
-                        return '<td style="text-align:center;border:1px solid #ddd;padding:4px;font-weight:'+(c?'700':'400')+';color:'+(c?'#1a6636':'#ccc')+';">'+(c!==undefined?c:'-')+'</td>';
-                    }).join('');
-                    filas += '<tr style="background:'+bg+';">'
-                        + '<td style="border:1px solid #ddd;padding:5px;white-space:nowrap;">'+( e.fecha||'-')+'</td>'
-                        + '<td style="border:1px solid #ddd;padding:5px;font-weight:700;">'+( e.ref||'-')+'</td>'
-                        + '<td style="border:1px solid #ddd;padding:5px;">'+( e.desc||'-')+'</td>'
-                        + '<td style="border:1px solid #ddd;padding:5px;white-space:nowrap;">$'+Number(e.valor||0).toLocaleString('es-CO')+'</td>'
-                        + celdas
-                        + '<td style="border:1px solid #ddd;padding:5px;text-align:center;font-weight:800;color:#1a6636;">'+totalUnd+'</td>'
-                        + '<td style="border:1px solid #ddd;padding:5px;font-size:10px;">'+( e.registradoPor||'-')+'</td>'
-                        + '</tr>';
+                var entradasProcesadas = entradas.map(function(e) {
+                    var tallas = ordenarTallas((e.tallas||[]).filter(function(t){ return Number(t.cantidad||0) > 0; }));
+                    var totalUnd = tallas.reduce(function(s,t){ return s + Number(t.cantidad||0); }, 0);
+                    return Object.assign({}, e, { tallasValidas: tallas, totalUnd: totalUnd });
+                });
+                var totalEntradas = entradasProcesadas.reduce(function(s,e){ return s + e.totalUnd; }, 0);
+                var totalValor = entradasProcesadas.reduce(function(s,e){ return s + (Number(e.valor||0) * e.totalUnd); }, 0);
+                var grupos = {};
+                entradasProcesadas.forEach(function(e) {
+                    var fecha = e.fecha || 'Sin fecha';
+                    if (!grupos[fecha]) grupos[fecha] = [];
+                    grupos[fecha].push(e);
                 });
 
-                // Fila de totales por talla
-                var totCeldas = tallasCol.map(function(t){
-                    var sum = entradas.reduce(function(s,e){
-                        var f = (e.tallas||[]).find(function(x){ return x.talla===t; });
-                        return s+(f?f.cantidad||0:0);
-                    },0);
-                    return '<td style="border:1px solid #a8e6c1;padding:5px;text-align:center;font-weight:800;background:#d4edda;">'+sum+'</td>';
-                }).join('');
+                var filas = '';
+                Object.keys(grupos).forEach(function(fecha) {
+                    var items = grupos[fecha];
+                    var undFecha = items.reduce(function(s,e){ return s + e.totalUnd; }, 0);
+                    filas += '<tr><td colspan="4" class="grupo">Entrada '+esc(fecha)
+                        + '<span>'+items.length+' ref - '+undFecha+' und</span></td></tr>';
+                    items.forEach(function(e, idx) {
+                        var chips = e.tallasValidas.length
+                            ? e.tallasValidas.map(function(t, i){ return chipTalla(t.talla, t.cantidad, i); }).join('')
+                            : '<span class="sin-tallas">Sin cantidades registradas</span>';
+                        filas += '<tr class="'+(idx%2===0?'par':'impar')+'">'
+                            + '<td class="codigo">'+esc(e.ref || '-')
+                            + '<small>$'+Number(e.valor||0).toLocaleString('es-CO')+' c/u</small></td>'
+                            + '<td class="producto">'+esc(e.desc || '-')
+                            + (e.obs ? '<small>'+esc(e.obs)+'</small>' : '')+'</td>'
+                            + '<td class="tallas">'+chips+'</td>'
+                            + '<td class="total">'+Number(e.totalUnd||0).toLocaleString('es-CO')+'</td>'
+                            + '</tr>';
+                    });
+                });
+                if (!filas) {
+                    filas = '<tr><td colspan="4" class="vacio">No hay entradas registradas.</td></tr>';
+                }
 
-                var html = '<html><head><meta charset="UTF-8"><style>'
-                    + '@page{size:landscape;margin:10mm}'
-                    + 'body{font-family:Arial,sans-serif;font-size:10px;color:#333;padding:10px;}'
-                    + 'h1{color:#c0557a;text-align:center;margin-bottom:2px;font-size:16px;}'
-                    + '.fecha{text-align:center;color:#888;font-size:10px;margin-bottom:12px;}'
-                    + 'table{width:100%;border-collapse:collapse;}'
-                    + 'th{padding:6px 5px;text-align:left;font-size:10px;border:1px solid #a8e6c1;background:#f0faf4;color:#1a6636;}'
-                    + '.totales{background:#d4edda;border-radius:6px;padding:8px 12px;margin-top:10px;font-size:11px;}'
+                var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Entradas de Mercancia - SuperKids&Babys</title><style>'
+                    + '@page{size:auto;margin:9mm}'
+                    + 'body{font-family:Nunito,Arial,sans-serif;color:#222;padding:16px;font-size:12px;}'
+                    + '.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px;}'
+                    + 'h1{color:#7e22ce;font-size:1.35em;margin:0 0 4px;font-weight:900;}'
+                    + '.sub{color:#777;font-size:.86em;}'
+                    + 'button{background:#7e22ce;color:white;border:0;border-radius:8px;padding:9px 16px;font-weight:900;font-size:.92em;cursor:pointer;}'
+                    + '.resumen{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px;}'
+                    + '.resumen span{background:#f3e8ff;border:1px solid #d8b4fe;color:#7e22ce;border-radius:8px;padding:6px 12px;font-weight:900;font-size:.92em;}'
+                    + 'table{width:100%;border-collapse:collapse;font-size:.86em;}'
+                    + 'th{background:#7e22ce;color:white;text-align:left;padding:7px 10px;font-weight:900;}'
+                    + 'th:last-child{text-align:right;}'
+                    + 'td{border:1px solid #ead7ff;padding:6px 10px;vertical-align:top;}'
+                    + '.grupo{background:linear-gradient(135deg,#7e22ce,#9333ea);color:white;font-weight:900;font-size:.9em;padding:7px 12px;}'
+                    + '.grupo span{float:right;font-weight:700;opacity:.92;}'
+                    + '.par{background:#fff;}.impar{background:#fbf6ff;}'
+                    + '.codigo{width:110px;color:#7e22ce;font-weight:900;}'
+                    + '.producto{font-weight:800;}'
+                    + 'small{display:block;color:#777;font-weight:700;font-size:.78em;margin-top:2px;line-height:1.25;}'
+                    + '.tallas{line-height:1.8;}'
+                    + '.talla-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid;border-radius:18px;padding:2px 8px;margin:1px 3px 1px 0;font-size:.86em;font-weight:900;white-space:nowrap;}'
+                    + '.talla-chip b{background:white;border-radius:9px;padding:0 5px;color:#444;}'
+                    + '.sin-tallas,.vacio{color:#999;font-weight:800;font-size:.9em;}'
+                    + '.total{text-align:right;color:#7e22ce;font-weight:900;font-size:1.05em;width:70px;}'
+                    + '.pie{margin-top:10px;background:#f3e8ff;border:1px solid #d8b4fe;border-radius:8px;padding:8px 12px;color:#7e22ce;font-weight:900;font-size:.95em;}'
+                    + '@media print{body{padding:4px;font-size:11px;}button{display:none;}td{padding:4px 7px;}th{padding:6px 8px;}.resumen span{padding:5px 9px;}}'
                     + '</style></head><body>'
-                    + '<h1>SuperKids &amp; Babys</h1>'
-                    + '<div class="fecha">Reporte de Inventario &middot; '+hoy+' &middot; '+entradas.length+' registros</div>'
-                    + '<table><thead><tr>'
-                    + '<th>Fecha</th><th>Ref.</th><th>Descripcion</th><th>Valor</th>'
-                    + thTallas
-                    + '<th style="background:#d4edda;color:#155724;border:1px solid #a8e6c1;text-align:center;">Total</th>'
-                    + '<th>Registrado</th>'
-                    + '</tr></thead><tbody>'
+                    + '<div class="top"><div><h1>Entradas de Mercancia - SuperKids&Babys</h1>'
+                    + '<div class="sub">Fecha: '+esc(hoy)+' - Fuente: entradas registradas</div></div>'
+                    + '<button onclick="window.print()">Imprimir / PDF</button></div>'
+                    + '<div class="resumen"><span>'+entradasProcesadas.length+' referencias</span><span>'+totalEntradas.toLocaleString('es-CO')+' unidades</span><span>$'+totalValor.toLocaleString('es-CO')+' estimado</span></div>'
+                    + '<table><thead><tr><th>Codigo</th><th>Producto</th><th>Tallas recibidas</th><th>Total</th></tr></thead><tbody>'
                     + filas
-                    + '<tr style="background:#d4edda;font-weight:800;">'
-                    + '<td colspan="4" style="border:1px solid #a8e6c1;padding:5px;text-align:right;">TOTAL GENERAL</td>'
-                    + totCeldas
-                    + '<td style="border:1px solid #a8e6c1;padding:5px;text-align:center;font-weight:800;">'+totalEntradas+'</td>'
-                    + '<td style="border:1px solid #a8e6c1;"></td>'
-                    + '</tr>'
                     + '</tbody></table>'
-                    + '<div class="totales">Total unidades: <b>'+totalEntradas+'</b> &nbsp;|&nbsp; Valor total: <b>$'+totalValor.toLocaleString('es-CO')+'</b></div>'
+                    + '<div class="pie">Total general: '+totalEntradas.toLocaleString('es-CO')+' unidades recibidas - Valor estimado: $'+totalValor.toLocaleString('es-CO')+'</div>'
                     + '</body></html>';
 
-                var w = window.open('', '_blank');
+                var w = window.open('', '_blank', 'width=1000,height=700');
                 w.document.write(html);
                 w.document.close();
                 setTimeout(function(){ w.print(); }, 600);
