@@ -891,6 +891,96 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         /* Papelera por producto */
         .tp-btn-del-prod { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 0.95em; padding: 2px 4px; border-radius: 4px; opacity: 0.6; flex-shrink: 0; }
         .tp-btn-del-prod:hover { opacity: 1; background: #fde8e8; }
+        .cliente-detalle-cerrar { display: none; }
+        @media (max-width: 640px) {
+            #tab-clientes .seccion-admin-sub {
+                padding: 10px !important;
+                border-radius: 10px !important;
+                overflow: hidden !important;
+            }
+            #tab-clientes h3 { font-size: 1.02em !important; }
+            #tab-clientes p { font-size: 0.78em !important; }
+            #clientes-resumen {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 7px !important;
+                margin-bottom: 10px !important;
+            }
+            #clientes-resumen > div {
+                padding: 8px !important;
+                min-width: 0 !important;
+            }
+            #clientes-resumen > div > div:first-child {
+                font-size: 0.58em !important;
+                line-height: 1.15 !important;
+            }
+            #clientes-resumen > div > div:last-child {
+                font-size: 1em !important;
+            }
+            #clientes-buscar,
+            #clientes-filtro {
+                width: 100% !important;
+                min-width: 0 !important;
+                box-sizing: border-box !important;
+                font-size: 0.82em !important;
+                padding: 9px 10px !important;
+            }
+            .clientes-layout {
+                display: block !important;
+            }
+            .clientes-lista {
+                width: 100% !important;
+                max-height: 620px !important;
+                overflow: auto !important;
+            }
+            .clientes-lista table {
+                min-width: 390px !important;
+                font-size: 0.76em !important;
+            }
+            .clientes-lista th,
+            .clientes-lista td {
+                padding: 8px 7px !important;
+            }
+            .clientes-lista th:nth-child(2),
+            .clientes-lista td:nth-child(2),
+            .clientes-lista th:nth-child(4),
+            .clientes-lista td:nth-child(4),
+            .clientes-lista th:nth-child(5),
+            .clientes-lista td:nth-child(5) {
+                display: none !important;
+            }
+            .clientes-lista td:first-child {
+                min-width: 165px !important;
+            }
+            .clientes-lista button {
+                padding: 6px 8px !important;
+                font-size: 0.78em !important;
+                border-radius: 7px !important;
+            }
+            #cliente-detalle {
+                display: none !important;
+                margin-top: 10px !important;
+                min-height: 0 !important;
+                padding: 10px !important;
+            }
+            #cliente-detalle.cliente-detalle-abierto {
+                display: block !important;
+            }
+            #cliente-detalle .cliente-detalle-cerrar {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: 8px;
+                background: #eef6ff;
+                color: #246b9b;
+                border: 1px solid #b8d7f0;
+                border-radius: 8px;
+                padding: 7px 10px;
+                font-size: 0.82em;
+                font-weight: 900;
+            }
+            #cliente-detalle h3 { font-size: 0.98em !important; }
+            #cliente-detalle h4 { font-size: 0.86em !important; }
+        }
     </style>
 </head>
 <body style="visibility: hidden;">
@@ -1463,8 +1553,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                             <option value="vip">VIP ($200.000+)</option>
                         </select>
                     </div>
-                    <div style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,0.8fr);gap:14px;align-items:start;">
-                        <div style="overflow:auto;border:1.5px solid #d7e8ff;border-radius:12px;background:white;max-height:620px;">
+                    <div class="clientes-layout" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,0.8fr);gap:14px;align-items:start;">
+                        <div class="clientes-lista" style="overflow:auto;border:1.5px solid #d7e8ff;border-radius:12px;background:white;max-height:620px;">
                             <table style="width:100%;border-collapse:collapse;font-family:Nunito,sans-serif;font-size:0.84em;">
                                 <thead style="position:sticky;top:0;background:#eff6ff;color:#246b9b;z-index:1;">
                                     <tr>
@@ -6347,7 +6437,7 @@ ${ped.comprobanteUrl ? `
                     '<td style="padding:10px;text-align:center;">' + (tel ? '<button onclick="event.stopPropagation();enviarWhatsAppCliente(\'' + c.key + '\',\'promo\')" style="background:#25d366;color:white;border:none;border-radius:8px;padding:7px 10px;font-weight:800;cursor:pointer;">WhatsApp</button>' : '-') + '</td>';
                 tbody.appendChild(tr);
             });
-            if (clientesGestionSeleccionado) mostrarDetalleClienteGestion(clientesGestionSeleccionado);
+            if (clientesGestionSeleccionado && !window.matchMedia('(max-width: 640px)').matches) mostrarDetalleClienteGestion(clientesGestionSeleccionado);
         }
 
         function obtenerClienteGestionPorKey(key) {
@@ -6359,6 +6449,7 @@ ${ped.comprobanteUrl ? `
             const cont = document.getElementById('cliente-detalle');
             if (!cont || !c) return;
             clientesGestionSeleccionado = key;
+            cont.classList.add('cliente-detalle-abierto');
             const pedidos = c.pedidos.slice().sort(compararPedidosRecientes);
             const productos = {};
             pedidos.forEach(p => (p.items || []).forEach(i => {
@@ -6367,6 +6458,7 @@ ${ped.comprobanteUrl ? `
             }));
             const topProductos = Object.keys(productos).sort((a,b)=>productos[b]-productos[a]).slice(0, 5);
             cont.innerHTML =
+                '<button class="cliente-detalle-cerrar" onclick="cerrarDetalleClienteGestion()">Volver a la lista</button>' +
                 '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">' +
                     '<div><h3 style="margin:0;color:#1d2939;">' + (c.nom || 'Cliente') + '</h3>' +
                     '<p style="margin:4px 0;color:#667085;font-size:0.86em;">' + [c.cc ? 'CC ' + c.cc : '', c.tel, c.ciudad].filter(Boolean).join(' · ') + '</p></div>' +
@@ -6395,6 +6487,12 @@ ${ped.comprobanteUrl ? `
                 }).join('') + '</div>';
         }
 
+        function cerrarDetalleClienteGestion() {
+            const cont = document.getElementById('cliente-detalle');
+            if (cont) cont.classList.remove('cliente-detalle-abierto');
+            clientesGestionSeleccionado = null;
+        }
+
         function mensajeWhatsAppCliente(cliente, tipo) {
             const nombre = (cliente.nom || 'Hola').split(' ')[0];
             if (tipo === 'gracias') return 'Hola ' + nombre + ', muchas gracias por tu compra en SuperKids & Babys. Nos encanto atenderte. Si necesitas otra tallita o quieres ver novedades, con gusto te ayudamos.';
@@ -6413,7 +6511,8 @@ ${ped.comprobanteUrl ? `
             const clientes = filtrarClientesGestion(construirBaseClientesDesdePedidos());
             const filas = [['Nombre','Cedula','Telefono','Correo','Ciudad','Barrio','Direccion','Pedidos','Prendas','Total','Ultima compra']];
             clientes.forEach(c => filas.push([c.nom,c.cc,c.tel,c.correo,c.ciudad,c.barrio,c.dir,c.pedidos.length,c.prendas,c.total,etiquetaUltimaCompra(c)]));
-            const csv = filas.map(row => row.map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(',')).join('\n');
+            const sep = ';';
+            const csv = '\ufeffsep=;\r\n' + filas.map(row => row.map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(sep)).join('\r\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
@@ -6525,7 +6624,7 @@ ${ped.comprobanteUrl ? `
             'filtrarPorTalla','filtrarVistaPedidos','guardarDatosTienda','guardarEdicionEntrada',
             'guardarEdicionProducto','guardarEntradaInventario','imprimirFactura','moverCategoria',
             'moverCategoriaVisual','procesarOrdenWA','procesarYAgregarProducto','renderizarClientesGestion',
-            'enviarWhatsAppCliente','mostrarDetalleClienteGestion','renombrarCategoria',
+            'cerrarDetalleClienteGestion','enviarWhatsAppCliente','mostrarDetalleClienteGestion','renombrarCategoria',
             'renombrarCategoriaVisual','resetearOrdenEnFirebase','seleccionarTallaChip','seleccionarTema',
             'seleccionarTextura','subirFotosNuevasEdit','toggleAcordeon','toggleAdmin','togglePromociones'
         ].forEach(nombre => {
