@@ -470,6 +470,29 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         .etiqueta-descuento { position: absolute; top: 10px; left: 10px; background-color: var(--color-etiqueta-desc, #e74c3c); color: var(--color-etiqueta-desc-texto, white); opacity: var(--opacidad-etiqueta-desc, 1); padding: 4px 10px; border-radius: 6px; font-weight: 900; font-size: 0.88em; z-index: 10; box-shadow: 0 3px 10px rgba(231,76,60,0.45), 0 1px 3px rgba(0,0,0,0.15); letter-spacing: 0.3px; }
         .etiqueta-custom { position: absolute; top: 10px; right: 10px; background-color: var(--color-etiqueta-custom, var(--color-banner)); color: var(--color-etiqueta-custom-texto, var(--color-texto-banner)); opacity: var(--opacidad-etiqueta-custom, 0.95); padding: 4px 10px; border-radius: 6px; font-weight: 800; font-size: 0.8em; z-index: 10; box-shadow: 0 3px 10px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.1); backdrop-filter: blur(4px); }
+        @media (max-width: 520px) {
+            .etiqueta-descuento {
+                top: 6px; left: 6px;
+                font-size: 0.58em;
+                padding: 2px 5px;
+                border-radius: 6px;
+                letter-spacing: 0;
+                line-height: 1.1;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.16);
+            }
+            .etiqueta-custom {
+                top: 6px; right: 6px;
+                max-width: 44%;
+                font-size: 0.52em;
+                padding: 2px 5px;
+                border-radius: 6px;
+                line-height: 1.08;
+                letter-spacing: 0;
+                text-align: right;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.14);
+                backdrop-filter: blur(3px);
+            }
+        }
 
         .galeria-miniaturas { display: flex; gap: 4px; padding: 8px 10px 0 10px; overflow-x: auto; }
         .thumb { width: 40px; height: 40px; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 6px; cursor: pointer; border: 2px solid transparent; opacity: 0.7; transition: 0.2s;}
@@ -490,6 +513,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         .chip-talla.agotada { opacity: 0.4; cursor: not-allowed; background: #f9f9f9; text-decoration: line-through; color: #aaa; border-color: #eee;}
 
         .btn-agregar { background: var(--color-btn-carrito, linear-gradient(135deg, #ff80c8, #ff4db8)); color: var(--color-btn-carrito-texto, white); border: none; padding: 10px; border-radius: 20px; cursor: pointer; width: 100%; font-weight: 800; font-size: 0.85em; margin-top: auto; box-shadow: 0 4px 12px rgba(255,77,184,0.3); transition: all 0.25s ease; letter-spacing: 0.3px; }
+        .btn-agregar.bloqueado-nueva { background:#b8c0cc !important; color:white !important; cursor:not-allowed !important; box-shadow:none !important; }
+        .btn-nueva-coleccion { background:#fff7ed; color:#b45309; border:2px solid #f59e0b; padding:8px 16px; border-radius:22px; cursor:pointer; font-size:0.9em; font-weight:900; transition:0.2s; font-family:Nunito,sans-serif; white-space:nowrap; }
+        .btn-nueva-coleccion:hover { transform:translateY(-1px); box-shadow:0 4px 10px rgba(245,158,11,0.18); }
+        .btn-nueva-coleccion.activo { background:#f59e0b; color:white; }
         .btn-agregar:hover { background: linear-gradient(135deg, #ff4db8, #e0008e); box-shadow: 0 6px 18px rgba(255,0,150,0.45); transform: translateY(-2px) scale(1.02); }
 
         .acciones-admin-prod { display: flex; gap: 5px; margin-top: 6px; }
@@ -1302,7 +1329,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <div style="background:#fff0f8; border:1px solid #f9c; border-radius:10px; padding:16px; margin-top:14px;">
                             <h4 style="margin:0 0 14px; color:#c0397a;">🛒 Botón Carrito &amp; Etiqueta Descuento</h4>
 
-                            <p style="font-size:0.85em; font-weight:bold; color:#555; margin:0 0 6px;">🎀 Color del botón "Añadir al Carrito":</p>
+                            <p style="font-size:0.85em; font-weight:bold; color:#555; margin:0 0 6px;">🎀 Color del botón "AñA?adir al Carrito":</p>
                             <div style="display:flex; gap:10px; align-items:center; margin-bottom:14px;">
                                 <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Color fondo</label><input type="color" id="edit-color-btn-carrito" value="#ff4db8" oninput="actualizarBtnCarritoVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
                                 <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Color texto</label><input type="color" id="edit-color-btn-carrito-texto" value="#ffffff" oninput="actualizarBtnCarritoVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
@@ -1324,6 +1351,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                             <label style="font-size:0.8em; color:#666;">Transparencia</label>
                             <input type="range" id="edit-opacidad-etiqueta-custom" min="0.1" max="1" step="0.05" value="0.95" oninput="actualizarEtiquetaCustomVivo()" style="width:100%; margin-top:4px;">
                             <span id="demo-opacidad-etiqueta-custom" style="font-size:0.78em; color:#888;">60%</span>
+                            <div style="margin-top:14px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:12px;">
+                                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:900;color:#9a3412;font-size:0.9em;">
+                                    <input type="checkbox" id="edit-nueva-coleccion-carrito" onchange="actualizarNuevaColeccionCarrito()" style="width:18px;height:18px;accent-color:#f59e0b;">
+                                    Activar carrito en Nueva Coleccion
+                                </label>
+                                <p id="estado-nueva-coleccion-carrito" style="margin:6px 0 0;color:#9a3412;font-size:0.78em;font-weight:700;">Si esta apagado, las prendas se ven pero no se pueden comprar.</p>
+                            </div>
 
                         </div>
 
@@ -1609,6 +1643,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <span>Tallas</span>
                     <span class="ft-flecha">▼</span>
                 </button>
+                <button class="btn-nueva-coleccion" id="btn-toggle-nueva-coleccion" onclick="toggleNuevaColeccion()">Nueva Coleccion</button>
             </div>
             <div class="panel-acordeon" id="panel-cat">
                 <div class="panel-acordeon-inner">
@@ -1866,12 +1901,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             titulo: "SuperKids & Babys", desc: "Calidad • Amor • Ternura", whatsapp: "573000000000",
             temaActivo: "SuperKids Lila", colorBanner: "#d1b3e8", colorFondo: "#fcf7f0",
             colorTarjeta: "#ffffff", colorTexto: "#4a4a4a", colorTextoPersonalizado: "#4a4a4a",
+            nuevaColeccionCarritoActivo: false,
             sizeTitulo: 42, sizeDesc: 18, categorias: ["Enterizos", "Conjuntos", "Vestidos"],
             ninas: { temaActivo: "SuperKids Lila", colorBanner: "#d1b3e8", colorFondo: "#fcf7f0", colorTarjeta: "#ffffff", colorTexto: "#4a4a4a", colorTextoPersonalizado: "#4a4a4a" },
             ninos: { temaActivo: "SuperKids Mint", colorBanner: "#a8e0d5", colorFondo: "#f0fdf9", colorTarjeta: "#ffffff", colorTexto: "#4a4a4a", colorTextoPersonalizado: "#4a4a4a" }
         });
         if (!config.ninas) config.ninas = { temaActivo: "SuperKids Lila", colorBanner: "#d1b3e8", colorFondo: "#fcf7f0", colorTarjeta: "#ffffff", colorTexto: "#4a4a4a", colorTextoPersonalizado: "#4a4a4a" };
         if (!config.ninos) config.ninos = { temaActivo: "SuperKids Mint", colorBanner: "#a8e0d5", colorFondo: "#f0fdf9", colorTarjeta: "#ffffff", colorTexto: "#4a4a4a", colorTextoPersonalizado: "#4a4a4a" };
+        if (typeof config.nuevaColeccionCarritoActivo === 'undefined') config.nuevaColeccionCarritoActivo = false;
 
         let dbGuardada = safeParse('productosV36') || safeParse('productosV35') || safeParse('productosV34') || safeParse('productosV33') || safeParse('productosV25');
         const CLAVE_PRODUCTOS_ELIMINADOS = 'productosEliminadosV1';
@@ -1922,7 +1959,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         let carrito = [], modoEdicion = false, filtroActual = 'Todos', generoActual = 'Niñas', modoCollage = true;
         window._setModoEdicion = function(val) { modoEdicion = val; if(typeof renderizarCatalogo === 'function') renderizarCatalogo(); };
-        let vistaPedidosActual = 'nuevo', tallaFiltroActual = 'Todas', soloPromociones = false;
+        let vistaPedidosActual = 'nuevo', tallaFiltroActual = 'Todas', soloPromociones = false, soloNuevaColeccion = false;
         let unsubscribePedidosFirebase = null;
         let snapshotPedidosInicialCargado = false;
         let pedidosConocidosNotificacion = new Set();
@@ -1990,7 +2027,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 if (prod.tallasObj && prod.tallasObj.length > 0) {
                     tallasChips = `<div class="contenedor-tallas-chips" id="contenedor-tallas-${prod.id}">${prod.tallasObj.map(t => `<span class="chip-talla${t.stock<=0?' agotada':''}" onclick="seleccionarTallaChip('${prod.id}',this,${t.stock<=0})">${t.nombre}${t.stock<=0?' (agotada)':''}</span>`).join('')}</div>`;
                 }
-                const btnAgregar = `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>`;
+                const btnAgregar = `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">AñA?adir al Carrito</button>`;
                 const botonesAdmin = (modoEdicion || (window.usuarioActual && window.usuarioActual.editarPrecio))
                     ? `<div class="acciones-admin-prod" style="display:flex"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button>${modoEdicion?`<button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button>`:''}</div>`
                     : '';
@@ -2554,6 +2591,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     document.getElementById('edit-opacidad-etiqueta-custom').value = opC;
                     document.getElementById('demo-opacidad-etiqueta-custom').innerText = Math.round(opC * 100) + '%';
                     document.getElementById('demo-opacidad-etiqueta').innerText = Math.round(op * 100) + '%';
+                    const chkNuevaColeccion = document.getElementById('edit-nueva-coleccion-carrito');
+                    if (chkNuevaColeccion) chkNuevaColeccion.checked = !!config.nuevaColeccionCarritoActivo;
+                    actualizarEstadoNuevaColeccionCarrito();
                     if (document.getElementById('edit-color-cat-fondo')) {
                         document.getElementById('edit-color-cat-fondo').value = cfg.colorCategoriaFondo || '#ffffff';
                         document.getElementById('edit-color-cat-texto').value = cfg.colorCategoriaTexto || cfg.colorBanner || '#c0397a';
@@ -2804,6 +2844,23 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 else { rej("Error de Cloudinary: " + JSON.stringify(data)); }
             } catch(err) { rej("Fallo en la subida: " + err); }
         });
+        function actualizarEstadoNuevaColeccionCarrito() {
+            const estado = document.getElementById('estado-nueva-coleccion-carrito');
+            const chk = document.getElementById('edit-nueva-coleccion-carrito');
+            if (!estado || !chk) return;
+            estado.textContent = chk.checked
+                ? 'Carrito activo: las prendas de Nueva Coleccion ya se pueden comprar.'
+                : 'Carrito bloqueado: las prendas se ven, pero el boton queda en Proximamente.';
+        }
+
+        async function actualizarNuevaColeccionCarrito() {
+            const chk = document.getElementById('edit-nueva-coleccion-carrito');
+            if (!chk) return;
+            config.nuevaColeccionCarritoActivo = !!chk.checked;
+            actualizarEstadoNuevaColeccionCarrito();
+            await persistirConfigTiendaSilencioso();
+            renderizarCatalogo();
+        }
 
         async function guardarDatosTienda() {
             if (window.datosQuemados) return alert("Estás en la versión pública.");
@@ -2818,6 +2875,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 config.titulo = document.getElementById('edit-titulo').value;
                 config.desc = document.getElementById('edit-desc').value;
                 config.whatsapp = document.getElementById('edit-whatsapp').value;
+                config.nuevaColeccionCarritoActivo = !!(document.getElementById('edit-nueva-coleccion-carrito') && document.getElementById('edit-nueva-coleccion-carrito').checked);
                 // Guardar en localStorage como caché
                 localStorage.setItem('tiendaConfigV36', JSON.stringify(config));
                 // Guardar en Firestore — fuente de verdad principal
@@ -3103,6 +3161,18 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             // Válida si tiene formato de talla: número, número+letra (M/T/A), o "Talla Única"/"RN"
             return /^\d+\s*(M|T|A)?$/i.test(limpio) || limpio === 'RN' || limpio === 'ÚNICA' || limpio === 'UNICA';
         }
+        function textoNormalizadoNuevaColeccion(valor) {
+            return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        }
+
+        function esProductoNuevaColeccion(prod) {
+            const etiqueta = textoNormalizadoNuevaColeccion(prod && prod.etiquetaPersonalizada);
+            return etiqueta.includes('nueva coleccion') || etiqueta.includes('nueva collection');
+        }
+
+        function nuevaColeccionCarritoActivo() {
+            return !!(config && config.nuevaColeccionCarritoActivo);
+        }
 
         function renderizarFiltroTallas() {
             const menuTallas = document.getElementById('menu-tallas');
@@ -3122,14 +3192,16 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
                 return a.localeCompare(b);
             });
-            if (arrTallas.length === 0) { menuTallas.innerHTML = ""; return; }
+            if (arrTallas.length === 0) { menuTallas.innerHTML = ""; let btnNuevaVacio = document.getElementById('btn-toggle-nueva-coleccion'); if (btnNuevaVacio) btnNuevaVacio.classList.toggle('activo', !!soloNuevaColeccion); return; }
             let cfg2 = esGeneroNinas(generoActual) ? config.ninas : config.ninos;
             let nombrePromo = (cfg2 && cfg2.nombreBtnPromo) || 'Promociones';
             let colorPromo = (cfg2 && cfg2.colorBtnPromo) || '#ff4db8';
             let colorPromoTxt = (cfg2 && cfg2.colorBtnPromoTexto) || '#fff';
             let opacidadPromo = (cfg2 && cfg2.opacidadBtnPromo) || 1;
-            let activaTodas = (tallaFiltroActual === 'Todas' && !soloPromociones) ? 'activo' : '';
+            let activaTodas = (tallaFiltroActual === 'Todas' && !soloPromociones && !soloNuevaColeccion) ? 'activo' : '';
             let activaPromo = soloPromociones ? 'activo-promo' : '';
+            let btnNueva = document.getElementById('btn-toggle-nueva-coleccion');
+            if (btnNueva) btnNueva.classList.toggle('activo', !!soloNuevaColeccion);
             let html = `<button class="btn-talla-f ${activaTodas}" onclick="filtrarPorTalla('Todas')">Todas</button>`;
             let colorPromoBanner = cfg2 ? cfg2.colorBanner : '#f5d6ed';
             let colorPromoFinal = colorPromo !== '#ff4db8' ? colorPromo : colorPromoBanner;
@@ -3140,13 +3212,24 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         function togglePromociones() {
             soloPromociones = !soloPromociones;
-            if (soloPromociones) tallaFiltroActual = 'Todas';
+            if (soloPromociones) { tallaFiltroActual = 'Todas'; soloNuevaColeccion = false; }
+            renderizarFiltroTallas();
+            renderizarCatalogo();
+        }
+
+        function toggleNuevaColeccion() {
+            soloNuevaColeccion = !soloNuevaColeccion;
+            if (soloNuevaColeccion) {
+                soloPromociones = false;
+                tallaFiltroActual = 'Todas';
+                modoCollage = false;
+            }
             renderizarFiltroTallas();
             renderizarCatalogo();
         }
 
         function filtrarPorTalla(talla) { 
-            tallaFiltroActual = talla; soloPromociones = false;
+            tallaFiltroActual = talla; soloPromociones = false; soloNuevaColeccion = false;
             // cerrar panel tallas al seleccionar
             document.getElementById('panel-tal').classList.remove('abierto');
             document.getElementById('btn-toggle-tal').classList.remove('abierto');
@@ -3154,6 +3237,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
         window.filtrarPorTalla = filtrarPorTalla;
         window.togglePromociones = togglePromociones;
+        window.toggleNuevaColeccion = toggleNuevaColeccion;
 
         function agregarFilaTalla() {
             const div = document.createElement('div'); div.className = 'fila-talla';
@@ -3287,14 +3371,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
             btnVolver.disabled = false;
             btnVolver.onclick = () => {
-                filtroActual = 'Todos'; tallaFiltroActual = 'Todas'; soloPromociones = false; modoCollage = true;
+                filtroActual = 'Todos'; tallaFiltroActual = 'Todas'; soloPromociones = false; soloNuevaColeccion = false; modoCollage = true;
                 renderizarCategoriasAdminYPublic(); renderizarFiltroTallas(); renderizarCatalogo();
             };
             btnVolver.style.display = (!modoCollage && filtroActual !== 'Todos') ? 'block' : 'none';
 
             const filtrados = productosDB.filter(p => {
-                let esPromo = (p.precioAnterior && p.precioAnterior > p.precio) || p.etiquetaPersonalizada;
-                let pasaGeneroCat = (p.genero === generoActual || p.genero === 'Unisex' || !p.genero) && productoCoincideCategoria(p, filtroActual) && (!soloPromociones || esPromo);
+                let esNuevaColeccion = esProductoNuevaColeccion(p);
+                let esPromo = (p.precioAnterior && p.precioAnterior > p.precio) || (p.etiquetaPersonalizada && !esNuevaColeccion);
+                let pasaGeneroCat = (p.genero === generoActual || p.genero === 'Unisex' || !p.genero) && productoCoincideCategoria(p, filtroActual) && (!soloPromociones || esPromo) && (!soloNuevaColeccion || esNuevaColeccion);
                 if (!pasaGeneroCat) return false;
                 if (tallaFiltroActual === 'Todas') return true;
                 if (p.tallasObj) return p.tallasObj.some(t => t.nombre.toString().trim().toUpperCase() === tallaFiltroActual.toUpperCase() && t.stock > 0);
@@ -3304,7 +3389,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (!document.getElementById('menu-tallas').innerHTML) renderizarFiltroTallas();
             if (filtrados.length === 0) return cont.innerHTML = `<div style="grid-column: 1/-1; text-align: center; opacity:0.5; padding: 40px;">No hay productos con estos filtros.</div>`;
 
-            if (modoCollage && filtroActual === 'Todos' && !soloPromociones && tallaFiltroActual === 'Todas') {
+            if (modoCollage && filtroActual === 'Todos' && !soloPromociones && !soloNuevaColeccion && tallaFiltroActual === 'Todas') {
                 organizarCatalogoPorSubcategorias(filtrados, cont);
                 return;
             }
@@ -3335,7 +3420,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 let imgs = prod.imagenes || [prod.img || "https://via.placeholder.com/600?text=Sin+Imagen"];
                 let imgPrincipal = obtenerImagenProducto(prod, tallaInicialSeleccionada);
                 let htmlGal = imgs.length > 1 ? `<div class="galeria-miniaturas">${imgs.map((img, i) => `<img src="${optimizarUrl(img, 150)}" data-url="${img}" class="thumb ${img === imgPrincipal ? 'activo' : ''}" onclick="cambiarImg('${prod.id}', '${img}', this)">`).join('')}</div>` : "";
-                let btnAgregar = hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`;
+                let productoNuevaColeccion = esProductoNuevaColeccion(prod);
+                let carritoNuevaBloqueado = productoNuevaColeccion && !nuevaColeccionCarritoActivo();
+                let btnAgregar = carritoNuevaBloqueado
+                    ? `<button class="btn-agregar bloqueado-nueva" disabled title="Producto disponible pronto">Proximamente</button>`
+                    : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">A?adir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
 
                 cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><span class="etiqueta-categoria">${prod.categoria}</span><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p><div class="precio-contenedor">${pNew}</div>${htmlTallasChips}${btnAgregar}<div class="acciones-admin-prod" style="display:${(modoEdicion || (window.usuarioActual && window.usuarioActual.editarPrecio)) ? 'flex' : 'none'}"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">${(window.usuarioActual && window.usuarioActual.editarPrecio && window.usuarioActual.rol !== 'admin') ? '✏️ Precio' : '✏️ Editar'}</button>${modoEdicion ? '<button class="btn-eliminar-prod" onclick="eliminarProducto(\''+prod.id+'\')" >🗑️ Eliminar</button>' : ''}</div></div></div>`;
             });
@@ -6614,7 +6703,7 @@ ${ped.comprobanteUrl ? `
         }
 
         [
-            'abrirEditarEntradaBtn','abrirFotoGrande','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo',
+            'abrirEditarEntradaBtn','abrirFotoGrande','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
             'agregarAlCarrito','agregarCategoria','agregarFilaEditEntrada','agregarFilaTalla',
             'agregarFilaTallaEdit','agregarFilaTallaInv','cambiarGenero','cambiarGeneroDiseno',
             'cambiarImg','cambiarTab','cerrarModalCheckout','cerrarModalEditar','cerrarModalFoto',

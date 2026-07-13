@@ -750,6 +750,29 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             max-width: 58%; text-align: right;
             white-space: normal; line-height: 1.2;
         }
+        @media (max-width: 520px) {
+            .etiqueta-descuento {
+                top: 6px; left: 6px;
+                font-size: 0.58em;
+                padding: 2px 5px;
+                border-radius: 6px;
+                letter-spacing: 0;
+                line-height: 1.1;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.16);
+            }
+            .etiqueta-custom {
+                top: 6px; right: 6px;
+                max-width: 44%;
+                font-size: 0.52em;
+                padding: 2px 5px;
+                border-radius: 6px;
+                line-height: 1.08;
+                letter-spacing: 0;
+                text-align: right;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.14);
+                backdrop-filter: blur(3px);
+            }
+        }
 
         /* ═══ GALERÍA MINIATURAS ═══ */
         .galeria-miniaturas {
@@ -853,6 +876,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             letter-spacing: 0.3px;
             font-family: 'Nunito', sans-serif;
         }
+        .btn-agregar.bloqueado-nueva { background:#b8c0cc !important; color:white !important; cursor:not-allowed !important; box-shadow:none !important; }
+        .btn-nueva-coleccion { background:#fff7ed; color:#b45309; border:2px solid #f59e0b; padding:8px 16px; border-radius:22px; cursor:pointer; font-size:0.9em; font-weight:900; transition:0.2s; font-family:Nunito,sans-serif; white-space:nowrap; }
+        .btn-nueva-coleccion:hover { transform:translateY(-1px); box-shadow:0 4px 10px rgba(245,158,11,0.18); }
+        .btn-nueva-coleccion.activo { background:#f59e0b; color:white; }
         .btn-agregar:hover:not(:disabled) {
             box-shadow: 0 7px 20px rgba(0,0,0,0.22);
             transform: translateY(-2px) scale(1.015);
@@ -1525,6 +1552,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     <span>Tallas</span>
                     <span class="ft-flecha">▼</span>
                 </button>
+                <button class="btn-nueva-coleccion" id="btn-toggle-nueva-coleccion" onclick="toggleNuevaColeccion()">Nueva Coleccion</button>
             </div>
             <div class="panel-acordeon" id="panel-cat">
                 <div class="panel-acordeon-inner">
@@ -1780,12 +1808,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             titulo: "SuperKids & Babys", desc: "Calidad • Amor • Ternura", whatsapp: "573000000000",
             temaActivo: "SuperKids Lila", colorBanner: "#d1b3e8", colorFondo: "#fcf7f0",
             colorTarjeta: "#ffffff", colorTexto: "#4a4a4a", colorTextoPersonalizado: "#4a4a4a",
+            nuevaColeccionCarritoActivo: false,
             sizeTitulo: 42, sizeDesc: 18, categorias: ["Enterizos", "Conjuntos", "Vestidos"],
             ninas: { temaActivo: "SuperKids Lila", colorBanner: "#d1b3e8", colorFondo: "#fcf7f0", colorTarjeta: "#ffffff", colorTexto: "#4a4a4a", colorTextoPersonalizado: "#4a4a4a" },
             ninos: { temaActivo: "SuperKids Mint", colorBanner: "#a8e0d5", colorFondo: "#f0fdf9", colorTarjeta: "#ffffff", colorTexto: "#4a4a4a", colorTextoPersonalizado: "#4a4a4a" }
         });
         if (!config.ninas) config.ninas = { temaActivo: "SuperKids Lila", colorBanner: "#d1b3e8", colorFondo: "#fcf7f0", colorTarjeta: "#ffffff", colorTexto: "#4a4a4a", colorTextoPersonalizado: "#4a4a4a" };
         if (!config.ninos) config.ninos = { temaActivo: "SuperKids Mint", colorBanner: "#a8e0d5", colorFondo: "#f0fdf9", colorTarjeta: "#ffffff", colorTexto: "#4a4a4a", colorTextoPersonalizado: "#4a4a4a" };
+        if (typeof config.nuevaColeccionCarritoActivo === 'undefined') config.nuevaColeccionCarritoActivo = false;
 
         let dbGuardada = safeParse('productosV36') || safeParse('productosV35') || safeParse('productosV34') || safeParse('productosV33') || safeParse('productosV25');
         const CLAVE_PRODUCTOS_ELIMINADOS = 'productosEliminadosV1';
@@ -1836,7 +1866,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         let carrito = [], modoEdicion = false, filtroActual = 'Todos', generoActual = 'Niñas', modoCollage = true;
         window._setModoEdicion = function(val) { modoEdicion = val; if(typeof renderizarCatalogo === 'function') renderizarCatalogo(); };
-        let vistaPedidosActual = 'nuevo', tallaFiltroActual = 'Todas', soloPromociones = false;
+        let vistaPedidosActual = 'nuevo', tallaFiltroActual = 'Todas', soloPromociones = false, soloNuevaColeccion = false;
         let unsubscribePedidosFirebase = null;
         let snapshotPedidosInicialCargado = false;
         let pedidosConocidosNotificacion = new Set();
@@ -1901,7 +1931,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (prod.tallasObj && prod.tallasObj.length > 0) {
                     tallasChips = `<div class="contenedor-tallas-chips" id="contenedor-tallas-${prod.id}">${prod.tallasObj.map(t => `<span class="chip-talla${t.stock<=0?' agotada':''}" onclick="seleccionarTallaChip('${prod.id}',this,${t.stock<=0})">${t.nombre}${t.stock<=0?' (agotada)':''}</span>`).join('')}</div>`;
                 }
-                const btnAgregar = `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>`;
+                const btnAgregar = `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">AñA?adir al Carrito</button>`;
                 const botonesAdmin = ''; // Edición bloqueada en catálogo público — usar pedidos.html
                 cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgs[0]}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgs[0])}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><span class="etiqueta-categoria">${prod.categoria}</span><h3>${prod.nombre}</h3><p style="font-size:0.78em;color:#aaa;margin:0 0 4px;">Ref: ${prod.codigo}</p><div class="precio-contenedor">${pNew}</div>${tallasChips}${btnAgregar}${botonesAdmin}</div></div>`;
             });
@@ -3009,6 +3039,18 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             // Válida si tiene formato de talla: número, número+letra (M/T/A), o "Talla Única"/"RN"
             return /^\d+\s*(M|T|A)?$/i.test(limpio) || limpio === 'RN' || limpio === 'ÚNICA' || limpio === 'UNICA';
         }
+        function textoNormalizadoNuevaColeccion(valor) {
+            return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        }
+
+        function esProductoNuevaColeccion(prod) {
+            const etiqueta = textoNormalizadoNuevaColeccion(prod && prod.etiquetaPersonalizada);
+            return etiqueta.includes('nueva coleccion') || etiqueta.includes('nueva collection');
+        }
+
+        function nuevaColeccionCarritoActivo() {
+            return !!(config && config.nuevaColeccionCarritoActivo);
+        }
 
         function renderizarFiltroTallas() {
             const menuTallas = document.getElementById('menu-tallas');
@@ -3028,14 +3070,16 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
                 return a.localeCompare(b);
             });
-            if (arrTallas.length === 0) { menuTallas.innerHTML = ""; return; }
+            if (arrTallas.length === 0) { menuTallas.innerHTML = ""; let btnNuevaVacio = document.getElementById('btn-toggle-nueva-coleccion'); if (btnNuevaVacio) btnNuevaVacio.classList.toggle('activo', !!soloNuevaColeccion); return; }
             let cfg2 = esGeneroNinas(generoActual) ? config.ninas : config.ninos;
             let nombrePromo = (cfg2 && cfg2.nombreBtnPromo) || 'Promociones';
             let colorPromo = (cfg2 && cfg2.colorBtnPromo) || '#ff4db8';
             let colorPromoTxt = (cfg2 && cfg2.colorBtnPromoTexto) || '#fff';
             let opacidadPromo = (cfg2 && cfg2.opacidadBtnPromo) || 1;
-            let activaTodas = (tallaFiltroActual === 'Todas' && !soloPromociones) ? 'activo' : '';
+            let activaTodas = (tallaFiltroActual === 'Todas' && !soloPromociones && !soloNuevaColeccion) ? 'activo' : '';
             let activaPromo = soloPromociones ? 'activo-promo' : '';
+            let btnNueva = document.getElementById('btn-toggle-nueva-coleccion');
+            if (btnNueva) btnNueva.classList.toggle('activo', !!soloNuevaColeccion);
             let html = `<button class="btn-talla-f ${activaTodas}" onclick="filtrarPorTalla('Todas')">Todas</button>`;
             let colorPromoBanner = cfg2 ? cfg2.colorBanner : '#f5d6ed';
             let colorPromoFinal = colorPromo !== '#ff4db8' ? colorPromo : colorPromoBanner;
@@ -3046,13 +3090,24 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         function togglePromociones() {
             soloPromociones = !soloPromociones;
-            if (soloPromociones) tallaFiltroActual = 'Todas';
+            if (soloPromociones) { tallaFiltroActual = 'Todas'; soloNuevaColeccion = false; }
+            renderizarFiltroTallas();
+            renderizarCatalogo();
+        }
+
+        function toggleNuevaColeccion() {
+            soloNuevaColeccion = !soloNuevaColeccion;
+            if (soloNuevaColeccion) {
+                soloPromociones = false;
+                tallaFiltroActual = 'Todas';
+                modoCollage = false;
+            }
             renderizarFiltroTallas();
             renderizarCatalogo();
         }
 
         function filtrarPorTalla(talla) { 
-            tallaFiltroActual = talla; soloPromociones = false;
+            tallaFiltroActual = talla; soloPromociones = false; soloNuevaColeccion = false;
             // cerrar panel tallas al seleccionar
             document.getElementById('panel-tal').classList.remove('abierto');
             document.getElementById('btn-toggle-tal').classList.remove('abierto');
@@ -3060,6 +3115,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
         window.filtrarPorTalla = filtrarPorTalla;
         window.togglePromociones = togglePromociones;
+        window.toggleNuevaColeccion = toggleNuevaColeccion;
 
         function agregarFilaTalla() {
             const div = document.createElement('div'); div.className = 'fila-talla';
@@ -3193,14 +3249,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             }
             btnVolver.disabled = false;
             btnVolver.onclick = () => {
-                filtroActual = 'Todos'; tallaFiltroActual = 'Todas'; soloPromociones = false; modoCollage = true;
+                filtroActual = 'Todos'; tallaFiltroActual = 'Todas'; soloPromociones = false; soloNuevaColeccion = false; modoCollage = true;
                 renderizarCategoriasAdminYPublic(); renderizarFiltroTallas(); renderizarCatalogo();
             };
             btnVolver.style.display = (!modoCollage && filtroActual !== 'Todos') ? 'block' : 'none';
 
             const filtrados = productosDB.filter(p => {
-                let esPromo = (p.precioAnterior && p.precioAnterior > p.precio) || p.etiquetaPersonalizada;
-                let pasaGeneroCat = (p.genero === generoActual || p.genero === 'Unisex' || !p.genero) && productoCoincideCategoria(p, filtroActual) && (!soloPromociones || esPromo);
+                let esNuevaColeccion = esProductoNuevaColeccion(p);
+                let esPromo = (p.precioAnterior && p.precioAnterior > p.precio) || (p.etiquetaPersonalizada && !esNuevaColeccion);
+                let pasaGeneroCat = (p.genero === generoActual || p.genero === 'Unisex' || !p.genero) && productoCoincideCategoria(p, filtroActual) && (!soloPromociones || esPromo) && (!soloNuevaColeccion || esNuevaColeccion);
                 if (!pasaGeneroCat) return false;
                 if (tallaFiltroActual === 'Todas') return true;
                 if (p.tallasObj) return p.tallasObj.some(t => t.nombre.toString().trim().toUpperCase() === tallaFiltroActual.toUpperCase() && t.stock > 0);
@@ -3210,7 +3267,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             if (!document.getElementById('menu-tallas').innerHTML) renderizarFiltroTallas();
             if (filtrados.length === 0) return cont.innerHTML = `<div style="grid-column: 1/-1; text-align: center; opacity:0.5; padding: 40px;">No hay productos con estos filtros.</div>`;
 
-            if (modoCollage && filtroActual === 'Todos' && !soloPromociones && tallaFiltroActual === 'Todas') {
+            if (modoCollage && filtroActual === 'Todos' && !soloPromociones && !soloNuevaColeccion && tallaFiltroActual === 'Todas') {
                 organizarCatalogoPorSubcategorias(filtrados, cont);
                 return;
             }
@@ -3241,7 +3298,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 let imgs = prod.imagenes || [prod.img || "https://via.placeholder.com/600?text=Sin+Imagen"];
                 let imgPrincipal = obtenerImagenProducto(prod, tallaInicialSeleccionada);
                 let htmlGal = imgs.length > 1 ? `<div class="galeria-miniaturas">${imgs.map((img, i) => `<img src="${optimizarUrl(img, 150)}" data-url="${img}" class="thumb ${img === imgPrincipal ? 'activo' : ''}" onclick="cambiarImg('${prod.id}', '${img}', this)">`).join('')}</div>` : "";
-                let btnAgregar = hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`;
+                let productoNuevaColeccion = esProductoNuevaColeccion(prod);
+                let carritoNuevaBloqueado = productoNuevaColeccion && !nuevaColeccionCarritoActivo();
+                let btnAgregar = carritoNuevaBloqueado
+                    ? `<button class="btn-agregar bloqueado-nueva" disabled title="Producto disponible pronto">Proximamente</button>`
+                    : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">A?adir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
 
                 const _esAdmin = modoEdicion && window.usuarioActual && window.usuarioActual.rol === 'admin';
                 const btnEditarEliminar = _esAdmin ? `<div style="display:flex;gap:6px;margin-top:6px;"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button><button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button></div>` : '';
