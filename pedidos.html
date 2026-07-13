@@ -2027,7 +2027,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 if (prod.tallasObj && prod.tallasObj.length > 0) {
                     tallasChips = `<div class="contenedor-tallas-chips" id="contenedor-tallas-${prod.id}">${prod.tallasObj.map(t => `<span class="chip-talla${t.stock<=0?' agotada':''}" onclick="seleccionarTallaChip('${prod.id}',this,${t.stock<=0})">${t.nombre}${t.stock<=0?' (agotada)':''}</span>`).join('')}</div>`;
                 }
-                const btnAgregar = `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">AñA?adir al Carrito</button>`;
+                const productoNuevaColeccion = esProductoNuevaColeccion(prod);
+                const carritoNuevaBloqueado = productoNuevaColeccion && !nuevaColeccionCarritoActivo();
+                const hayStockTotal = !prod.tallasObj || prod.tallasObj.length === 0 || prod.tallasObj.some(t => Number(t.stock || 0) > 0);
+                const btnAgregar = carritoNuevaBloqueado
+                    ? `<button class="btn-agregar bloqueado-nueva" disabled title="Producto disponible pronto">Proximamente</button>`
+                    : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">A?adir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
                 const botonesAdmin = (modoEdicion || (window.usuarioActual && window.usuarioActual.editarPrecio))
                     ? `<div class="acciones-admin-prod" style="display:flex"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button>${modoEdicion?`<button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button>`:''}</div>`
                     : '';
@@ -3171,7 +3176,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         function nuevaColeccionCarritoActivo() {
-            return !!(config && config.nuevaColeccionCarritoActivo);
+            if (!config) return false;
+            const valor = config.nuevaColeccionCarritoActivo;
+            return valor === true || String(valor).toLowerCase().trim() === 'true';
         }
 
         function renderizarFiltroTallas() {
