@@ -1521,11 +1521,35 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                             <label style="font-size:0.8em;color:#555;font-weight:700;">📝 Observaciones</label>
                             <textarea id="inv-obs" placeholder="Ej: Se pidió 9M-36M pero llegó 12M-4T" rows="2" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;resize:vertical;"></textarea>
                         </div>
+                        
+                        <div style="margin-bottom:14px;display:grid;grid-template-columns:minmax(0,1fr) 88px;gap:10px;align-items:end;">
+                            <div>
+                                <label style="font-size:0.8em;color:#555;font-weight:700;">Foto de la entrada (opcional)</label>
+                                <input type="file" id="inv-foto" accept="image/*" onchange="previsualizarFotoEntradaInventario()" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;background:white;">
+                                <div style="font-size:0.72em;color:#56836a;font-weight:700;margin-top:4px;">Solo se muestra en pantalla; no se agrega al PDF.</div>
+                            </div>
+                            <div id="inv-foto-preview" style="width:88px;height:88px;border:1.5px dashed #a8e6c1;border-radius:10px;background:#f8fff9;display:flex;align-items:center;justify-content:center;color:#7aa88b;font-size:0.72em;font-weight:800;text-align:center;overflow:hidden;">Sin foto</div>
+                        </div>
                         <button onclick="guardarEntradaInventario()" style="background:linear-gradient(135deg,#27ae60,#2ecc71);color:white;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:800;font-size:1em;width:100%;font-family:Nunito,sans-serif;">✅ Registrar Entrada</button>
                         <div id="inv-msg" style="display:none;text-align:center;margin-top:8px;font-size:0.85em;color:#27ae60;font-weight:700;"></div>
                     </div>
                     <h4 style="color:#27ae60;margin-bottom:8px;">📋 Historial de Entradas</h4>
                     <div id="inv-historial" style="max-height:400px;overflow-y:auto;"></div>
+
+                    <div style="margin-top:18px;background:#fbfffc;border:1.5px solid #c9efd8;border-radius:12px;padding:14px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+                            <div>
+                                <h4 style="color:#1a7a4a;margin:0;">Resumen visual por fechas</h4>
+                                <p style="margin:3px 0 0;color:#6b8b78;font-size:0.78em;font-weight:700;">Vista en pantalla con fotos. El PDF no cambia.</p>
+                            </div>
+                            <button onclick="renderResumenVisualInventario()" style="background:#1a7a4a;color:white;border:none;border-radius:9px;padding:9px 14px;font-weight:800;cursor:pointer;font-family:Nunito,sans-serif;">Ver resumen</button>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+                            <div><label style="font-size:0.76em;color:#56836a;font-weight:800;">Desde</label><input type="date" id="inv-resumen-desde" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;"></div>
+                            <div><label style="font-size:0.76em;color:#56836a;font-weight:800;">Hasta</label><input type="date" id="inv-resumen-hasta" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;"></div>
+                        </div>
+                        <div id="inv-resumen-visual" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;"></div>
+                    </div>
 
 
 
@@ -5880,17 +5904,33 @@ ${ped.comprobanteUrl ? `
             setTimeout(() => { msg.style.display = 'none'; }, 3000);
         }
 
+
+        function previsualizarFotoEntradaInventario() {
+            const input = document.getElementById('inv-foto');
+            const preview = document.getElementById('inv-foto-preview');
+            if (!input || !preview) return;
+            const file = input.files && input.files[0];
+            if (!file) {
+                preview.innerHTML = 'Sin foto';
+                return;
+            }
+            const url = URL.createObjectURL(file);
+            preview.innerHTML = '<img src="'+url+'" style="width:100%;height:100%;object-fit:cover;display:block;" onload="URL.revokeObjectURL(this.src)">';
+        }
+
         async function guardarEntradaInventario() {
             const fecha = document.getElementById('inv-fecha').value;
             const ref = document.getElementById('inv-ref').value.trim();
             const desc = document.getElementById('inv-desc').value.trim();
             const valor = document.getElementById('inv-valor').value;
             const obs = document.getElementById('inv-obs').value.trim();
+            const fotoInput = document.getElementById('inv-foto');
+            const fotoFile = fotoInput && fotoInput.files ? fotoInput.files[0] : null;
             const msg = document.getElementById('inv-msg');
 
             if (!fecha || !ref || !desc) {
                 msg.style.color = '#e74c3c';
-                msg.textContent = '⚠️ Completa fecha, referencia y descripción';
+                msg.textContent = 'Completa fecha, referencia y descripcion';
                 msg.style.display = 'block';
                 return;
             }
@@ -5908,28 +5948,38 @@ ${ped.comprobanteUrl ? `
                 valor: parseInt(valor) || 0,
                 tallas: tallasArr,
                 obs,
+                fotoUrl: '',
                 registradoPor: window.usuarioActual ? window.usuarioActual.nombre : 'Asesora',
                 timestamp: Date.now()
             };
 
             try {
+                if (fotoFile) {
+                    msg.style.color = '#27ae60';
+                    msg.textContent = 'Subiendo foto de la entrada...';
+                    msg.style.display = 'block';
+                    entrada.fotoUrl = await subirACloudinary(fotoFile);
+                }
                 const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 await addDoc(collection(db, 'inventario_mercancia'), entrada);
                 msg.style.color = '#27ae60';
-                msg.textContent = '✅ Entrada registrada correctamente';
+                msg.textContent = 'Entrada registrada correctamente';
                 msg.style.display = 'block';
-                // Limpiar formulario
                 document.getElementById('inv-fecha').value = '';
                 document.getElementById('inv-ref').value = '';
                 document.getElementById('inv-desc').value = '';
                 document.getElementById('inv-valor').value = '';
                 document.getElementById('inv-obs').value = '';
+                if (fotoInput) fotoInput.value = '';
+                const preview = document.getElementById('inv-foto-preview');
+                if (preview) preview.innerHTML = 'Sin foto';
                 limpiarTallasInventario();
                 cargarHistorialInventario();
+                renderResumenVisualInventario();
                 setTimeout(() => { msg.style.display = 'none'; }, 3000);
             } catch(e) {
                 msg.style.color = '#e74c3c';
-                msg.textContent = '❌ Error al guardar: ' + e.message;
+                msg.textContent = 'Error al guardar: ' + e.message;
                 msg.style.display = 'block';
             }
         }
@@ -5938,28 +5988,76 @@ ${ped.comprobanteUrl ? `
             const cont = document.getElementById('inv-historial');
             if (!cont) return;
             try {
-                const { collection, getDocs, orderBy, query, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const q = query(collection(db, 'inventario_mercancia'), orderBy('timestamp', 'desc'));
                 const snap = await getDocs(q);
-                if (snap.empty) { cont.innerHTML = '<p style="color:#888;text-align:center;font-size:0.85em;">Sin entradas registradas aún</p>'; return; }
+                if (snap.empty) { cont.innerHTML = '<p style="color:#888;text-align:center;font-size:0.85em;">Sin entradas registradas aun</p>'; return; }
                 cont.innerHTML = '';
                 snap.forEach(docSnap => {
                     const e = docSnap.data();
-                    const totalUnd = (e.tallas||[]).reduce((s,t)=>s+t.cantidad,0);
+                    const totalUnd = (e.tallas||[]).reduce((sum,t)=>sum+Number(t.cantidad||0),0);
                     const tallasHtml = (e.tallas||[]).map(t=>'<span style="background:#e8f5e9;color:#1a6636;border-radius:12px;padding:2px 8px;font-size:0.78em;font-weight:700;">'+t.talla+': '+t.cantidad+'</span>').join(' ');
+                    const fotoHtml = e.fotoUrl
+                        ? '<img src="'+e.fotoUrl+'" onclick="abrirFotoGrande(\''+e.fotoUrl+'\')" style="width:82px;height:82px;object-fit:cover;border-radius:10px;border:1px solid #d7f3df;cursor:pointer;flex-shrink:0;">'
+                        : '<div style="width:82px;height:82px;border-radius:10px;border:1.5px dashed #c9efd8;background:#f8fff9;color:#8aaa96;display:flex;align-items:center;justify-content:center;font-size:0.7em;font-weight:800;text-align:center;flex-shrink:0;">Sin foto</div>';
                     const card = document.createElement('div');
-                    card.style.cssText = 'background:white;border:1.5px solid #a8e6c1;border-radius:12px;padding:14px;margin-bottom:10px;';
-                    card.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span style="font-weight:800;color:#27ae60;font-size:0.95em;">REF: '+e.ref+'</span><span style="font-size:0.75em;color:#888;">'+e.fecha+' · '+e.registradoPor+'</span></div>'
-                        +'<div style="font-weight:600;margin-bottom:4px;">'+e.desc+'</div>'
-                        +'<div style="font-size:0.82em;color:#27ae60;font-weight:700;margin-bottom:6px;">💰 $'+Number(e.valor||0).toLocaleString('es-CO')+' · 📦 '+totalUnd+' unidades</div>'
-                        +'<div style="margin-bottom:6px;">'+tallasHtml+'</div>'
-                        +(e.obs ? '<div style="font-size:0.78em;color:#888;background:#f8f8f8;padding:6px 10px;border-radius:8px;margin-bottom:6px;">📝 '+e.obs+'</div>' : '')
-                        +'<button onclick="eliminarEntradaInventario(\'' + docSnap.id + '\')" style="background:#fde8e8;color:#e74c3c;border:1px solid #f5c6c6;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;">🗑️ Eliminar</button>'
-                        +(window.usuarioActual && window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' ? '<button data-id="'+docSnap.id+'" data-ref="'+(e.ref||'')+'" data-desc="'+encodeURIComponent(e.desc||'')+'" data-tallas="'+encodeURIComponent(JSON.stringify(e.tallas||[]))+'" onclick="abrirEditarEntradaBtn(this)" style="background:#e8f5e9;color:#1a7a4a;border:1px solid #a8e6c1;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;margin-left:6px;">✏️ Editar</button>' : '');
+                    card.style.cssText = 'background:white;border:1.5px solid #a8e6c1;border-radius:12px;padding:12px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;';
+                    card.innerHTML = fotoHtml + '<div style="min-width:0;flex:1;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;flex-wrap:wrap;"><span style="font-weight:800;color:#27ae60;font-size:0.95em;">REF: '+(e.ref||'-')+'</span><span style="font-size:0.75em;color:#888;">'+(e.fecha||'')+' - '+(e.registradoPor||'')+'</span></div>'
+                        +'<div style="font-weight:600;margin-bottom:4px;">'+(e.desc||'')+'</div>'
+                        +'<div style="font-size:0.82em;color:#27ae60;font-weight:700;margin-bottom:6px;">$'+Number(e.valor||0).toLocaleString('es-CO')+' - '+totalUnd+' unidades</div>'
+                        +'<div style="margin-bottom:6px;display:flex;gap:4px;flex-wrap:wrap;">'+tallasHtml+'</div>'
+                        +(e.obs ? '<div style="font-size:0.78em;color:#666;background:#f8f8f8;padding:6px 10px;border-radius:8px;margin-bottom:6px;">'+e.obs+'</div>' : '')
+                        +'<button onclick="eliminarEntradaInventario(\'' + docSnap.id + '\')" style="background:#fde8e8;color:#e74c3c;border:1px solid #f5c6c6;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;">Eliminar</button>'
+                        +(window.usuarioActual && window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' ? '<button data-id="'+docSnap.id+'" data-ref="'+(e.ref||'')+'" data-desc="'+encodeURIComponent(e.desc||'')+'" data-tallas="'+encodeURIComponent(JSON.stringify(e.tallas||[]))+'" onclick="abrirEditarEntradaBtn(this)" style="background:#e8f5e9;color:#1a7a4a;border:1px solid #a8e6c1;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;margin-left:6px;">Editar</button>' : '') + '</div>';
                     cont.appendChild(card);
                 });
             } catch(e) {
                 cont.innerHTML = '<p style="color:#e74c3c;font-size:0.85em;">Error cargando historial</p>';
+            }
+        }
+
+        async function renderResumenVisualInventario() {
+            const cont = document.getElementById('inv-resumen-visual');
+            if (!cont) return;
+            const desde = document.getElementById('inv-resumen-desde') ? document.getElementById('inv-resumen-desde').value : '';
+            const hasta = document.getElementById('inv-resumen-hasta') ? document.getElementById('inv-resumen-hasta').value : '';
+            cont.innerHTML = '<p style="color:#6b8b78;font-weight:800;margin:0;">Cargando resumen...</p>';
+            try {
+                const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const q = query(collection(db, 'inventario_mercancia'), orderBy('timestamp', 'desc'));
+                const snap = await getDocs(q);
+                let entradas = [];
+                snap.forEach(d => entradas.push(Object.assign({ id: d.id }, d.data())));
+                entradas = entradas.filter(e => {
+                    const f = e.fecha || '';
+                    if (desde && f < desde) return false;
+                    if (hasta && f > hasta) return false;
+                    return true;
+                });
+                if (!entradas.length) {
+                    cont.innerHTML = '<p style="color:#8aaa96;font-weight:800;margin:0;">No hay entradas en ese rango.</p>';
+                    return;
+                }
+                const totalUnd = entradas.reduce((sum,e)=>sum+(e.tallas||[]).reduce((a,t)=>a+Number(t.cantidad||0),0),0);
+                cont.innerHTML = '<div style="grid-column:1/-1;background:#e8f5e9;border:1px solid #a8e6c1;border-radius:10px;padding:10px 12px;color:#1a6636;font-weight:900;">'+entradas.length+' entradas - '+totalUnd.toLocaleString('es-CO')+' unidades</div>'
+                    + entradas.map(e => {
+                        const und = (e.tallas||[]).reduce((sum,t)=>sum+Number(t.cantidad||0),0);
+                        const tallas = (e.tallas||[]).map(t=>'<span style="background:#eefaf2;color:#1a6636;border-radius:999px;padding:2px 7px;font-size:0.72em;font-weight:800;">'+t.talla+' '+t.cantidad+'</span>').join(' ');
+                        const foto = e.fotoUrl
+                            ? '<img src="'+e.fotoUrl+'" onclick="abrirFotoGrande(\''+e.fotoUrl+'\')" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:9px;border:1px solid #d7f3df;cursor:pointer;">'
+                            : '<div style="width:100%;aspect-ratio:1/1;border-radius:9px;border:1.5px dashed #c9efd8;background:#f8fff9;color:#8aaa96;display:flex;align-items:center;justify-content:center;font-size:0.78em;font-weight:800;">Sin foto</div>';
+                        return '<div style="background:white;border:1.5px solid #c9efd8;border-radius:12px;padding:10px;box-shadow:0 4px 12px rgba(26,122,74,0.06);">'
+                            + foto
+                            + '<div style="margin-top:8px;font-size:0.78em;color:#888;font-weight:800;">'+(e.fecha||'')+'</div>'
+                            + '<div style="font-weight:900;color:#1a6636;">REF: '+(e.ref||'-')+'</div>'
+                            + '<div style="font-size:0.84em;color:#333;font-weight:700;line-height:1.25;margin:3px 0 5px;">'+(e.desc||'-')+'</div>'
+                            + '<div style="font-size:0.78em;color:#27ae60;font-weight:900;margin-bottom:5px;">'+und+' unidades - $'+Number(e.valor||0).toLocaleString('es-CO')+'</div>'
+                            + '<div style="display:flex;gap:4px;flex-wrap:wrap;">'+tallas+'</div>'
+                            + (e.obs ? '<div style="margin-top:6px;font-size:0.74em;color:#666;background:#f8f8f8;border-radius:7px;padding:5px;">'+e.obs+'</div>' : '')
+                            + '</div>';
+                    }).join('');
+            } catch(e) {
+                cont.innerHTML = '<p style="color:#e74c3c;font-weight:800;margin:0;">Error cargando resumen visual.</p>';
             }
         }
 
@@ -6733,7 +6831,7 @@ ${ped.comprobanteUrl ? `
         }
 
         [
-            'abrirEditarEntradaBtn','abrirFotoGrande','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
+            'abrirEditarEntradaBtn','abrirFotoGrande','previsualizarFotoEntradaInventario','renderResumenVisualInventario','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
             'agregarAlCarrito','agregarCategoria','agregarFilaEditEntrada','agregarFilaTalla',
             'agregarFilaTallaEdit','agregarFilaTallaInv','cambiarGenero','cambiarGeneroDiseno',
             'cambiarImg','cambiarTab','cerrarModalCheckout','cerrarModalEditar','cerrarModalFoto',
