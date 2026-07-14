@@ -1,4 +1,4 @@
-const CACHE_NAME = 'superkids-gestion-pwa-v1';
+const CACHE_NAME = 'superkids-gestion-pwa-v2';
 const APP_ASSETS = [
   './pedidos.html',
   './manifest-admin.json',
