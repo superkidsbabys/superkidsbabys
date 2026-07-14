@@ -1,7 +1,7 @@
-const CACHE_NAME = 'superkids-gestion-pwa-v2';
+const CACHE_NAME = 'superkids-catalogo-pwa-v3';
 const APP_ASSETS = [
-  './pedidos.html',
-  './manifest-admin.json',
+  './index.html',
+  './manifest.json',
   './pwa.js',
   './icons/icon-192.png',
   './icons/icon-512.png'
@@ -29,7 +29,7 @@ self.addEventListener('fetch', event => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => caches.match('./pedidos.html'))
+      fetch(request).catch(() => caches.match('./index.html'))
     );
     return;
   }

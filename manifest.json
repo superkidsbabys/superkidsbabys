@@ -1,7 +1,10 @@
 {
+  "id": "/",
   "name": "SuperKids&Babys",
   "short_name": "SuperKids",
   "description": "Catalogo SuperKids&Babys",
+  "lang": "es-CO",
+  "dir": "ltr",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

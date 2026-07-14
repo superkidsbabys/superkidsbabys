@@ -3,10 +3,7 @@
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./service-worker.js', { scope: './' })
-        .then(function (registration) {
-          registration.update && registration.update();
-        })
+      navigator.serviceWorker.register('./service-worker.js')
         .catch(function (error) {
           console.log('Service worker no registrado:', error);
         });
@@ -362,8 +359,8 @@
 
     var textoBtn = document.createElement('button');
     textoBtn.type = 'button';
-    textoBtn.textContent = 'Instalar Gestión';
-    textoBtn.setAttribute('aria-label', 'Instalar Gestión SuperKids');
+    textoBtn.textContent = 'Agregar a pantalla de inicio';
+    textoBtn.setAttribute('aria-label', 'Agregar SuperKids a pantalla de inicio');
     textoBtn.style.cssText = [
       'border:none',
       'background:transparent',
@@ -395,7 +392,7 @@
 
     textoBtn.addEventListener('click', function () {
       if (!deferredInstallPrompt) {
-        alert('Si Chrome todavía no muestra la instalación, toca el menú de los tres puntos y busca "Instalar app" o "Agregar a pantalla principal". Si estás en celular iPhone, usa Compartir y luego "Agregar a pantalla de inicio".');
+        alert('Si Chrome todavia no muestra la instalacion, toca el menu de los tres puntos y busca \"Instalar app\" o \"Agregar a pantalla principal\".');
         return;
       }
       installButton.style.display = 'none';
