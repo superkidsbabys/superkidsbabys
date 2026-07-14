@@ -1339,7 +1339,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <div style="background:#fff0f8; border:1px solid #f9c; border-radius:10px; padding:16px; margin-top:14px;">
                             <h4 style="margin:0 0 14px; color:#c0397a;">🛒 Botón Carrito &amp; Etiqueta Descuento</h4>
 
-                            <p style="font-size:0.85em; font-weight:bold; color:#555; margin:0 0 6px;">🎀 Color del botón "AñA?adir al Carrito":</p>
+                            <p style="font-size:0.85em; font-weight:bold; color:#555; margin:0 0 6px;">🎀 Color del botón "AñAñadir al Carrito":</p>
                             <div style="display:flex; gap:10px; align-items:center; margin-bottom:14px;">
                                 <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Color fondo</label><input type="color" id="edit-color-btn-carrito" value="#ff4db8" oninput="actualizarBtnCarritoVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
                                 <div style="flex:1;"><label style="font-size:0.8em; color:#666;">Color texto</label><input type="color" id="edit-color-btn-carrito-texto" value="#ffffff" oninput="actualizarBtnCarritoVivo()" style="width:100%; height:36px; border-radius:6px; border:1px solid #ddd; cursor:pointer;"></div>
@@ -1416,7 +1416,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             <div id="tab-categorias" class="seccion-tab">
                 <div class="seccion-admin-sub form-admin">
                     <h3>Gestionar Categorías</h3>
-                    <div style="display: flex; gap: 10px;"><input type="text" id="nueva-cat-input" placeholder="Ej: Zapatos" style="flex:1;"><button class="btn-guardar" onclick="agregarCategoria()">Añadir</button></div>
+                    <div style="display: flex; gap: 10px;"><input type="text" id="nueva-cat-input" placeholder="Ej: Zapatos" style="flex:1;"><button class="btn-guardar" onclick="agregarCategoria()">AñAñadir</button></div>
                     <div class="lista-tags" id="lista-categorias-admin"><div class="tag-categoria" style="gap:6px; flex-wrap:wrap;"><input type="text" id="edit-cat-0" value="Mamelucos" style="border:1px solid #b3d7f0;border-radius:14px;padding:5px 8px;min-width:130px;font-weight:600;color:#2980b9;"><button onclick="renombrarCategoria(0)" title="Guardar nombre">✓</button><button onclick="eliminarCategoria('Mamelucos')">X</button></div><div class="tag-categoria" style="gap:6px; flex-wrap:wrap;"><input type="text" id="edit-cat-1" value="Conjuntos pantalón" style="border:1px solid #b3d7f0;border-radius:14px;padding:5px 8px;min-width:130px;font-weight:600;color:#2980b9;"><button onclick="renombrarCategoria(1)" title="Guardar nombre">✓</button><button onclick="eliminarCategoria('Conjuntos pantalón')">X</button></div><div class="tag-categoria" style="gap:6px; flex-wrap:wrap;"><input type="text" id="edit-cat-2" value="Conjuntos Short" style="border:1px solid #b3d7f0;border-radius:14px;padding:5px 8px;min-width:130px;font-weight:600;color:#2980b9;"><button onclick="renombrarCategoria(2)" title="Guardar nombre">✓</button><button onclick="eliminarCategoria('Conjuntos Short')">X</button></div><div class="tag-categoria" style="gap:6px; flex-wrap:wrap;"><input type="text" id="edit-cat-3" value="Jardineras Short" style="border:1px solid #b3d7f0;border-radius:14px;padding:5px 8px;min-width:130px;font-weight:600;color:#2980b9;"><button onclick="renombrarCategoria(3)" title="Guardar nombre">✓</button><button onclick="eliminarCategoria('Jardineras Short')">X</button></div><div class="tag-categoria" style="gap:6px; flex-wrap:wrap;"><input type="text" id="edit-cat-4" value="Jardineras Vestidos" style="border:1px solid #b3d7f0;border-radius:14px;padding:5px 8px;min-width:130px;font-weight:600;color:#2980b9;"><button onclick="renombrarCategoria(4)" title="Guardar nombre">✓</button><button onclick="eliminarCategoria('Jardineras Vestidos')">X</button></div><div class="tag-categoria" style="gap:6px; flex-wrap:wrap;"><input type="text" id="edit-cat-5" value="conjuntos Falda" style="border:1px solid #b3d7f0;border-radius:14px;padding:5px 8px;min-width:130px;font-weight:600;color:#2980b9;"><button onclick="renombrarCategoria(5)" title="Guardar nombre">✓</button><button onclick="eliminarCategoria('conjuntos Falda')">X</button></div></div>
                 </div>
             </div>
@@ -1463,7 +1463,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; margin-top: 10px;">
                         <label>📏 Tallas (Inventario)</label>
                         <div id="contenedor-tallas-stock"><div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"></div></div>
-                        <button type="button" class="btn-secundario" onclick="agregarFilaTalla()">+ Añadir renglón</button>
+                        <button type="button" class="btn-secundario" onclick="agregarFilaTalla()">+ AñAñadir renglón</button>
                     </div>
 
                     <button class="btn-guardar" id="btn-anadir-prod" style="margin-top: 15px; font-size: 1.1em; padding: 15px;" onclick="procesarYAgregarProducto()">➕ Subir Producto y Guardar</button>
@@ -1778,7 +1778,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 </div>
               </div></div>
               <div style="background:#e8f4f8;padding:10px;border-radius:8px;border:1px solid #bce8f1;">
-                <label style="font-size:0.85em;font-weight:bold;">➕ Añadir foto(s) nueva(s):</label>
+                <label style="font-size:0.85em;font-weight:bold;">➕ AñAñadir foto(s) nueva(s):</label>
                 <input type="file" id="edit-nuevas-fotos" accept="image/*" multiple="" style="width:100%;margin-top:6px;">
                 <button type="button" id="btn-subir-fotos-extra" onclick="subirFotosNuevasEdit()" style="margin-top:8px;background:#27ae60;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:bold;font-size:0.85em;width:100%;">☁️ Subir foto(s) a Cloudinary</button>
               </div>
@@ -1806,7 +1806,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; margin-top: 10px;">
                 <label>📏 Editar Tallas y Cantidades</label>
                 <div id="contenedor-edit-tallas-stock"><div class="fila-talla"><input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color" value="0M"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="4"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button></div><div class="fila-talla"><input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color" value="9M"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="2"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button></div></div>
-                <button type="button" class="btn-secundario" style="margin-top: 10px;" onclick="agregarFilaTallaEdit()">+ Añadir otro renglón</button>
+                <button type="button" class="btn-secundario" style="margin-top: 10px;" onclick="agregarFilaTallaEdit()">+ AñAñadir otro renglón</button>
             </div>
             <button class="btn-guardar" id="btn-guardar-edicion" style="margin-top: 15px; width: 100%; padding: 15px; font-size: 1.1em;" onclick="guardarEdicionProducto()">💾 Guardar Cambios</button>
         </div>
@@ -2042,7 +2042,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 const hayStockTotal = !prod.tallasObj || prod.tallasObj.length === 0 || prod.tallasObj.some(t => Number(t.stock || 0) > 0);
                 const btnAgregar = carritoNuevaBloqueado
                     ? `<button class="btn-agregar bloqueado-nueva" disabled title="Producto disponible pronto">Proximamente</button>`
-                    : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">A?adir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
+                    : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
                 const botonesAdmin = (modoEdicion || (window.usuarioActual && window.usuarioActual.editarPrecio))
                     ? `<div class="acciones-admin-prod" style="display:flex"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button>${modoEdicion?`<button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button>`:''}</div>`
                     : '';
@@ -3454,7 +3454,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 let carritoNuevaBloqueado = productoNuevaColeccion && !nuevaColeccionCarritoActivo();
                 let btnAgregar = carritoNuevaBloqueado
                     ? `<button class="btn-agregar bloqueado-nueva" disabled title="Producto disponible pronto">Proximamente</button>`
-                    : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">A?adir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
+                    : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
 
                 cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><span class="etiqueta-categoria">${prod.categoria}</span><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p><div class="precio-contenedor">${pNew}</div>${htmlTallasChips}${btnAgregar}<div class="acciones-admin-prod" style="display:${(modoEdicion || (window.usuarioActual && window.usuarioActual.editarPrecio)) ? 'flex' : 'none'}"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">${(window.usuarioActual && window.usuarioActual.editarPrecio && window.usuarioActual.rol !== 'admin') ? '✏️ Precio' : '✏️ Editar'}</button>${modoEdicion ? '<button class="btn-eliminar-prod" onclick="eliminarProducto(\''+prod.id+'\')" >🗑️ Eliminar</button>' : ''}</div></div></div>`;
             });

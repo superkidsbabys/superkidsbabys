@@ -1675,7 +1675,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 </div>
               </div></div>
               <div style="background:#e8f4f8;padding:10px;border-radius:8px;border:1px solid #bce8f1;">
-                <label style="font-size:0.85em;font-weight:bold;">➕ Añadir foto(s) nueva(s):</label>
+                <label style="font-size:0.85em;font-weight:bold;">➕ AñAñadir foto(s) nueva(s):</label>
                 <input type="file" id="edit-nuevas-fotos" accept="image/*" multiple="" style="width:100%;margin-top:6px;">
                 <button type="button" id="btn-subir-fotos-extra" onclick="subirFotosNuevasEdit()" style="margin-top:8px;background:#27ae60;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:bold;font-size:0.85em;width:100%;">☁️ Subir foto(s) a Cloudinary</button>
               </div>
@@ -1703,7 +1703,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; margin-top: 10px;">
                 <label>📏 Editar Tallas y Cantidades</label>
                 <div id="contenedor-edit-tallas-stock"><div class="fila-talla"><input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color" value="0M"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="4"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button></div><div class="fila-talla"><input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color" value="9M"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="2"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button></div></div>
-                <button type="button" class="btn-secundario" style="margin-top: 10px;" onclick="agregarFilaTallaEdit()">+ Añadir otro renglón</button>
+                <button type="button" class="btn-secundario" style="margin-top: 10px;" onclick="agregarFilaTallaEdit()">+ AñAñadir otro renglón</button>
             </div>
             <button class="btn-guardar" id="btn-guardar-edicion" style="margin-top: 15px; width: 100%; padding: 15px; font-size: 1.1em;" onclick="guardarEdicionProducto()">💾 Guardar Cambios</button>
         </div>
@@ -1936,7 +1936,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 const hayStockTotal = !prod.tallasObj || prod.tallasObj.length === 0 || prod.tallasObj.some(t => Number(t.stock || 0) > 0);
                 const btnAgregar = carritoNuevaBloqueado
                     ? `<button class="btn-agregar bloqueado-nueva" disabled title="Producto disponible pronto">Proximamente</button>`
-                    : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">A?adir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
+                    : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
                 const botonesAdmin = ''; // Edición bloqueada en catálogo público — usar pedidos.html
                 cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgs[0]}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgs[0])}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><span class="etiqueta-categoria">${prod.categoria}</span><h3>${prod.nombre}</h3><p style="font-size:0.78em;color:#aaa;margin:0 0 4px;">Ref: ${prod.codigo}</p><div class="precio-contenedor">${pNew}</div>${tallasChips}${btnAgregar}${botonesAdmin}</div></div>`;
             });
@@ -3309,7 +3309,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 let carritoNuevaBloqueado = productoNuevaColeccion && !nuevaColeccionCarritoActivo();
                 let btnAgregar = carritoNuevaBloqueado
                     ? `<button class="btn-agregar bloqueado-nueva" disabled title="Producto disponible pronto">Proximamente</button>`
-                    : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">A?adir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
+                    : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
 
                 const _esAdmin = modoEdicion && window.usuarioActual && window.usuarioActual.rol === 'admin';
                 const btnEditarEliminar = _esAdmin ? `<div style="display:flex;gap:6px;margin-top:6px;"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button><button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button></div>` : '';
