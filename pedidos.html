@@ -1533,8 +1533,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <button onclick="guardarEntradaInventario()" style="background:linear-gradient(135deg,#27ae60,#2ecc71);color:white;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:800;font-size:1em;width:100%;font-family:Nunito,sans-serif;">✅ Registrar Entrada</button>
                         <div id="inv-msg" style="display:none;text-align:center;margin-top:8px;font-size:0.85em;color:#27ae60;font-weight:700;"></div>
                     </div>
-                    <h4 style="color:#27ae60;margin-bottom:8px;">📋 Historial de Entradas</h4>
-                    <div id="inv-historial" style="max-height:400px;overflow-y:auto;"></div>
+                    <div id="inv-historial-box" style="border:1.5px solid #a8e6c1;border-radius:12px;background:#fbfffc;margin-top:16px;overflow:hidden;">
+                        <button type="button" onclick="toggleHistorialInventario()" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#f0faf4;border:none;padding:12px 14px;cursor:pointer;font-family:Nunito,sans-serif;color:#1a7a4a;font-weight:900;font-size:0.95em;text-align:left;">
+                            <span>Historial de Entradas <small id="inv-historial-contador" style="color:#6b8b78;font-size:0.82em;font-weight:800;margin-left:6px;">Cargando...</small></span>
+                            <span id="inv-historial-flecha" style="font-size:1.05em;">v</span>
+                        </button>
+                        <div id="inv-historial-panel" style="display:none;padding:12px;">
+                            <div id="inv-historial" style="max-height:400px;overflow-y:auto;"></div>
+                        </div>
+                    </div>
 
                     <div style="margin-top:18px;background:#fbfffc;border:1.5px solid #c9efd8;border-radius:12px;padding:14px;">
                         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
@@ -5905,6 +5912,16 @@ ${ped.comprobanteUrl ? `
         }
 
 
+
+        function toggleHistorialInventario(forzarAbierto) {
+            const panel = document.getElementById('inv-historial-panel');
+            const flecha = document.getElementById('inv-historial-flecha');
+            if (!panel) return;
+            const abrir = typeof forzarAbierto === 'boolean' ? forzarAbierto : panel.style.display === 'none';
+            panel.style.display = abrir ? 'block' : 'none';
+            if (flecha) flecha.textContent = abrir ? '^' : 'v';
+        }
+
         function previsualizarFotoEntradaInventario() {
             const input = document.getElementById('inv-foto');
             const preview = document.getElementById('inv-foto-preview');
@@ -5991,7 +6008,9 @@ ${ped.comprobanteUrl ? `
                 const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const q = query(collection(db, 'inventario_mercancia'), orderBy('timestamp', 'desc'));
                 const snap = await getDocs(q);
-                if (snap.empty) { cont.innerHTML = '<p style="color:#888;text-align:center;font-size:0.85em;">Sin entradas registradas aun</p>'; return; }
+                if (snap.empty) { const contador = document.getElementById('inv-historial-contador'); if (contador) contador.textContent = '(0)'; cont.innerHTML = '<p style="color:#888;text-align:center;font-size:0.85em;">Sin entradas registradas aun</p>'; return; }
+                const contador = document.getElementById('inv-historial-contador');
+                if (contador) contador.textContent = '(' + snap.size + ')';
                 cont.innerHTML = '';
                 snap.forEach(docSnap => {
                     const e = docSnap.data();
@@ -6831,7 +6850,7 @@ ${ped.comprobanteUrl ? `
         }
 
         [
-            'abrirEditarEntradaBtn','abrirFotoGrande','previsualizarFotoEntradaInventario','renderResumenVisualInventario','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
+            'abrirEditarEntradaBtn','abrirFotoGrande','previsualizarFotoEntradaInventario','renderResumenVisualInventario','toggleHistorialInventario','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
             'agregarAlCarrito','agregarCategoria','agregarFilaEditEntrada','agregarFilaTalla',
             'agregarFilaTallaEdit','agregarFilaTallaInv','cambiarGenero','cambiarGeneroDiseno',
             'cambiarImg','cambiarTab','cerrarModalCheckout','cerrarModalEditar','cerrarModalFoto',
