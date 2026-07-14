@@ -1230,6 +1230,16 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <button class="btn-tab" onclick="window.open('https://superkidsbabys.com','_blank')">Ver tienda</button>
                 <button class="btn-tab" onclick="window.fbLogout && window.fbLogout()" style="background-color: #e74c3c; color: white;">Cerrar sesión</button>
             </div>
+            <div id="control-nueva-coleccion-rapido" style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:10px 14px;margin:10px 0 14px;box-shadow:0 4px 12px rgba(154,52,18,0.08);">
+                <div>
+                    <strong style="display:block;color:#9a3412;font-size:0.9em;">Nueva Coleccion</strong>
+                    <span id="estado-nueva-coleccion-rapido" style="display:block;color:#9a3412;font-size:0.78em;font-weight:700;">Carrito bloqueado: se ven, pero no se compran.</span>
+                </div>
+                <label style="display:flex;align-items:center;gap:8px;color:#9a3412;font-weight:900;font-size:0.86em;white-space:nowrap;cursor:pointer;">
+                    <input type="checkbox" id="edit-nueva-coleccion-carrito-rapido" onchange="actualizarNuevaColeccionCarrito(this)" style="width:18px;height:18px;accent-color:#f59e0b;">
+                    Activar carrito
+                </label>
+            </div>
 
             <!-- TAB DISEÑO -->
             <div id="tab-diseno" class="seccion-tab">
@@ -1353,7 +1363,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                             <span id="demo-opacidad-etiqueta-custom" style="font-size:0.78em; color:#888;">60%</span>
                             <div style="margin-top:14px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:12px;">
                                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:900;color:#9a3412;font-size:0.9em;">
-                                    <input type="checkbox" id="edit-nueva-coleccion-carrito" onchange="actualizarNuevaColeccionCarrito()" style="width:18px;height:18px;accent-color:#f59e0b;">
+                                    <input type="checkbox" id="edit-nueva-coleccion-carrito" onchange="actualizarNuevaColeccionCarrito(this)" style="width:18px;height:18px;accent-color:#f59e0b;">
                                     Activar carrito en Nueva Coleccion
                                 </label>
                                 <p id="estado-nueva-coleccion-carrito" style="margin:6px 0 0;color:#9a3412;font-size:0.78em;font-weight:700;">Si esta apagado, las prendas se ven pero no se pueden comprar.</p>
@@ -2597,7 +2607,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     document.getElementById('demo-opacidad-etiqueta-custom').innerText = Math.round(opC * 100) + '%';
                     document.getElementById('demo-opacidad-etiqueta').innerText = Math.round(op * 100) + '%';
                     const chkNuevaColeccion = document.getElementById('edit-nueva-coleccion-carrito');
-                    if (chkNuevaColeccion) chkNuevaColeccion.checked = !!config.nuevaColeccionCarritoActivo;
+                    if (chkNuevaColeccion) chkNuevaColeccion.checked = nuevaColeccionCarritoActivo();
                     actualizarEstadoNuevaColeccionCarrito();
                     if (document.getElementById('edit-color-cat-fondo')) {
                         document.getElementById('edit-color-cat-fondo').value = cfg.colorCategoriaFondo || '#ffffff';
@@ -2849,17 +2859,30 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 else { rej("Error de Cloudinary: " + JSON.stringify(data)); }
             } catch(err) { rej("Fallo en la subida: " + err); }
         });
-        function actualizarEstadoNuevaColeccionCarrito() {
-            const estado = document.getElementById('estado-nueva-coleccion-carrito');
-            const chk = document.getElementById('edit-nueva-coleccion-carrito');
-            if (!estado || !chk) return;
-            estado.textContent = chk.checked
-                ? 'Carrito activo: las prendas de Nueva Coleccion ya se pueden comprar.'
-                : 'Carrito bloqueado: las prendas se ven, pero el boton queda en Proximamente.';
+        function sincronizarControlesNuevaColeccion() {
+            const activo = nuevaColeccionCarritoActivo();
+            ['edit-nueva-coleccion-carrito', 'edit-nueva-coleccion-carrito-rapido'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.checked = activo;
+            });
+            return activo;
         }
 
-        async function actualizarNuevaColeccionCarrito() {
-            const chk = document.getElementById('edit-nueva-coleccion-carrito');
+        function actualizarEstadoNuevaColeccionCarrito() {
+            const activo = sincronizarControlesNuevaColeccion();
+            const mensaje = activo
+                ? 'Carrito activo: las prendas de Nueva Coleccion ya se pueden comprar.'
+                : 'Carrito bloqueado: las prendas se ven, pero el boton queda en Proximamente.';
+            const estadoDiseno = document.getElementById('estado-nueva-coleccion-carrito');
+            const estadoRapido = document.getElementById('estado-nueva-coleccion-rapido');
+            if (estadoDiseno) estadoDiseno.textContent = mensaje;
+            if (estadoRapido) estadoRapido.textContent = activo
+                ? 'Carrito activo: los clientes ya pueden comprar Nueva Coleccion.'
+                : 'Carrito bloqueado: se ven, pero no se compran.';
+        }
+
+        async function actualizarNuevaColeccionCarrito(origen) {
+            const chk = origen || document.getElementById('edit-nueva-coleccion-carrito') || document.getElementById('edit-nueva-coleccion-carrito-rapido');
             if (!chk) return;
             config.nuevaColeccionCarritoActivo = !!chk.checked;
             actualizarEstadoNuevaColeccionCarrito();
