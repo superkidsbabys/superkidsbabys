@@ -1443,7 +1443,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
                     <div style="display: flex; gap: 10px;">
                         <div style="flex: 2;"><label>Nombre*:</label><input type="text" id="nuevo-nombre" required="" style="width: 100%;"></div>
-                        <div style="flex: 1;"><label>SKU (REF):</label><div style="position:relative;"><input type="text" id="nuevo-codigo" style="width:100%;" oninput="buscarTallasEnInventario(this.value)" autocomplete="off"><span id="inv-busqueda-msg" style="font-size: 0.75em; color: rgb(231, 76, 60); font-weight: 700; margin-top: 2px; display: block;">⚠️ No se encontró en inventario</span></div></div>
+                        <div style="flex: 1;"><label>SKU (REF):</label><div style="position:relative;"><input type="text" id="nuevo-codigo" style="width:100%;" oninput="marcarReferenciaProductoManual(); buscarTallasEnInventario(this.value)" onfocus="sugerirReferenciaProducto()" autocomplete="off"><div id="nuevo-codigo-ayuda" style="font-size:0.72em;color:#56836a;font-weight:700;margin-top:3px;"></div><span id="inv-busqueda-msg" style="font-size: 0.75em; color: rgb(231, 76, 60); font-weight: 700; margin-top: 2px; display: block;">⚠️ No se encontró en inventario</span></div></div>
                         <div style="flex: 1;"><label>Posición:</label><input type="number" id="nuevo-orden" placeholder="Ej: 1" style="width: 100%;"></div>
                     </div>
                     <div id="wrap-orden-genero" style="display:none; gap:10px; margin-top:8px;">
@@ -1525,10 +1525,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <div style="margin-bottom:14px;display:grid;grid-template-columns:minmax(0,1fr) 88px;gap:10px;align-items:end;">
                             <div>
                                 <label style="font-size:0.8em;color:#555;font-weight:700;">Foto de la entrada (opcional)</label>
-                                <input type="file" id="inv-foto" accept="image/*" onchange="previsualizarFotoEntradaInventario()" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;background:white;">
-                                <div style="font-size:0.72em;color:#56836a;font-weight:700;margin-top:4px;">Solo se muestra en pantalla; no se agrega al PDF.</div>
+                                <input type="file" id="inv-foto" accept="image/*" multiple onchange="previsualizarFotoEntradaInventario()" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;background:white;">
+                                <div style="font-size:0.72em;color:#56836a;font-weight:700;margin-top:4px;">Puedes agregar hasta 3 fotos. Solo se muestran en pantalla; no se agregan al PDF.</div>
                             </div>
-                            <div id="inv-foto-preview" style="width:88px;height:88px;border:1.5px dashed #a8e6c1;border-radius:10px;background:#f8fff9;display:flex;align-items:center;justify-content:center;color:#7aa88b;font-size:0.72em;font-weight:800;text-align:center;overflow:hidden;">Sin foto</div>
+                            <div id="inv-foto-preview" style="width:120px;min-height:88px;border:1.5px dashed #a8e6c1;border-radius:10px;background:#f8fff9;display:flex;align-items:center;justify-content:center;color:#7aa88b;font-size:0.72em;font-weight:800;text-align:center;overflow:hidden;">Sin foto</div>
                         </div>
                         <button onclick="guardarEntradaInventario()" style="background:linear-gradient(135deg,#27ae60,#2ecc71);color:white;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:800;font-size:1em;width:100%;font-family:Nunito,sans-serif;">✅ Registrar Entrada</button>
                         <div id="inv-msg" style="display:none;text-align:center;margin-top:8px;font-size:0.85em;color:#27ae60;font-weight:700;"></div>
@@ -3555,6 +3555,55 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
+
+        const CLAVE_SIGUIENTE_REF_PRODUCTO = 'superkidsSiguienteReferenciaProducto';
+        let referenciaProductoManual = false;
+
+        function obtenerNumeroReferencia(valor) {
+            const m = String(valor || '').match(/\d+/);
+            return m ? parseInt(m[0], 10) : 0;
+        }
+
+        function calcularSiguienteReferenciaProducto() {
+            const guardada = parseInt(localStorage.getItem(CLAVE_SIGUIENTE_REF_PRODUCTO) || '0', 10) || 0;
+            const maxActual = (window.productosDB || window.productosQ || []).reduce((max, p) => {
+                const n = obtenerNumeroReferencia(p && p.codigo);
+                return n > max ? n : max;
+            }, 0);
+            let siguiente = guardada > 0 ? guardada : maxActual + 1;
+            siguiente = Math.max(siguiente, 1);
+            while (referenciaProductoExiste(String(siguiente))) siguiente++;
+            return siguiente;
+        }
+
+        function referenciaProductoExiste(ref, excluirId) {
+            const buscada = String(ref || '').trim();
+            if (!buscada) return false;
+            return (window.productosDB || window.productosQ || []).some(p => String(p.codigo || '').trim() === buscada && (!excluirId || p.id !== excluirId));
+        }
+
+        function sugerirReferenciaProducto(forzar) {
+            const input = document.getElementById('nuevo-codigo');
+            const ayuda = document.getElementById('nuevo-codigo-ayuda');
+            if (!input) return;
+            if (forzar || (!referenciaProductoManual && !String(input.value || '').trim())) {
+                input.value = String(calcularSiguienteReferenciaProducto());
+            }
+            if (ayuda) ayuda.textContent = 'Siguiente referencia sugerida: ' + input.value;
+        }
+
+        function marcarReferenciaProductoManual() {
+            referenciaProductoManual = true;
+            const ayuda = document.getElementById('nuevo-codigo-ayuda');
+            const input = document.getElementById('nuevo-codigo');
+            if (ayuda && input) ayuda.textContent = 'Desde esta referencia el sistema continuara con la siguiente.';
+        }
+
+        function registrarReferenciaProductoUsada(ref) {
+            const n = obtenerNumeroReferencia(ref);
+            if (n > 0) localStorage.setItem(CLAVE_SIGUIENTE_REF_PRODUCTO, String(n + 1));
+        }
+
         async function procesarYAgregarProducto() {
             if (window.datosQuemados) return alert("Estás en la versión pública.");
             const btn = document.getElementById('btn-anadir-prod');
@@ -3563,8 +3612,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const precioActual = parseInt(document.getElementById('nuevo-precio').value);
             const nombre = document.getElementById('nuevo-nombre').value;
             const ordenManual = parseInt(document.getElementById('nuevo-orden').value) || 100;
+            const codigoInput = document.getElementById('nuevo-codigo');
+            if (codigoInput && !String(codigoInput.value || '').trim()) sugerirReferenciaProducto(true);
+            const codigoNuevo = codigoInput ? String(codigoInput.value || '').trim() : '';
 
             if (!nombre || !precioActual || !fotoPrincInput) return alert("Llena Nombre, Precio Actual y selecciona una Foto Principal.");
+            if (!codigoNuevo) return alert("Agrega una referencia para el producto.");
+            if (referenciaProductoExiste(codigoNuevo)) return alert("Esa referencia ya existe. Cambiala antes de subir el producto.");
 
             btn.innerText = "☁️ Subiendo fotos..."; btn.disabled = true;
             try {
@@ -3586,7 +3640,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     id: 'p' + Date.now(),
                     genero: document.getElementById('nuevo-genero').value,
                     categoria: document.getElementById('nueva-categoria-select').value,
-                    nombre, codigo: document.getElementById('nuevo-codigo').value.trim(),
+                    nombre, codigo: codigoNuevo,
                     orden: ordenManual,
                     _ts: Date.now(), // ✅ Tiebreaker estable para grupos visuales con mismo orden
                     ordenNinas: document.getElementById('nuevo-genero').value === 'Unisex' ? (parseInt(document.getElementById('nuevo-orden-ninas').value) || ordenManual) : null,
@@ -3606,7 +3660,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 localStorage.setItem('productosV36', JSON.stringify(productosDB)); marcarCambio();
                 renderizarFiltroTallas(); renderizarCatalogo();
 
-                ['nuevo-nombre','nuevo-codigo','nuevo-orden','nueva-desc','nuevo-precio','nuevo-precio-ant','nueva-etiqueta-badge'].forEach(id => document.getElementById(id).value = '');
+                registrarReferenciaProductoUsada(codigoNuevo);
+                ['nuevo-nombre','nuevo-orden','nueva-desc','nuevo-precio','nuevo-precio-ant','nueva-etiqueta-badge'].forEach(id => document.getElementById(id).value = '');
+                referenciaProductoManual = false;
+                sugerirReferenciaProducto(true);
                 document.getElementById('nueva-foto-princ').value = '';
                 document.getElementById('nuevas-fotos-extra').value = '';
                 document.getElementById('contenedor-tallas-stock').innerHTML = `<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"></div>`;
@@ -5923,13 +5980,25 @@ ${ped.comprobanteUrl ? `
             const input = document.getElementById('inv-foto');
             const preview = document.getElementById('inv-foto-preview');
             if (!input || !preview) return;
-            const file = input.files && input.files[0];
-            if (!file) {
+            const files = Array.from(input.files || []).slice(0, 3);
+            if ((input.files || []).length > 3) {
+                alert('Puedes agregar maximo 3 fotos por entrada.');
+                const dt = new DataTransfer();
+                files.forEach(f => dt.items.add(f));
+                input.files = dt.files;
+            }
+            if (!files.length) {
                 preview.innerHTML = 'Sin foto';
                 return;
             }
-            const url = URL.createObjectURL(file);
-            preview.innerHTML = '<img src="'+url+'" style="width:100%;height:100%;object-fit:cover;display:block;" onload="URL.revokeObjectURL(this.src)">';
+            preview.innerHTML = files.map(file => {
+                const url = URL.createObjectURL(file);
+                return '<img src="'+url+'" style="width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid #d7f3df;display:block;" onload="URL.revokeObjectURL(this.src)">';
+            }).join('');
+            preview.style.display = 'flex';
+            preview.style.flexWrap = 'wrap';
+            preview.style.gap = '6px';
+            preview.style.padding = '6px';
         }
 
         async function guardarEntradaInventario() {
@@ -5939,7 +6008,7 @@ ${ped.comprobanteUrl ? `
             const valor = document.getElementById('inv-valor').value;
             const obs = document.getElementById('inv-obs').value.trim();
             const fotoInput = document.getElementById('inv-foto');
-            const fotoFile = fotoInput && fotoInput.files ? fotoInput.files[0] : null;
+            const fotoFiles = fotoInput && fotoInput.files ? Array.from(fotoInput.files).slice(0, 3) : [];
             const msg = document.getElementById('inv-msg');
 
             if (!fecha || !ref || !desc) {
@@ -5963,16 +6032,18 @@ ${ped.comprobanteUrl ? `
                 tallas: tallasArr,
                 obs,
                 fotoUrl: '',
+                fotoUrls: [],
                 registradoPor: window.usuarioActual ? window.usuarioActual.nombre : 'Asesora',
                 timestamp: Date.now()
             };
 
             try {
-                if (fotoFile) {
+                if (fotoFiles.length) {
                     msg.style.color = '#27ae60';
-                    msg.textContent = 'Subiendo foto de la entrada...';
+                    msg.textContent = 'Subiendo fotos de la entrada...';
                     msg.style.display = 'block';
-                    entrada.fotoUrl = await subirACloudinary(fotoFile);
+                    entrada.fotoUrls = await Promise.all(fotoFiles.map(file => subirACloudinary(file)));
+                    entrada.fotoUrl = entrada.fotoUrls[0] || '';
                 }
                 const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 await addDoc(collection(db, 'inventario_mercancia'), entrada);
@@ -6013,8 +6084,9 @@ ${ped.comprobanteUrl ? `
                     const e = docSnap.data();
                     const totalUnd = (e.tallas||[]).reduce((sum,t)=>sum+Number(t.cantidad||0),0);
                     const tallasHtml = (e.tallas||[]).map(t=>'<span style="background:#e8f5e9;color:#1a6636;border-radius:12px;padding:2px 8px;font-size:0.78em;font-weight:700;">'+t.talla+': '+t.cantidad+'</span>').join(' ');
-                    const fotoHtml = e.fotoUrl
-                        ? '<img src="'+e.fotoUrl+'" onclick="abrirFotoGrande(\''+e.fotoUrl+'\')" style="width:82px;height:82px;object-fit:cover;border-radius:10px;border:1px solid #d7f3df;cursor:pointer;flex-shrink:0;">'
+                    const fotosEntrada = Array.isArray(e.fotoUrls) && e.fotoUrls.length ? e.fotoUrls : (e.fotoUrl ? [e.fotoUrl] : []);
+                    const fotoHtml = fotosEntrada.length
+                        ? '<div style="width:92px;display:flex;gap:5px;flex-wrap:wrap;flex-shrink:0;">'+fotosEntrada.slice(0,3).map(url => '<img src="'+url+'" onclick="abrirFotoGrande(\''+url+'\')" style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid #d7f3df;cursor:pointer;">').join('')+'</div>'
                         : '<div style="width:82px;height:82px;border-radius:10px;border:1.5px dashed #c9efd8;background:#f8fff9;color:#8aaa96;display:flex;align-items:center;justify-content:center;font-size:0.7em;font-weight:800;text-align:center;flex-shrink:0;">Sin foto</div>';
                     const card = document.createElement('div');
                     card.style.cssText = 'background:white;border:1.5px solid #a8e6c1;border-radius:12px;padding:12px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;';
@@ -6071,8 +6143,9 @@ ${ped.comprobanteUrl ? `
                     + entradas.map(e => {
                         const und = (e.tallas||[]).reduce((sum,t)=>sum+Number(t.cantidad||0),0);
                         const tallas = (e.tallas||[]).map(t=>'<span style="background:#eefaf2;color:#1a6636;border-radius:999px;padding:2px 7px;font-size:0.72em;font-weight:800;">'+t.talla+' '+t.cantidad+'</span>').join(' ');
-                        const foto = e.fotoUrl
-                            ? '<img src="'+e.fotoUrl+'" onclick="abrirFotoGrande(\''+e.fotoUrl+'\')" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:9px;border:1px solid #d7f3df;cursor:pointer;">'
+                        const fotosEntrada = Array.isArray(e.fotoUrls) && e.fotoUrls.length ? e.fotoUrls : (e.fotoUrl ? [e.fotoUrl] : []);
+                        const foto = fotosEntrada.length
+                            ? '<div style="display:grid;grid-template-columns:repeat('+Math.min(fotosEntrada.length,3)+',1fr);gap:5px;">'+fotosEntrada.slice(0,3).map(url => '<img src="'+url+'" onclick="abrirFotoGrande(\''+url+'\')" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;border:1px solid #d7f3df;cursor:pointer;">').join('')+'</div>'
                             : '<div style="width:100%;aspect-ratio:1/1;border-radius:9px;border:1.5px dashed #c9efd8;background:#f8fff9;color:#8aaa96;display:flex;align-items:center;justify-content:center;font-size:0.78em;font-weight:800;">Sin foto</div>';
                         return '<div style="background:white;border:1.5px solid #c9efd8;border-radius:12px;padding:10px;box-shadow:0 4px 12px rgba(26,122,74,0.06);">'
                             + foto
@@ -6867,7 +6940,7 @@ ${ped.comprobanteUrl ? `
             'eliminarPedido','eliminarProducto','eliminarSalidaInventario','exportarEditable',
             'exportarClientesCSV','exportarInventarioExcel','exportarInventarioPDF','exportarParaInternet','filtrarCatalogo',
             'filtrarPorTalla','filtrarVistaPedidos','guardarDatosTienda','guardarEdicionEntrada',
-            'guardarEdicionProducto','guardarEntradaInventario','imprimirFactura','moverCategoria',
+            'guardarEdicionProducto','guardarEntradaInventario','imprimirFactura','moverCategoria','sugerirReferenciaProducto','marcarReferenciaProductoManual',
             'moverCategoriaVisual','procesarOrdenWA','procesarYAgregarProducto','renderizarClientesGestion',
             'cerrarDetalleClienteGestion','enviarWhatsAppCliente','mostrarDetalleClienteGestion','renombrarCategoria',
             'renombrarCategoriaVisual','resetearOrdenEnFirebase','seleccionarTallaChip','seleccionarTema',
@@ -6875,6 +6948,7 @@ ${ped.comprobanteUrl ? `
         ].forEach(nombre => {
             try { window[nombre] = eval(nombre); } catch(e) {}
         });
+        setTimeout(() => sugerirReferenciaProducto(), 800);
         try { window.filtrarCatalogo = filtrarCatalogo; } catch(e) {}
         try { window.filtrarPorTalla = filtrarPorTalla; } catch(e) {}
         try { window.togglePromociones = togglePromociones; } catch(e) {}
