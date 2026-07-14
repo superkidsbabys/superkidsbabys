@@ -1552,7 +1552,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     <span>Tallas</span>
                     <span class="ft-flecha">▼</span>
                 </button>
-                <button class="btn-nueva-coleccion" id="btn-toggle-nueva-coleccion" onclick="toggleNuevaColeccion()">Nueva Coleccion</button>
+                <button class="btn-nueva-coleccion" id="btn-toggle-nueva-coleccion" type="button" disabled style="display:none;">Nueva Coleccion</button>
             </div>
             <div class="panel-acordeon" id="panel-cat">
                 <div class="panel-acordeon-inner">
@@ -3103,12 +3103,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function toggleNuevaColeccion() {
-            soloNuevaColeccion = !soloNuevaColeccion;
-            if (soloNuevaColeccion) {
-                soloPromociones = false;
-                tallaFiltroActual = 'Todas';
-                modoCollage = false;
-            }
+            soloNuevaColeccion = false;
+            soloPromociones = false;
+            tallaFiltroActual = 'Todas';
+            modoCollage = true;
             renderizarFiltroTallas();
             renderizarCatalogo();
         }
