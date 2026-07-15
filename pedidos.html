@@ -1443,7 +1443,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
                     <div style="display: flex; gap: 10px;">
                         <div style="flex: 2;"><label>Nombre*:</label><input type="text" id="nuevo-nombre" required="" style="width: 100%;"></div>
-                        <div style="flex: 1;"><label>SKU (REF):</label><div style="position:relative;"><input type="text" id="nuevo-codigo" style="width:100%;" oninput="marcarReferenciaProductoManual(); buscarTallasEnInventario(this.value)" onfocus="sugerirReferenciaProducto()" autocomplete="off"><div id="nuevo-codigo-ayuda" style="font-size:0.72em;color:#56836a;font-weight:700;margin-top:3px;"></div><span id="inv-busqueda-msg" style="font-size: 0.75em; color: rgb(231, 76, 60); font-weight: 700; margin-top: 2px; display: block;">⚠️ No se encontró en inventario</span></div></div>
+                        <div style="flex: 1;"><label>SKU (REF):</label><div style="position:relative;"><input type="text" id="nuevo-codigo" style="width:100%;" oninput="buscarTallasEnInventario(this.value)" autocomplete="off"><div id="nuevo-codigo-ayuda" style="font-size:0.72em;color:#56836a;font-weight:700;margin-top:3px;"></div><span id="inv-busqueda-msg" style="font-size: 0.75em; color: rgb(231, 76, 60); font-weight: 700; margin-top: 2px; display: block;">⚠️ No se encontró en inventario</span></div></div>
                         <div style="flex: 1;"><label>Posición:</label><input type="number" id="nuevo-orden" placeholder="Ej: 1" style="width: 100%;"></div>
                     </div>
                     <div id="wrap-orden-genero" style="display:none; gap:10px; margin-top:8px;">
@@ -3558,52 +3558,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
 
-        const CLAVE_SIGUIENTE_REF_PRODUCTO = 'superkidsSiguienteReferenciaProducto';
-        let referenciaProductoManual = false;
-
-        function obtenerNumeroReferencia(valor) {
-            const m = String(valor || '').match(/\d+/);
-            return m ? parseInt(m[0], 10) : 0;
-        }
-
-        function calcularSiguienteReferenciaProducto() {
-            const guardada = parseInt(localStorage.getItem(CLAVE_SIGUIENTE_REF_PRODUCTO) || '0', 10) || 0;
-            const maxActual = (window.productosDB || window.productosQ || []).reduce((max, p) => {
-                const n = obtenerNumeroReferencia(p && p.codigo);
-                return n > max ? n : max;
-            }, 0);
-            let siguiente = guardada > 0 ? guardada : maxActual + 1;
-            siguiente = Math.max(siguiente, 1);
-            while (referenciaProductoExiste(String(siguiente))) siguiente++;
-            return siguiente;
-        }
-
         function referenciaProductoExiste(ref, excluirId) {
             const buscada = String(ref || '').trim();
             if (!buscada) return false;
             return (window.productosDB || window.productosQ || []).some(p => String(p.codigo || '').trim() === buscada && (!excluirId || p.id !== excluirId));
-        }
-
-        function sugerirReferenciaProducto(forzar) {
-            const input = document.getElementById('nuevo-codigo');
-            const ayuda = document.getElementById('nuevo-codigo-ayuda');
-            if (!input) return;
-            if (forzar || (!referenciaProductoManual && !String(input.value || '').trim())) {
-                input.value = String(calcularSiguienteReferenciaProducto());
-            }
-            if (ayuda) ayuda.textContent = 'Siguiente referencia sugerida: ' + input.value;
-        }
-
-        function marcarReferenciaProductoManual() {
-            referenciaProductoManual = true;
-            const ayuda = document.getElementById('nuevo-codigo-ayuda');
-            const input = document.getElementById('nuevo-codigo');
-            if (ayuda && input) ayuda.textContent = 'Desde esta referencia el sistema continuara con la siguiente.';
-        }
-
-        function registrarReferenciaProductoUsada(ref) {
-            const n = obtenerNumeroReferencia(ref);
-            if (n > 0) localStorage.setItem(CLAVE_SIGUIENTE_REF_PRODUCTO, String(n + 1));
         }
 
         async function procesarYAgregarProducto() {
@@ -3615,7 +3573,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const nombre = document.getElementById('nuevo-nombre').value;
             const ordenManual = parseInt(document.getElementById('nuevo-orden').value) || 100;
             const codigoInput = document.getElementById('nuevo-codigo');
-            if (codigoInput && !String(codigoInput.value || '').trim()) sugerirReferenciaProducto(true);
             const codigoNuevo = codigoInput ? String(codigoInput.value || '').trim() : '';
 
             if (!nombre || !precioActual || !fotoPrincInput) return alert("Llena Nombre, Precio Actual y selecciona una Foto Principal.");
@@ -3662,10 +3619,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 localStorage.setItem('productosV36', JSON.stringify(productosDB)); marcarCambio();
                 renderizarFiltroTallas(); renderizarCatalogo();
 
-                registrarReferenciaProductoUsada(codigoNuevo);
-                ['nuevo-nombre','nuevo-orden','nueva-desc','nuevo-precio','nuevo-precio-ant','nueva-etiqueta-badge'].forEach(id => document.getElementById(id).value = '');
-                referenciaProductoManual = false;
-                sugerirReferenciaProducto(true);
+                ['nuevo-nombre','nuevo-codigo','nuevo-orden','nueva-desc','nuevo-precio','nuevo-precio-ant','nueva-etiqueta-badge'].forEach(id => document.getElementById(id).value = '');
                 document.getElementById('nueva-foto-princ').value = '';
                 document.getElementById('nuevas-fotos-extra').value = '';
                 document.getElementById('contenedor-tallas-stock').innerHTML = `<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"></div>`;
@@ -4106,10 +4060,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         msg.style.display = 'block';
                         return;
                     }
-                    // Sumar tallas de todas las entradas con ese código
+                    // Sumar tallas de todas las entradas con ese código y capturar la descripción
                     var tallaMap = {};
+                    var descEncontrada = '';
                     snap.forEach(function(d) {
                         var entrada = d.data();
+                        if (!descEncontrada && entrada.desc) descEncontrada = entrada.desc;
                         (entrada.tallas || []).forEach(function(t) {
                             var key = t.talla ? t.talla.trim() : '';
                             if (!key) return;
@@ -4122,6 +4078,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         msg.textContent = '⚠️ Sin tallas registradas';
                         msg.style.display = 'block';
                         return;
+                    }
+                    // Autocompletar el nombre si el campo está vacío
+                    var nombreInput = document.getElementById('nuevo-nombre');
+                    if (nombreInput && !nombreInput.value.trim() && descEncontrada) {
+                        nombreInput.value = descEncontrada;
                     }
                     // Llenar el contenedor de tallas del formulario nuevo producto
                     var cont = document.getElementById('contenedor-tallas-stock');
@@ -4136,7 +4097,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         cont.appendChild(div);
                     });
                     msg.style.color = '#27ae60';
-            msg.textContent = `Producto cargado: ${p.nombre}. Ingresa las cantidades que llegaron.`;
+                    msg.textContent = 'Producto cargado desde inventario. Verifica las cantidades.';
                     msg.style.display = 'block';
                 } catch(e) {
                     console.log('Error buscando inventario:', e);
@@ -7053,7 +7014,7 @@ ${ped.comprobanteUrl ? `
             'eliminarPedido','eliminarProducto','eliminarSalidaInventario','exportarEditable',
             'exportarClientesCSV','exportarInventarioExcel','exportarInventarioPDF','exportarParaInternet','filtrarCatalogo',
             'filtrarPorTalla','filtrarVistaPedidos','guardarDatosTienda','guardarEdicionEntrada',
-            'guardarEdicionProducto','guardarEntradaInventario','imprimirFactura','moverCategoria','sugerirReferenciaProducto','marcarReferenciaProductoManual','sugerirReferenciaInventario','marcarReferenciaInventarioManual',
+            'guardarEdicionProducto','guardarEntradaInventario','imprimirFactura','moverCategoria','sugerirReferenciaInventario','marcarReferenciaInventarioManual',
             'moverCategoriaVisual','procesarOrdenWA','procesarYAgregarProducto','renderizarClientesGestion',
             'cerrarDetalleClienteGestion','enviarWhatsAppCliente','mostrarDetalleClienteGestion','renombrarCategoria',
             'renombrarCategoriaVisual','resetearOrdenEnFirebase','seleccionarTallaChip','seleccionarTema',
@@ -7061,7 +7022,6 @@ ${ped.comprobanteUrl ? `
         ].forEach(nombre => {
             try { window[nombre] = eval(nombre); } catch(e) {}
         });
-        setTimeout(() => sugerirReferenciaProducto(), 800);
         try { window.filtrarCatalogo = filtrarCatalogo; } catch(e) {}
         try { window.filtrarPorTalla = filtrarPorTalla; } catch(e) {}
         try { window.togglePromociones = togglePromociones; } catch(e) {}
