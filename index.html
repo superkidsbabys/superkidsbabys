@@ -1552,7 +1552,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     <span>Tallas</span>
                     <span class="ft-flecha">▼</span>
                 </button>
-                <button class="btn-nueva-coleccion" id="btn-toggle-nueva-coleccion" type="button" disabled style="display:none;">Nueva Coleccion</button>
+                <button class="btn-nueva-coleccion" id="btn-toggle-nueva-coleccion" type="button" onclick="toggleNuevaColeccion()">Nueva Coleccion</button>
             </div>
             <div class="panel-acordeon" id="panel-cat">
                 <div class="panel-acordeon-inner">
@@ -3103,10 +3103,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function toggleNuevaColeccion() {
-            soloNuevaColeccion = false;
+            soloNuevaColeccion = !soloNuevaColeccion;
             soloPromociones = false;
             tallaFiltroActual = 'Todas';
-            modoCollage = true;
+            modoCollage = !soloNuevaColeccion;
             renderizarFiltroTallas();
             renderizarCatalogo();
         }
@@ -3257,7 +3257,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 filtroActual = 'Todos'; tallaFiltroActual = 'Todas'; soloPromociones = false; soloNuevaColeccion = false; modoCollage = true;
                 renderizarCategoriasAdminYPublic(); renderizarFiltroTallas(); renderizarCatalogo();
             };
-            btnVolver.style.display = (!modoCollage && filtroActual !== 'Todos') ? 'block' : 'none';
+            btnVolver.style.display = ((!modoCollage && filtroActual !== 'Todos') || soloNuevaColeccion) ? 'block' : 'none';
 
             const filtrados = productosDB.filter(p => {
                 let esNuevaColeccion = esProductoNuevaColeccion(p);
@@ -4023,13 +4023,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                             pedidosConocidosNotificacion.add(clavePedido);
                         }
                     });
+                    const pedidosFirebaseUnicos = depurarPedidosDuplicados(pedidosFirebase);
                     let pedidoInicialParaAviso = null;
                     if (!snapshotPedidosInicialCargado) {
-                        pedidoInicialParaAviso = pedidoNuevoPendienteDeAviso(pedidosFirebase);
+                        pedidoInicialParaAviso = pedidoNuevoPendienteDeAviso(pedidosFirebaseUnicos);
                         snapshotPedidosInicialCargado = true;
                     }
                     // Reemplazar completamente con los de Firebase (fuente de verdad)
-                    historialPedidos = pedidosFirebase;
+                    historialPedidos = pedidosFirebaseUnicos;
                     guardarClientesGestionDesdePedidos(historialPedidos);
                     corregirPedidosConsecutivoCorrupto(historialPedidos);
                     // Ordenar por número descendente
@@ -4168,6 +4169,25 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             } catch(e) {
                 console.log('Pedido guardado localmente, Firebase no disponible:', e.message);
             }
+        }
+
+        function depurarPedidosDuplicados(pedidos) {
+            const mapa = new Map();
+            (pedidos || []).forEach(function(pedido) {
+                const clave = pedido && (pedido.numOrden || (pedido.num ? formatoNumeroPedido(pedido.num) : pedido._firebaseId));
+                if (!clave) return;
+                const actual = mapa.get(clave);
+                if (!actual) {
+                    mapa.set(clave, pedido);
+                    return;
+                }
+                const actualEsFijo = String(actual._firebaseId || '') === 'pedido-' + actual.num;
+                const nuevoEsFijo = String(pedido._firebaseId || '') === 'pedido-' + pedido.num;
+                const tActual = parseInt(actual.timestampPedido || actual.timestamp || 0, 10) || 0;
+                const tNuevo = parseInt(pedido.timestampPedido || pedido.timestamp || 0, 10) || 0;
+                if ((nuevoEsFijo && !actualEsFijo) || (!actualEsFijo && tNuevo > tActual)) mapa.set(clave, pedido);
+            });
+            return Array.from(mapa.values());
         }
 
         const CLIENTE_LOCAL_KEY = 'sceClienteCheckoutLocalV1';
@@ -4349,6 +4369,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function procesarOrdenWA() {
+            if (window._procesandoOrdenWA) return;
             let n = document.getElementById('cart-nombre').value.trim();
             let cc = (document.getElementById('cart-cc') || {value:''}).value.trim();
             let d = document.getElementById('cart-direccion').value.trim();
@@ -4361,6 +4382,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             if (!n || !d || !ciudad || !tel || carrito.length === 0) return alert("Faltan datos en el formulario.");
             const validacionStock = validarCarritoContraStockReal();
             if (!validacionStock.ok) return alert(validacionStock.msg);
+            window._procesandoOrdenWA = true;
+            const btnEnviarPedido = document.querySelector('button[onclick="procesarOrdenWA()"]');
+            const textoBtnEnviarPedido = btnEnviarPedido ? btnEnviarPedido.innerHTML : '';
+            if (btnEnviarPedido) {
+                btnEnviarPedido.disabled = true;
+                btnEnviarPedido.style.opacity = '0.7';
+                btnEnviarPedido.innerHTML = 'Procesando pedido...';
+            }
 
             // Calcular totales y armar items ANTES de la transacción
             let t = 0, itemsParaPanel = [];
@@ -4413,6 +4442,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 let objetoOrden = {
                     num: numOrden, numOrden: numOrdenFormato, nom: n, cc: cc || '', dir: d, barrio: barrio || '', ciudad: ciudad || '', tel, correo: correo || '', tipoVenta: 'Contraentrega', tot: t,
                     items: itemsParaPanel, fecha: fechaHoy, estado: 'nuevo',
+                    valorEnvio: '',
                     timestampPedido: ahoraPedido,
                     stockDescontado: false,
                     transportadora: transp || '',
@@ -4440,10 +4470,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
                 // PASO 4: Guardar pedido completo en Firebase
                 try {
-                    const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                    await addDoc(collection(db, 'pedidos'), objetoOrden);
+                    await persistirPedidoEnFirebase(objetoOrden);
                     console.log('✅ Pedido ' + numOrdenFormato + ' guardado en Firebase');
                 } catch(e) { console.log('Error guardando pedido en Firebase:', e); }
+                finally {
+                    setTimeout(function() {
+                        window._procesandoOrdenWA = false;
+                        if (btnEnviarPedido) {
+                            btnEnviarPedido.disabled = false;
+                            btnEnviarPedido.style.opacity = '';
+                            btnEnviarPedido.innerHTML = textoBtnEnviarPedido;
+                        }
+                    }, 1200);
+                }
             })();
         }
 

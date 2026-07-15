@@ -1499,8 +1499,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                                 <label style="font-size:0.8em;color:#555;font-weight:700;">🏷️ Referencia (SKU)</label>
                                 <input type="text" id="inv-ref" placeholder="Ej: 3607 o nombre..." 
                                     autocomplete="off"
-                                    oninput="invAutocompletar(this.value)"
+                                    onfocus="sugerirReferenciaInventario()"
+                                    oninput="marcarReferenciaInventarioManual(); invAutocompletar(this.value)"
                                     style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+                                <div id="inv-ref-ayuda" style="font-size:0.72em;color:#56836a;font-weight:700;margin-top:3px;"></div>
                                 <div id="inv-autocomplete-list" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1.5px solid #a8e6c1;border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.12);margin-top:2px;"></div>
                             </div>
                         </div>
@@ -4253,13 +4255,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                             pedidosConocidosNotificacion.add(clavePedido);
                         }
                     });
+                    const pedidosFirebaseUnicos = depurarPedidosDuplicados(pedidosFirebase);
                     let pedidoInicialParaAviso = null;
                     if (!snapshotPedidosInicialCargado) {
-                        pedidoInicialParaAviso = pedidoNuevoPendienteDeAviso(pedidosFirebase);
+                        pedidoInicialParaAviso = pedidoNuevoPendienteDeAviso(pedidosFirebaseUnicos);
                         snapshotPedidosInicialCargado = true;
                     }
                     // Reemplazar completamente con los de Firebase (fuente de verdad)
-                    historialPedidos = pedidosFirebase;
+                    historialPedidos = pedidosFirebaseUnicos;
                     guardarClientesGestionDesdePedidos(historialPedidos);
                     corregirPedidosConsecutivoCorrupto(historialPedidos);
                     // Ordenar por número descendente
@@ -4397,6 +4400,25 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             } catch(e) {
                 console.log('Pedido guardado localmente, Firebase no disponible:', e.message);
             }
+        }
+
+        function depurarPedidosDuplicados(pedidos) {
+            const mapa = new Map();
+            (pedidos || []).forEach(function(pedido) {
+                const clave = pedido && (pedido.numOrden || (pedido.num ? formatoNumeroPedido(pedido.num) : pedido._firebaseId));
+                if (!clave) return;
+                const actual = mapa.get(clave);
+                if (!actual) {
+                    mapa.set(clave, pedido);
+                    return;
+                }
+                const actualEsFijo = String(actual._firebaseId || '') === 'pedido-' + actual.num;
+                const nuevoEsFijo = String(pedido._firebaseId || '') === 'pedido-' + pedido.num;
+                const tActual = parseInt(actual.timestampPedido || actual.timestamp || 0, 10) || 0;
+                const tNuevo = parseInt(pedido.timestampPedido || pedido.timestamp || 0, 10) || 0;
+                if ((nuevoEsFijo && !actualEsFijo) || (!actualEsFijo && tNuevo > tActual)) mapa.set(clave, pedido);
+            });
+            return Array.from(mapa.values());
         }
 
         const CLIENTE_LOCAL_KEY = 'sceClienteCheckoutLocalV1';
@@ -4578,6 +4600,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         function procesarOrdenWA() {
+            if (window._procesandoOrdenWA) return;
             let n = document.getElementById('cart-nombre').value.trim();
             let cc = (document.getElementById('cart-cc') || {value:''}).value.trim();
             let d = document.getElementById('cart-direccion').value.trim();
@@ -4590,6 +4613,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (!n || !d || !ciudad || !tel || carrito.length === 0) return alert("Faltan datos en el formulario.");
             const validacionStock = validarCarritoContraStockReal();
             if (!validacionStock.ok) return alert(validacionStock.msg);
+            window._procesandoOrdenWA = true;
+            const btnEnviarPedido = document.querySelector('button[onclick="procesarOrdenWA()"]');
+            const textoBtnEnviarPedido = btnEnviarPedido ? btnEnviarPedido.innerHTML : '';
+            if (btnEnviarPedido) {
+                btnEnviarPedido.disabled = true;
+                btnEnviarPedido.style.opacity = '0.7';
+                btnEnviarPedido.innerHTML = 'Procesando pedido...';
+            }
 
             // Calcular totales y armar items ANTES de la transacción
             let t = 0, itemsParaPanel = [];
@@ -4642,6 +4673,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 let objetoOrden = {
                     num: numOrden, numOrden: numOrdenFormato, nom: n, cc: cc || '', dir: d, barrio: barrio || '', ciudad: ciudad || '', tel, correo: correo || '', tipoVenta: 'Contraentrega', tot: t,
                     items: itemsParaPanel, fecha: fechaHoy, estado: 'nuevo',
+                    valorEnvio: '',
                     timestampPedido: ahoraPedido,
                     stockDescontado: false,
                     transportadora: transp || '',
@@ -4669,10 +4701,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
                 // PASO 4: Guardar pedido completo en Firebase
                 try {
-                    const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                    await addDoc(collection(db, 'pedidos'), objetoOrden);
+                    await persistirPedidoEnFirebase(objetoOrden);
                     console.log('✅ Pedido ' + numOrdenFormato + ' guardado en Firebase');
                 } catch(e) { console.log('Error guardando pedido en Firebase:', e); }
+                finally {
+                    setTimeout(function() {
+                        window._procesandoOrdenWA = false;
+                        if (btnEnviarPedido) {
+                            btnEnviarPedido.disabled = false;
+                            btnEnviarPedido.style.opacity = '';
+                            btnEnviarPedido.innerHTML = textoBtnEnviarPedido;
+                        }
+                    }, 1200);
+                }
             })();
         }
 
@@ -6001,9 +6042,71 @@ ${ped.comprobanteUrl ? `
             preview.style.padding = '6px';
         }
 
+        const CLAVE_SIGUIENTE_REF_INVENTARIO = 'superkidsSiguienteReferenciaInventario';
+        const REF_INVENTARIO_BASE = 300021;
+        let referenciaInventarioManual = false;
+
+        function obtenerNumeroReferenciaInventario(valor) {
+            const m = String(valor || '').match(/\d+/);
+            return m ? parseInt(m[0], 10) : 0;
+        }
+
+        async function obtenerReferenciasInventarioMercancia() {
+            const refs = [];
+            try {
+                const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const snap = await getDocs(collection(db, 'inventario_mercancia'));
+                snap.forEach(d => refs.push(String((d.data() || {}).ref || '').trim()));
+            } catch(e) {}
+            return refs.filter(Boolean);
+        }
+
+        async function referenciaInventarioExiste(ref) {
+            const buscada = String(ref || '').trim();
+            if (!buscada) return false;
+            const refs = await obtenerReferenciasInventarioMercancia();
+            return refs.some(r => r === buscada);
+        }
+
+        async function calcularSiguienteReferenciaInventario() {
+            const guardada = parseInt(localStorage.getItem(CLAVE_SIGUIENTE_REF_INVENTARIO) || '0', 10) || 0;
+            const refs = await obtenerReferenciasInventarioMercancia();
+            const maxSecuencia = refs.reduce((max, ref) => {
+                const n = obtenerNumeroReferenciaInventario(ref);
+                return (n >= 300000 && n < 400000 && n > max) ? n : max;
+            }, 0);
+            let siguiente = guardada > 0 ? guardada : Math.max(REF_INVENTARIO_BASE, maxSecuencia + 1);
+            const usadas = new Set(refs);
+            while (usadas.has(String(siguiente))) siguiente++;
+            return siguiente;
+        }
+
+        async function sugerirReferenciaInventario(forzar) {
+            const input = document.getElementById('inv-ref');
+            const ayuda = document.getElementById('inv-ref-ayuda');
+            if (!input) return;
+            if (forzar || (!referenciaInventarioManual && !String(input.value || '').trim())) {
+                input.value = String(await calcularSiguienteReferenciaInventario());
+            }
+            if (ayuda) ayuda.textContent = 'Siguiente referencia sugerida: ' + input.value;
+        }
+
+        function marcarReferenciaInventarioManual() {
+            referenciaInventarioManual = true;
+            const ayuda = document.getElementById('inv-ref-ayuda');
+            if (ayuda) ayuda.textContent = 'Desde esta referencia el sistema continuara con la siguiente.';
+        }
+
+        function registrarReferenciaInventarioUsada(ref) {
+            const n = obtenerNumeroReferenciaInventario(ref);
+            if (n > 0) localStorage.setItem(CLAVE_SIGUIENTE_REF_INVENTARIO, String(n + 1));
+        }
+
         async function guardarEntradaInventario() {
             const fecha = document.getElementById('inv-fecha').value;
-            const ref = document.getElementById('inv-ref').value.trim();
+            const refInput = document.getElementById('inv-ref');
+            if (refInput && !String(refInput.value || '').trim()) await sugerirReferenciaInventario(true);
+            const ref = refInput ? refInput.value.trim() : '';
             const desc = document.getElementById('inv-desc').value.trim();
             const valor = document.getElementById('inv-valor').value;
             const obs = document.getElementById('inv-obs').value.trim();
@@ -6014,6 +6117,13 @@ ${ped.comprobanteUrl ? `
             if (!fecha || !ref || !desc) {
                 msg.style.color = '#e74c3c';
                 msg.textContent = 'Completa fecha, referencia y descripcion';
+                msg.style.display = 'block';
+                return;
+            }
+
+            if (await referenciaInventarioExiste(ref)) {
+                msg.style.color = '#e74c3c';
+                msg.textContent = 'Esa referencia ya existe. Cambiala antes de registrar la entrada.';
                 msg.style.display = 'block';
                 return;
             }
@@ -6047,11 +6157,13 @@ ${ped.comprobanteUrl ? `
                 }
                 const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 await addDoc(collection(db, 'inventario_mercancia'), entrada);
+                registrarReferenciaInventarioUsada(ref);
                 msg.style.color = '#27ae60';
                 msg.textContent = 'Entrada registrada correctamente';
                 msg.style.display = 'block';
                 document.getElementById('inv-fecha').value = '';
-                document.getElementById('inv-ref').value = '';
+                referenciaInventarioManual = false;
+                await sugerirReferenciaInventario(true);
                 document.getElementById('inv-desc').value = '';
                 document.getElementById('inv-valor').value = '';
                 document.getElementById('inv-obs').value = '';
@@ -6849,6 +6961,7 @@ ${ped.comprobanteUrl ? `
             if (tab === 'inventario') {
                 cargarHistorialInventario();
                 cargarHistorialSalidas();
+                setTimeout(() => sugerirReferenciaInventario(), 600);
                 // Renderizar stock actual con reintento si productosDB aún no está listo
                 (function intentarRenderStock(intentos) {
                     var db = window.productosDB;
@@ -6940,7 +7053,7 @@ ${ped.comprobanteUrl ? `
             'eliminarPedido','eliminarProducto','eliminarSalidaInventario','exportarEditable',
             'exportarClientesCSV','exportarInventarioExcel','exportarInventarioPDF','exportarParaInternet','filtrarCatalogo',
             'filtrarPorTalla','filtrarVistaPedidos','guardarDatosTienda','guardarEdicionEntrada',
-            'guardarEdicionProducto','guardarEntradaInventario','imprimirFactura','moverCategoria','sugerirReferenciaProducto','marcarReferenciaProductoManual',
+            'guardarEdicionProducto','guardarEntradaInventario','imprimirFactura','moverCategoria','sugerirReferenciaProducto','marcarReferenciaProductoManual','sugerirReferenciaInventario','marcarReferenciaInventarioManual',
             'moverCategoriaVisual','procesarOrdenWA','procesarYAgregarProducto','renderizarClientesGestion',
             'cerrarDetalleClienteGestion','enviarWhatsAppCliente','mostrarDetalleClienteGestion','renombrarCategoria',
             'renombrarCategoriaVisual','resetearOrdenEnFirebase','seleccionarTallaChip','seleccionarTema',
