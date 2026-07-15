@@ -715,7 +715,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         .tp-estado-ubicacion { align-self:flex-start; margin:8px 10px 0; padding:5px 10px; border-radius:999px; background:#eef4ff; color:#315b9b; font-size:.76em; font-weight:900; }
         .btn-recoger-pedidos { border:0; background:transparent; color:#333; cursor:pointer; font-size:1em; font-weight:900; padding:5px 8px; border-radius:7px; transition:transform .22s ease, background .2s; }
         .btn-recoger-pedidos:hover { background:#e8eef7; }
-        .btn-recoger-pedidos.recogiendo { transform:rotate(180deg); }
+        .btn-recoger-pedidos.recogiendo { transform:scale(1.22); }
         .grid-pedidos { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         .grid-pedidos.modo-transp { display: block; width: 100%; }
         .tarjeta-pedido-cb { background: #fdfdfd; border: 1px solid #e8d5f5; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
@@ -5147,8 +5147,18 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         function recogerTodosPedidos(boton) {
-            document.querySelectorAll('#tbody-todos-pedidos .transp-prefactura-row.visible').forEach(r => r.classList.remove('visible'));
-            document.querySelectorAll('#tbody-todos-pedidos tr.abierto').forEach(r => r.classList.remove('abierto'));
+            const tbody = document.getElementById('tbody-todos-pedidos');
+            if (!tbody) return;
+            const estaRecogido = tbody.style.display === 'none';
+            if (estaRecogido) {
+                tbody.style.display = 'table-row-group';
+                if (boton) { boton.textContent = '▲'; boton.setAttribute('aria-expanded', 'true'); }
+            } else {
+                tbody.querySelectorAll('.transp-prefactura-row.visible').forEach(r => r.classList.remove('visible'));
+                tbody.querySelectorAll('tr.abierto').forEach(r => r.classList.remove('abierto'));
+                tbody.style.display = 'none';
+                if (boton) { boton.textContent = '▼'; boton.setAttribute('aria-expanded', 'false'); }
+            }
             if (boton) {
                 boton.classList.add('recogiendo');
                 setTimeout(function() { boton.classList.remove('recogiendo'); }, 280);
@@ -5544,7 +5554,7 @@ ${ped.comprobanteUrl ? `
                 const resumen = document.getElementById('resultado-busqueda-pedidos');
                 if (resumen) resumen.textContent = termino
                     ? (filtrados.length + ' resultado(s) encontrados en todos los estados')
-                    : (filtrados.length + ' pedidos · el último aparece primero');
+                    : (filtrados.length + ' pedidos');
                 if (filtrados.length === 0) {
                     cont.innerHTML = `<p style='text-align:center;grid-column:1/-1;color:#888;font-weight:bold;margin-top:20px;'>No se encontró ningún pedido en Nuevos, Enviados, Entregados, Pagados ni Anulados.</p>`;
                     return;
@@ -5552,7 +5562,7 @@ ${ped.comprobanteUrl ? `
                 cont.classList.add('modo-transp');
                 cont.innerHTML = `<table class="transp-lista-pedidos" style="grid-column:1/-1;">
                     <thead><tr>
-                        <th style="width:30px;"><button type="button" class="btn-recoger-pedidos" onclick="recogerTodosPedidos(this)" title="Recoger todos los pedidos" aria-label="Recoger todos los pedidos">▼</button></th>
+                        <th style="width:30px;"><button type="button" class="btn-recoger-pedidos" onclick="recogerTodosPedidos(this)" title="Mostrar u ocultar todos los pedidos" aria-label="Mostrar u ocultar todos los pedidos" aria-expanded="false">▼</button></th>
                         <th>Pedido</th>
                         <th>Cliente</th>
                         <th>Teléfono</th>
@@ -5561,7 +5571,7 @@ ${ped.comprobanteUrl ? `
                         <th>Prendas</th>
                         <th>Total</th>
                     </tr></thead>
-                    <tbody id="tbody-todos-pedidos"></tbody>
+                    <tbody id="tbody-todos-pedidos" style="display:none;"></tbody>
                 </table>`;
                 const tbodyTodos = cont.querySelector('#tbody-todos-pedidos');
                 filtrados.forEach((ped, idx) => {
