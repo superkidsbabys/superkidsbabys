@@ -1448,7 +1448,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
                     <div style="display: flex; gap: 10px;">
                         <div style="flex: 2;"><label>Nombre*:</label><input type="text" id="nuevo-nombre" required="" style="width: 100%;"></div>
-                        <div style="flex: 1;"><label>SKU (REF):</label><div style="position:relative;"><input type="text" id="nuevo-codigo" style="width:100%;" oninput="buscarTallasEnInventario(this.value)" autocomplete="off"><div id="nuevo-codigo-ayuda" style="font-size:0.72em;color:#56836a;font-weight:700;margin-top:3px;"></div><span id="inv-busqueda-msg" style="font-size: 0.75em; color: rgb(231, 76, 60); font-weight: 700; margin-top: 2px; display: block;">⚠️ No se encontró en inventario</span></div></div>
+                        <div style="flex: 1;"><label>SKU (REF):</label><div style="position:relative;"><input type="text" id="nuevo-codigo" style="width:100%;" oninput="validarCodigoCatalogoPublicado(this.value); buscarTallasEnInventario(this.value)" autocomplete="off"><div id="nuevo-codigo-ayuda" style="font-size:0.72em;color:#56836a;font-weight:700;margin-top:3px;"></div><span id="inv-busqueda-msg" style="font-size: 0.75em; color: rgb(231, 76, 60); font-weight: 700; margin-top: 2px; display: block;">⚠️ No se encontró en inventario</span></div></div>
                         <div style="flex: 1;"><label>Posición:</label><input type="number" id="nuevo-orden" placeholder="Ej: 1" style="width: 100%;"></div>
                     </div>
                     <div id="wrap-orden-genero" style="display:none; gap:10px; margin-top:8px;">
@@ -3571,9 +3571,28 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
 
         function referenciaProductoExiste(ref, excluirId) {
-            const buscada = String(ref || '').trim();
+            const buscada = String(ref || '').trim().toUpperCase();
             if (!buscada) return false;
-            return (window.productosDB || window.productosQ || []).some(p => String(p.codigo || '').trim() === buscada && (!excluirId || p.id !== excluirId));
+            // productosDB contiene únicamente los productos activos/publicados del catálogo.
+            // No se consulta inventario_mercancia: allí sí se permiten entradas repetidas.
+            return (productosDB || []).some(p => String(p.codigo || '').trim().toUpperCase() === buscada && (!excluirId || p.id !== excluirId));
+        }
+
+        function validarCodigoCatalogoPublicado(ref) {
+            const input = document.getElementById('nuevo-codigo');
+            const ayuda = document.getElementById('nuevo-codigo-ayuda');
+            const btn = document.getElementById('btn-anadir-prod');
+            const repetido = referenciaProductoExiste(ref);
+            if (input) {
+                input.style.borderColor = repetido ? '#e74c3c' : '';
+                input.setCustomValidity(repetido ? 'Este código ya está publicado en el catálogo.' : '');
+            }
+            if (ayuda) {
+                ayuda.style.color = repetido ? '#e74c3c' : '#56836a';
+                ayuda.textContent = repetido ? '⛔ Este código ya está publicado en el catálogo. No se puede repetir.' : '';
+            }
+            if (btn) btn.disabled = repetido;
+            return !repetido;
         }
 
         async function procesarYAgregarProducto() {
@@ -3589,7 +3608,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
             if (!nombre || !precioActual || !fotoPrincInput) return alert("Llena Nombre, Precio Actual y selecciona una Foto Principal.");
             if (!codigoNuevo) return alert("Agrega una referencia para el producto.");
-            if (referenciaProductoExiste(codigoNuevo)) return alert("Esa referencia ya existe. Cambiala antes de subir el producto.");
+            if (referenciaProductoExiste(codigoNuevo)) {
+                validarCodigoCatalogoPublicado(codigoNuevo);
+                codigoInput.focus();
+                return alert("⛔ Esa referencia ya está publicada en el catálogo. Usa un código diferente.");
+            }
 
             btn.innerText = "☁️ Subiendo fotos..."; btn.disabled = true;
             try {
