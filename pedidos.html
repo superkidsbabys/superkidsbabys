@@ -5514,7 +5514,48 @@ ${ped.comprobanteUrl ? `
                     cont.innerHTML = `<p style='text-align:center;grid-column:1/-1;color:#888;font-weight:bold;margin-top:20px;'>No se encontró ningún pedido en Nuevos, Enviados, Entregados, Pagados ni Anulados.</p>`;
                     return;
                 }
-                filtrados.forEach(ped => { cont.innerHTML += _htmlTarjetaPedido(ped); });
+                cont.classList.add('modo-transp');
+                cont.innerHTML = `<table class="transp-lista-pedidos" style="grid-column:1/-1;">
+                    <thead><tr>
+                        <th style="width:30px;">▼</th>
+                        <th>Pedido</th>
+                        <th>Cliente</th>
+                        <th>Teléfono</th>
+                        <th>Fecha</th>
+                        <th>Estado / ubicación</th>
+                        <th>Prendas</th>
+                        <th>Total</th>
+                    </tr></thead>
+                    <tbody id="tbody-todos-pedidos"></tbody>
+                </table>`;
+                const tbodyTodos = cont.querySelector('#tbody-todos-pedidos');
+                filtrados.forEach((ped, idx) => {
+                    const estado = normalizarEstadoPedido(ped.estado);
+                    const configEstado = ESTADOS_PEDIDO.find(e => e.valor === estado) || ESTADOS_PEDIDO[0];
+                    const detId = 'det-todos-' + idx + '-' + String(ped.num || '').replace(/\D/g, '');
+                    const numDisplay = ped.numOrden || ('SK' + String(ped.num || '').padStart(5, '0'));
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td class="transp-td-flecha">▼</td>
+                        <td class="transp-td-num">${numDisplay}</td>
+                        <td class="transp-td-cliente">${ped.nom || ''}</td>
+                        <td>${ped.tel || ''}</td>
+                        <td class="transp-td-fecha">${ped.fecha || ''}</td>
+                        <td><span class="tp-estado-ubicacion" style="margin:0;display:inline-block;">${configEstado.seccion}</span></td>
+                        <td class="transp-td-prendas">${(ped.items || []).length} prenda${(ped.items || []).length === 1 ? '' : 's'}</td>
+                        <td class="transp-td-total">${formatMoney(ped.tot || 0)}</td>`;
+                    const trDetalle = document.createElement('tr');
+                    trDetalle.id = detId;
+                    trDetalle.className = 'transp-prefactura-row';
+                    trDetalle.innerHTML = `<td colspan="8" class="transp-prefactura-cell"><div class="transp-prefactura-inner">${_htmlTarjetaPedido(ped)}</div></td>`;
+                    tr.addEventListener('click', function() {
+                        const abrir = !trDetalle.classList.contains('visible');
+                        document.querySelectorAll('#tbody-todos-pedidos .transp-prefactura-row.visible').forEach(r => r.classList.remove('visible'));
+                        document.querySelectorAll('#tbody-todos-pedidos tr.abierto').forEach(r => r.classList.remove('abierto'));
+                        if (abrir) { trDetalle.classList.add('visible'); tr.classList.add('abierto'); }
+                    });
+                    tbodyTodos.appendChild(tr);
+                    tbodyTodos.appendChild(trDetalle);
+                });
                 return;
             }
 
