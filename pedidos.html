@@ -6153,16 +6153,32 @@ ${ped.comprobanteUrl ? `
             return refs.some(r => r === buscada);
         }
 
+        async function obtenerUltimaReferenciaInventarioMercancia() {
+            try {
+                const { collection, getDocs, limit, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const q = query(collection(db, 'inventario_mercancia'), orderBy('timestamp', 'desc'), limit(1));
+                const snap = await getDocs(q);
+                if (!snap.empty) return String((snap.docs[0].data() || {}).ref || '').trim();
+            } catch(e) {
+                console.log('No se pudo leer la ultima referencia de inventario:', e);
+            }
+            return '';
+        }
+
         async function calcularSiguienteReferenciaInventario() {
-            const guardada = parseInt(localStorage.getItem(CLAVE_SIGUIENTE_REF_INVENTARIO) || '0', 10) || 0;
             const refs = await obtenerReferenciasInventarioMercancia();
-            const maxSecuencia = refs.reduce((max, ref) => {
-                const n = obtenerNumeroReferenciaInventario(ref);
-                return (n >= 300000 && n < 400000 && n > max) ? n : max;
-            }, 0);
-            let siguiente = guardada > 0 ? guardada : Math.max(REF_INVENTARIO_BASE, maxSecuencia + 1);
-            const usadas = new Set(refs);
-            while (usadas.has(String(siguiente))) siguiente++;
+            const guardadaLocal = parseInt(localStorage.getItem(CLAVE_SIGUIENTE_REF_INVENTARIO) || '0', 10) || 0;
+            const ultimaRef = await obtenerUltimaReferenciaInventarioMercancia();
+            const ultimoNumero = obtenerNumeroReferenciaInventario(ultimaRef);
+            // La entrada más reciente define la serie activa. Si alguien cambia la
+            // referencia manualmente (por ejemplo, de 300xxx a 100xxx), las entradas
+            // siguientes continúan desde ese nuevo número, sin imponer un prefijo fijo.
+            let siguiente = ultimoNumero > 0
+                ? ultimoNumero + 1
+                : (guardadaLocal > 0 ? guardadaLocal : REF_INVENTARIO_BASE);
+            const usadas = new Set(refs.map(ref => obtenerNumeroReferenciaInventario(ref)).filter(Boolean));
+            while (usadas.has(siguiente)) siguiente++;
+            localStorage.setItem(CLAVE_SIGUIENTE_REF_INVENTARIO, String(siguiente));
             return siguiente;
         }
 
@@ -6293,7 +6309,7 @@ ${ped.comprobanteUrl ? `
                         +'<div style="margin-bottom:6px;display:flex;gap:4px;flex-wrap:wrap;">'+tallasHtml+'</div>'
                         +(e.obs ? '<div style="font-size:0.78em;color:#666;background:#f8f8f8;padding:6px 10px;border-radius:8px;margin-bottom:6px;">'+e.obs+'</div>' : '')
                         +'<button onclick="eliminarEntradaInventario(\'' + docSnap.id + '\')" style="background:#fde8e8;color:#e74c3c;border:1px solid #f5c6c6;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;">Eliminar</button>'
-                        +(window.usuarioActual && window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' ? '<button data-id="'+docSnap.id+'" data-ref="'+(e.ref||'')+'" data-desc="'+encodeURIComponent(e.desc||'')+'" data-tallas="'+encodeURIComponent(JSON.stringify(e.tallas||[]))+'" onclick="abrirEditarEntradaBtn(this)" style="background:#e8f5e9;color:#1a7a4a;border:1px solid #a8e6c1;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;margin-left:6px;">Editar</button>' : '') + '</div>';
+                        +(window.usuarioActual && window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' ? '<button data-id="'+docSnap.id+'" data-ref="'+(e.ref||'')+'" data-desc="'+encodeURIComponent(e.desc||'')+'" data-tallas="'+encodeURIComponent(JSON.stringify(e.tallas||[]))+'" data-fotos="'+encodeURIComponent(JSON.stringify(fotosEntrada))+'" onclick="abrirEditarEntradaBtn(this)" style="background:#e8f5e9;color:#1a7a4a;border:1px solid #a8e6c1;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;margin-left:6px;">Editar</button>' : '') + '</div>';
                     cont.appendChild(card);
                 });
             } catch(e) {
@@ -6364,10 +6380,11 @@ ${ped.comprobanteUrl ? `
             var ref = btn.getAttribute('data-ref');
             var descEncoded = btn.getAttribute('data-desc');
             var tallasJson = JSON.parse(decodeURIComponent(btn.getAttribute('data-tallas')));
-            abrirEditarEntrada(id, ref, descEncoded, tallasJson);
+            var fotosJson = JSON.parse(decodeURIComponent(btn.getAttribute('data-fotos') || '%5B%5D'));
+            abrirEditarEntrada(id, ref, descEncoded, tallasJson, fotosJson);
         }
 
-        function abrirEditarEntrada(id, ref, descEncoded, tallasJson) {
+        function abrirEditarEntrada(id, ref, descEncoded, tallasJson, fotosJson) {
             document.getElementById('edit-entrada-id').value = id;
             document.getElementById('edit-entrada-ref').value = ref;
             document.getElementById('edit-entrada-desc').value = decodeURIComponent(descEncoded);
@@ -6377,6 +6394,7 @@ ${ped.comprobanteUrl ? `
             (tallas || []).forEach(function(t) {
                 agregarFilaEditEntrada(t.talla, t.cantidad);
             });
+            prepararEditorFotosEntrada(fotosJson || []);
             document.getElementById('modal-editar-entrada').style.display = 'block';
             document.getElementById('edit-entrada-msg').style.display = 'none';
         }
@@ -6412,7 +6430,21 @@ ${ped.comprobanteUrl ? `
             });
             try {
                 var { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                await updateDoc(doc(db, 'inventario_mercancia', id), { ref: ref, desc: desc, tallas: tallas });
+                var fotosFinales = (window._fotosEditEntrada || []).slice();
+                var inputFotos = document.getElementById('modal-editar-entrada').querySelector('#edit-entrada-fotos-nuevas');
+                var archivosNuevos = inputFotos ? Array.from(inputFotos.files || []) : [];
+                if (archivosNuevos.length) {
+                    msg.style.color = '#56836a';
+                    msg.textContent = '☁️ Subiendo fotos nuevas...';
+                    msg.style.display = 'block';
+                    var nuevasUrls = await Promise.all(archivosNuevos.map(function(file) { return subirACloudinary(file); }));
+                    fotosFinales = fotosFinales.concat(nuevasUrls);
+                }
+                await updateDoc(doc(db, 'inventario_mercancia', id), {
+                    ref: ref, desc: desc, tallas: tallas,
+                    fotoUrls: fotosFinales,
+                    fotoUrl: fotosFinales[0] || ''
+                });
                 msg.style.color = '#27ae60';
                 msg.textContent = '✅ Actualizado correctamente';
                 msg.style.display = 'block';
@@ -7000,6 +7032,52 @@ ${ped.comprobanteUrl ? `
                         '<span style="color:#8e44ad;font-weight:900;">' + formatMoney(totalPedidoCliente(p)) + '</span>' +
                     '</div>';
                 }).join('') + '</div>';
+        }
+
+        function prepararEditorFotosEntrada(fotos) {
+            window._fotosEditEntrada = Array.isArray(fotos) ? fotos.slice() : [];
+            var modal = document.getElementById('modal-editar-entrada');
+            var tallasWrap = modal ? modal.querySelector('#edit-entrada-tallas-cont').parentElement : null;
+            if (!tallasWrap) return;
+            var editor = modal.querySelector('#edit-entrada-fotos-wrap');
+            if (!editor) {
+                editor = document.createElement('div');
+                editor.id = 'edit-entrada-fotos-wrap';
+                editor.style.cssText = 'margin:12px 0;padding:10px;border:1.5px solid #a8e6c1;border-radius:10px;background:#f8fff9;';
+                editor.innerHTML = '<label style="font-size:0.8em;color:#555;font-weight:800;display:block;margin-bottom:7px;">📷 Fotos de la entrada</label>'
+                    + '<div id="edit-entrada-fotos-actuales" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>'
+                    + '<input type="file" id="edit-entrada-fotos-nuevas" accept="image/*" multiple style="width:100%;font-size:0.82em;">'
+                    + '<div style="font-size:0.72em;color:#6b8b78;font-weight:700;margin-top:4px;">Puedes conservar, quitar o agregar fotos.</div>';
+                tallasWrap.insertAdjacentElement('afterend', editor);
+            }
+            var fileInput = modal.querySelector('#edit-entrada-fotos-nuevas');
+            if (fileInput) fileInput.value = '';
+            renderFotosActualesEntrada();
+        }
+
+        function renderFotosActualesEntrada() {
+            var modal = document.getElementById('modal-editar-entrada');
+            var cont = modal ? modal.querySelector('#edit-entrada-fotos-actuales') : null;
+            if (!cont) return;
+            cont.innerHTML = '';
+            (window._fotosEditEntrada || []).forEach(function(url, index) {
+                var item = document.createElement('div');
+                item.style.cssText = 'position:relative;width:76px;height:76px;';
+                var img = document.createElement('img');
+                img.src = url;
+                img.style.cssText = 'width:76px;height:76px;object-fit:cover;border-radius:9px;border:1px solid #a8e6c1;';
+                var quitar = document.createElement('button');
+                quitar.type = 'button';
+                quitar.textContent = '✕';
+                quitar.title = 'Quitar foto';
+                quitar.style.cssText = 'position:absolute;right:-5px;top:-6px;width:23px;height:23px;border-radius:50%;border:none;background:#e74c3c;color:white;font-weight:900;cursor:pointer;';
+                quitar.addEventListener('click', function() {
+                    window._fotosEditEntrada.splice(index, 1);
+                    renderFotosActualesEntrada();
+                });
+                item.appendChild(img); item.appendChild(quitar); cont.appendChild(item);
+            });
+            if (!(window._fotosEditEntrada || []).length) cont.innerHTML = '<span style="color:#8aaa96;font-size:0.78em;font-weight:700;">Esta entrada no tiene fotos.</span>';
         }
 
         function cerrarDetalleClienteGestion() {
