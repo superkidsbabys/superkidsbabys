@@ -708,6 +708,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         .btn-filtro-ped { background: #fff; border: 2px solid #e1e4e8; padding: 8px 20px; border-radius: 25px; cursor: pointer; color: #555; font-weight: bold; transition: 0.2s; font-size: 0.95em;}
         .btn-filtro-ped:hover { border-color: #4a90e2; }
         .btn-filtro-ped.activo { background: #4a90e2; color: white; border-color: #4a90e2; box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3);}
+        .buscador-global-pedidos { display:flex; gap:10px; align-items:center; max-width:760px; margin:0 auto 18px; }
+        .buscador-global-pedidos input { flex:1; min-width:0; padding:11px 15px; border:2px solid #cfe0f3; border-radius:12px; font-family:Nunito,sans-serif; font-size:0.95em; outline:none; }
+        .buscador-global-pedidos input:focus { border-color:#4a90e2; box-shadow:0 0 0 3px rgba(74,144,226,.12); }
+        .resultado-busqueda-pedidos { text-align:center; color:#667085; font-size:.86em; font-weight:700; margin:-8px 0 16px; }
+        .tp-estado-ubicacion { align-self:flex-start; margin:8px 10px 0; padding:5px 10px; border-radius:999px; background:#eef4ff; color:#315b9b; font-size:.76em; font-weight:900; }
         .grid-pedidos { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         .grid-pedidos.modo-transp { display: block; width: 100%; }
         .tarjeta-pedido-cb { background: #fdfdfd; border: 1px solid #e8d5f5; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
@@ -1474,12 +1479,18 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             <div id="tab-pedidos" class="seccion-tab">
                 <div class="seccion-admin-sub" style="background: transparent; border: none; padding: 0;">
                     <div class="filtros-pedidos">
+                        <button class="btn-filtro-ped" id="fp-todos" onclick="filtrarVistaPedidos('todos')">Todos (primero al último)</button>
                         <button class="btn-filtro-ped activo" id="fp-nuevo" onclick="filtrarVistaPedidos('nuevo')">Nuevos</button>
                         <button class="btn-filtro-ped" id="fp-enviado" onclick="filtrarVistaPedidos('enviado')">Enviados</button>
                         <button class="btn-filtro-ped" id="fp-entregado" onclick="filtrarVistaPedidos('entregado')">Entregados</button>
                         <button class="btn-filtro-ped" id="fp-pagado" onclick="filtrarVistaPedidos('pagado')" style="background:#eafaf0;color:#1e8449;border-color:#7dd8a0;">Pagados</button>
                         <button class="btn-filtro-ped" id="fp-cancelado" onclick="filtrarVistaPedidos('cancelado')">Anulados</button>
                     </div>
+                    <div class="buscador-global-pedidos">
+                        <input id="buscar-pedido-global" type="search" placeholder="Buscar # pedido, nombre, cédula o teléfono..." oninput="buscarPedidoEnTodos(this.value)">
+                        <button class="btn-filtro-ped" onclick="limpiarBusquedaPedidos()">Limpiar</button>
+                    </div>
+                    <div id="resultado-busqueda-pedidos" class="resultado-busqueda-pedidos"></div>
                     <div class="grid-pedidos" id="contenedor-historial-pedidos"><div class="tarjeta-pedido-cb"><button class="btn-imprimir-ped" onclick="imprimirFactura(7404)">📄 PDF</button><button class="btn-eliminar-ped" onclick="eliminarPedido(7404)">🗑️ Eliminar</button><div class="tp-header"><span class="tp-id">#SK-7404</span><span class="tp-fecha">19/5/2026, 10:21:23 a. m.</span></div><h4 class="tp-cliente">👤 Yomileth mejia lopez  CC1193558699</h4><div class="tp-datos">📍 OFICINA INTERRAPIDISIMO URIBIA LA GUAJIRA<br>📞 3207211515</div><div class="tp-items"><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778639673/hkauftuw6e3o8x12usfi.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco Rosado Cisnes</div><div style="font-size:0.72em;color:#888;">Talla: 6M · REF: 3402</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778642229/gcfjdjvwmcapnhd4eftx.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco Unicornio</div><div style="font-size:0.72em;color:#888;">Talla: 6M · REF: 1998</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778551747/ihohfk0ct7zlemqx63cn.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco Animal print rosado/cafe</div><div style="font-size:0.72em;color:#888;">Talla: 0M · REF: 3713</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778556767/qy4j4wmitmycl3mmrxus.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco blanco animal print con bolerito</div><div style="font-size:0.72em;color:#888;">Talla: 0M · REF: 101201665</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778538358/ctkdiajqmoqmheqj4xz2.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco Blanco Safari</div><div style="font-size:0.72em;color:#888;">Talla: 0M · REF: 2183</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778386309/vszgjy6pq36ljr7rrk0r.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Enterizo Rosado Daddy´s Girl</div><div style="font-size:0.72em;color:#888;">Talla: 0M · REF: 3717</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div></div><div class="tp-total">Total: $150.000</div><div class="tp-acciones"><select class="select-estado-ped" onchange="cambiarEstadoPedido(7404, this.value)"><option value="nuevo" selected="">Nuevo</option><option value="pendiente_pago">Pendiente pago</option><option value="enviado">Enviado</option><option value="entregado">Entregado</option><option value="cancelado">Cancelado</option></select></div></div><div class="tarjeta-pedido-cb"><button class="btn-imprimir-ped" onclick="imprimirFactura(4855)">📄 PDF</button><button class="btn-eliminar-ped" onclick="eliminarPedido(4855)">🗑️ Eliminar</button><div class="tp-header"><span class="tp-id">#SK-4855</span><span class="tp-fecha">27/5/2026, 11:45:40 p. m.</span></div><h4 class="tp-cliente">👤 Yohana</h4><div class="tp-datos">📍 55an<br>📞 3025451526</div><div class="tp-items"><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778386309/vszgjy6pq36ljr7rrk0r.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Enterizo Rosado Daddy´s Girl</div><div style="font-size:0.72em;color:#888;">Talla: 3M · REF: 3717</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div><div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;"><img src="https://res.cloudinary.com/dycsnsaex/image/upload/f_auto,q_auto,w_100/v1778455515/ypxygwhjvwerdvjuxwiq.png" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mameluco Rosado conejita</div><div style="font-size:0.72em;color:#888;">Talla: 3M · REF: 3716</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">$25.000</span></div></div><div class="tp-total">Total: $50.000</div><div class="tp-acciones"><select class="select-estado-ped" onchange="cambiarEstadoPedido(4855, this.value)"><option value="nuevo" selected="">Nuevo</option><option value="pendiente_pago">Pendiente pago</option><option value="enviado">Enviado</option><option value="entregado">Entregado</option><option value="cancelado">Cancelado</option></select></div></div></div>
                 </div>
             </div>
@@ -5083,10 +5094,29 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         // ── FIN SCE INDICADOR ──
 
         function filtrarVistaPedidos(estado) {
-            vistaPedidosActual = normalizarEstadoPedido(estado);
+            vistaPedidosActual = estado === 'todos' ? 'todos' : normalizarEstadoPedido(estado);
             document.querySelectorAll('.btn-filtro-ped').forEach(b => b.classList.remove('activo'));
             const btn = document.getElementById(`fp-${vistaPedidosActual}`);
             if (btn) btn.classList.add('activo');
+            renderizarPedidosPanel();
+        }
+
+        function textoBusquedaPedido(pedido) {
+            return [pedido.num, pedido.numOrden, pedido.numFactura, pedido.nom, pedido.cc, pedido.tel,
+                pedido.dir, pedido.barrio, pedido.ciudad, pedido.transportadora]
+                .concat((pedido.items || []).map(i => [i.nom, i.cod].join(' ')))
+                .filter(Boolean).join(' ').toLowerCase();
+        }
+
+        function buscarPedidoEnTodos(valor) {
+            const texto = String(valor || '').trim();
+            if (texto) filtrarVistaPedidos('todos');
+            renderizarPedidosPanel();
+        }
+
+        function limpiarBusquedaPedidos() {
+            const input = document.getElementById('buscar-pedido-global');
+            if (input) input.value = '';
             renderizarPedidosPanel();
         }
 
@@ -5437,6 +5467,7 @@ ${ped.comprobanteUrl ? `
                     ped.observaciones ? '📝 '+ped.observaciones : '',
                 ].filter(Boolean).join('<br>');
                 return '<div class="tarjeta-pedido-cb">' +
+                    '<div class="tp-estado-ubicacion">Está en: ' + (ESTADOS_PEDIDO.find(e => e.valor === estadoActual) || ESTADOS_PEDIDO[0]).seccion + '</div>' +
                     '<div class="tp-encabezado">' +
                       '<div class="tp-fila1"><span class="tp-id">' + numOrdenDisplay + '</span><span class="tp-fecha">🕐 ' + (ped.fecha || '') + '</span></div>' +
                       '<div class="tp-fila2">' +
@@ -5466,6 +5497,29 @@ ${ped.comprobanteUrl ? `
                     '</div>' +
                     '</div>';
             }
+
+            // Vista global: todos los pedidos, del primero al último, con búsqueda en todos los estados
+            if (vistaPedidosActual === 'todos') {
+                cont.classList.remove('modo-transp');
+                const inputBusqueda = document.getElementById('buscar-pedido-global');
+                const termino = String(inputBusqueda ? inputBusqueda.value : '').trim().toLowerCase();
+                const filtrados = historialPedidos
+                    .filter(p => !termino || textoBusquedaPedido(p).includes(termino))
+                    .sort((a, b) => compararPedidosRecientes(b, a));
+                const resumen = document.getElementById('resultado-busqueda-pedidos');
+                if (resumen) resumen.textContent = termino
+                    ? (filtrados.length + ' resultado(s) encontrados en todos los estados')
+                    : (filtrados.length + ' pedidos · ordenados del primero al último');
+                if (filtrados.length === 0) {
+                    cont.innerHTML = `<p style='text-align:center;grid-column:1/-1;color:#888;font-weight:bold;margin-top:20px;'>No se encontró ningún pedido en Nuevos, Enviados, Entregados, Pagados ni Anulados.</p>`;
+                    return;
+                }
+                filtrados.forEach(ped => { cont.innerHTML += _htmlTarjetaPedido(ped); });
+                return;
+            }
+
+            const resumenBusqueda = document.getElementById('resultado-busqueda-pedidos');
+            if (resumenBusqueda) resumenBusqueda.textContent = '';
 
             // Vista anulados — filas compactas expandibles
             if (vistaPedidosActual === 'cancelado') {
