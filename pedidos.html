@@ -6504,6 +6504,8 @@ ${ped.comprobanteUrl ? `
             var cont = document.getElementById('edit-entrada-tallas-cont');
             cont.innerHTML = '';
             var tallas = typeof tallasJson === 'string' ? JSON.parse(tallasJson) : tallasJson;
+            window._editEntradaRefOriginal = ref;
+            window._editEntradaTallasOriginales = JSON.parse(JSON.stringify(tallas || []));
             (tallas || []).forEach(function(t) {
                 agregarFilaEditEntrada(t.talla, t.cantidad);
             });
@@ -6521,6 +6523,51 @@ ${ped.comprobanteUrl ? `
                 + '<input type="number" class="edit-ent-talla-cant" placeholder="Cant." min="0" value="'+(cant||0)+'" style="width:80px;padding:7px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">'
                 + '<button onclick="this.parentElement.remove()" style="background:#e74c3c;color:white;border:none;border-radius:8px;padding:7px 10px;cursor:pointer;font-weight:700;">✕</button>';
             cont.appendChild(div);
+        }
+
+        async function sincronizarCorreccionEntradaConCatalogo(refOriginal, refNueva, tallasOriginales, tallasNuevas) {
+            const normalizarRef = valor => String(valor || '').trim().toUpperCase();
+            const refAntes = normalizarRef(refOriginal);
+            const refDespues = normalizarRef(refNueva);
+            const publicados = (productosDB || []).filter(function(p) {
+                const codigo = normalizarRef(p.codigo);
+                return codigo && (codigo === refAntes || codigo === refDespues);
+            });
+            if (!publicados.length) return 0;
+
+            function mapaCantidades(lista) {
+                const mapa = {};
+                (lista || []).forEach(function(t) {
+                    const talla = normalizarTallaValor(t.talla || t.nombre);
+                    const cantidad = t.cantidad !== undefined ? t.cantidad : t.stock;
+                    if (talla) mapa[talla] = (mapa[talla] || 0) + Number(cantidad || 0);
+                });
+                return mapa;
+            }
+            const antes = mapaCantidades(tallasOriginales);
+            const despues = mapaCantidades(tallasNuevas);
+            const tallasAfectadas = new Set(Object.keys(antes).concat(Object.keys(despues)));
+
+            for (const producto of publicados) {
+                producto.tallasObj = Array.isArray(producto.tallasObj) ? producto.tallasObj : [];
+                tallasAfectadas.forEach(function(nombreTalla) {
+                    const diferencia = (despues[nombreTalla] || 0) - (antes[nombreTalla] || 0);
+                    if (!diferencia) return;
+                    let tallaProducto = producto.tallasObj.find(t => normalizarTallaValor(t.nombre) === nombreTalla);
+                    if (!tallaProducto && diferencia > 0) {
+                        tallaProducto = { nombre: nombreTalla, stock: 0 };
+                        producto.tallasObj.push(tallaProducto);
+                    }
+                    if (tallaProducto) tallaProducto.stock = Math.max(0, Number(tallaProducto.stock || 0) + diferencia);
+                });
+                producto.stockTotal = producto.tallasObj.reduce((s, t) => s + Number(t.stock || 0), 0);
+                producto.actualizadoEn = new Date().toISOString();
+                if (window.fbGuardarProducto) await window.fbGuardarProducto(producto);
+            }
+            localStorage.setItem('productosV36', JSON.stringify(productosDB));
+            if (typeof renderizarCatalogo === 'function') renderizarCatalogo();
+            if (typeof renderStockActual === 'function') renderStockActual();
+            return publicados.length;
         }
 
         async function guardarEdicionEntrada() {
@@ -6558,8 +6605,16 @@ ${ped.comprobanteUrl ? `
                     fotoUrls: fotosFinales,
                     fotoUrl: fotosFinales[0] || ''
                 });
+                const productosSincronizados = await sincronizarCorreccionEntradaConCatalogo(
+                    window._editEntradaRefOriginal || ref,
+                    ref,
+                    window._editEntradaTallasOriginales || [],
+                    tallas
+                );
                 msg.style.color = '#27ae60';
-                msg.textContent = '✅ Actualizado correctamente';
+                msg.textContent = productosSincronizados
+                    ? '✅ Entrada y stock del catálogo actualizados'
+                    : '✅ Entrada actualizada (esta referencia aún no está publicada)';
                 msg.style.display = 'block';
                 setTimeout(function() {
                     document.getElementById('modal-editar-entrada').style.display = 'none';

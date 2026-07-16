@@ -4245,6 +4245,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         function limpiarFormularioCheckoutDespuesDeEnviar() {
             window._bloquearAutorrellenoCheckoutHasta = Date.now() + 15000;
+            // Limpiar únicamente la copia guardada en este navegador. El pedido y la
+            // ficha del cliente permanecen intactos en Firebase y en Gestión.
+            try { localStorage.removeItem(CLIENTE_LOCAL_KEY); } catch(e) {}
             ['cart-nombre','cart-cc','cart-direccion','cart-barrio','cart-ciudad','cart-telefono','cart-correo'].forEach(function(id) {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
