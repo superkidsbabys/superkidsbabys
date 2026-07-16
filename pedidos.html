@@ -4400,6 +4400,63 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
+        function abrirEditarDatosClientePedido(numPedido) {
+            const pedido = historialPedidos.find(p => p.num === numPedido);
+            if (!pedido) return alert('No se encontró el pedido.');
+            let modal = document.getElementById('modal-editar-cliente-pedido');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'modal-editar-cliente-pedido';
+                modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100005;overflow-y:auto;padding:20px;box-sizing:border-box;';
+                modal.innerHTML = '<div style="background:white;max-width:560px;margin:25px auto;border-radius:16px;padding:22px;font-family:Nunito,sans-serif;box-shadow:0 18px 55px rgba(0,0,0,.25);">'
+                    + '<h3 style="margin:0 0 15px;color:#7e22ce;">✏️ Editar datos del cliente</h3>'
+                    + '<input type="hidden" id="edit-cli-pedido-num">'
+                    + '<div id="edit-cli-pedido-campos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;">'
+                    + '<label style="font-weight:800;font-size:.82em;">Nombre<input id="edit-cli-nom" style="width:100%;padding:9px;border:1.5px solid #d8b4fe;border-radius:8px;box-sizing:border-box;"></label>'
+                    + '<label style="font-weight:800;font-size:.82em;">Cédula<input id="edit-cli-cc" style="width:100%;padding:9px;border:1.5px solid #d8b4fe;border-radius:8px;box-sizing:border-box;"></label>'
+                    + '<label style="font-weight:800;font-size:.82em;">Teléfono<input id="edit-cli-tel" style="width:100%;padding:9px;border:1.5px solid #d8b4fe;border-radius:8px;box-sizing:border-box;"></label>'
+                    + '<label style="font-weight:800;font-size:.82em;">Correo<input id="edit-cli-correo" type="email" style="width:100%;padding:9px;border:1.5px solid #d8b4fe;border-radius:8px;box-sizing:border-box;"></label>'
+                    + '<label style="font-weight:800;font-size:.82em;grid-column:1/-1;">Dirección<input id="edit-cli-dir" style="width:100%;padding:9px;border:1.5px solid #d8b4fe;border-radius:8px;box-sizing:border-box;"></label>'
+                    + '<label style="font-weight:800;font-size:.82em;">Barrio<input id="edit-cli-barrio" style="width:100%;padding:9px;border:1.5px solid #d8b4fe;border-radius:8px;box-sizing:border-box;"></label>'
+                    + '<label style="font-weight:800;font-size:.82em;">Ciudad<input id="edit-cli-ciudad" style="width:100%;padding:9px;border:1.5px solid #d8b4fe;border-radius:8px;box-sizing:border-box;"></label>'
+                    + '<label style="font-weight:800;font-size:.82em;grid-column:1/-1;">Observaciones<textarea id="edit-cli-obs" rows="3" style="width:100%;padding:9px;border:1.5px solid #d8b4fe;border-radius:8px;box-sizing:border-box;resize:vertical;"></textarea></label>'
+                    + '</div><div id="edit-cli-msg" style="display:none;margin-top:10px;text-align:center;font-weight:800;font-size:.84em;"></div>'
+                    + '<div style="display:flex;gap:10px;margin-top:15px;"><button type="button" onclick="guardarDatosClientePedido()" style="flex:1;padding:11px;border:0;border-radius:9px;background:#8e44ad;color:white;font-weight:900;cursor:pointer;">💾 Guardar cambios</button><button type="button" onclick="cerrarEditarDatosClientePedido()" style="flex:1;padding:11px;border:0;border-radius:9px;background:#eee;color:#555;font-weight:800;cursor:pointer;">Cancelar</button></div>'
+                    + '</div>';
+                document.body.appendChild(modal);
+            }
+            document.getElementById('edit-cli-pedido-num').value = numPedido;
+            [['nom','nom'],['cc','cc'],['tel','tel'],['correo','correo'],['dir','dir'],['barrio','barrio'],['ciudad','ciudad'],['obs','observaciones']].forEach(function(par) {
+                const input = document.getElementById('edit-cli-' + par[0]);
+                if (input) input.value = pedido[par[1]] || '';
+            });
+            const msg = document.getElementById('edit-cli-msg'); if (msg) msg.style.display = 'none';
+            modal.style.display = 'block';
+        }
+
+        function cerrarEditarDatosClientePedido() {
+            const modal = document.getElementById('modal-editar-cliente-pedido');
+            if (modal) modal.style.display = 'none';
+        }
+
+        async function guardarDatosClientePedido() {
+            const numPedido = parseInt(document.getElementById('edit-cli-pedido-num').value, 10);
+            const pedido = historialPedidos.find(p => p.num === numPedido);
+            const msg = document.getElementById('edit-cli-msg');
+            if (!pedido) return;
+            const campos = { nom:'nom', cc:'cc', tel:'tel', correo:'correo', dir:'dir', barrio:'barrio', ciudad:'ciudad', obs:'observaciones' };
+            Object.keys(campos).forEach(function(id) { pedido[campos[id]] = document.getElementById('edit-cli-' + id).value.trim(); });
+            if (!pedido.nom || !pedido.tel || !pedido.dir) {
+                msg.style.display = 'block'; msg.style.color = '#e74c3c'; msg.textContent = 'Completa nombre, teléfono y dirección.'; return;
+            }
+            msg.style.display = 'block'; msg.style.color = '#56836a'; msg.textContent = 'Guardando cambios...';
+            localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+            await persistirPedidoEnFirebase(pedido);
+            guardarClientesGestionDesdePedidos(historialPedidos);
+            msg.style.color = '#27ae60'; msg.textContent = '✅ Datos actualizados correctamente';
+            setTimeout(function() { cerrarEditarDatosClientePedido(); renderizarPedidosPanel(); }, 650);
+        }
+
         function depurarPedidosDuplicados(pedidos) {
             const mapa = new Map();
             (pedidos || []).forEach(function(pedido) {
@@ -5222,6 +5279,42 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
+        function abrirFacturaEnApp() {
+            let modal = document.getElementById('modal-factura-en-app');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'modal-factura-en-app';
+                modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(18,18,22,.82);z-index:100010;padding:18px;box-sizing:border-box;';
+                const panel = document.createElement('div');
+                panel.style.cssText = 'position:relative;width:min(900px,100%);height:calc(100vh - 36px);margin:0 auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.45);';
+                const cerrar = document.createElement('button');
+                cerrar.type = 'button';
+                cerrar.textContent = '✕';
+                cerrar.title = 'Cerrar factura';
+                cerrar.setAttribute('aria-label', 'Cerrar factura');
+                cerrar.style.cssText = 'position:absolute;right:10px;top:9px;z-index:3;width:42px;height:42px;border:0;border-radius:50%;background:#29252d;color:white;font-size:1.35em;font-weight:900;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.3);';
+                cerrar.addEventListener('click', cerrarFacturaEnApp);
+                const iframe = document.createElement('iframe');
+                iframe.id = 'iframe-factura-en-app';
+                iframe.title = 'Editor de factura';
+                iframe.style.cssText = 'width:100%;height:100%;border:0;background:white;';
+                panel.appendChild(iframe); panel.appendChild(cerrar); modal.appendChild(panel); document.body.appendChild(modal);
+                modal.addEventListener('click', function(e) { if (e.target === modal) cerrarFacturaEnApp(); });
+            }
+            modal.style.display = 'block';
+            document.body.dataset.overflowAntesFactura = document.body.style.overflow || '';
+            document.body.style.overflow = 'hidden';
+            const iframe = document.getElementById('iframe-factura-en-app');
+            iframe.src = 'about:blank';
+            return iframe.contentWindow;
+        }
+
+        function cerrarFacturaEnApp() {
+            const modal = document.getElementById('modal-factura-en-app');
+            if (modal) modal.style.display = 'none';
+            document.body.style.overflow = document.body.dataset.overflowAntesFactura || '';
+        }
+
         function imprimirFactura(numPed) {
             let ped = historialPedidos.find(p => p.num === numPed); if (!ped) return;
 
@@ -5251,8 +5344,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const subtotalReal = ped.items.reduce((s, i) => s + ((i.precio || 0) * (i.cant || 1)), 0);
             const envioInicial = parseInt((ped.valorEnvio || '0').toString().replace(/[^0-9]/g, '')) || 0;
 
-            // Nombre único por pedido evita que WhatsApp destruya esta ventana
-            let vent = window.open('', 'prefactura_sk_' + numPed);
+            // Abrir la factura dentro de la aplicación, sin lanzar otra ventana de Chrome.
+            let vent = abrirFacturaEnApp();
             vent.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Pedido ${ped.numOrden || ('#SK-' + ped.num)}</title><style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',sans-serif;background:#fff;color:#222;padding:12px;max-width:600px;margin:0 auto;font-size:13px}
@@ -5367,14 +5460,15 @@ ${ped.comprobanteUrl ? `
                 '    tipoVenta: document.getElementById(\'fac-tipo-venta-display\') ? document.getElementById(\'fac-tipo-venta-display\').textContent.trim() : \'Contraentrega\'' +
                 '  };' +
                 '  if (numOrdenEl && numOrdenEl.textContent.trim()) { cambios.numOrden = numOrdenEl.textContent.trim(); }' +
-                '  if (window.opener && !window.opener.closed) {' +
+                '  var appPrincipal = (window.parent && window.parent !== window) ? window.parent : window.opener;' +
+                '  if (appPrincipal && !appPrincipal.closed) {' +
                 '    try {' +
-                '      window.opener.actualizarPedidoDesdePrefactura({num: window._numPedFactura}, cambios);' +
+                '      appPrincipal.actualizarPedidoDesdePrefactura({num: window._numPedFactura}, cambios);' +
                 '      var btn = document.querySelector("[onclick*=guardarCambios]");' +
                 '      if (btn) { btn.textContent = "✅ Guardado"; btn.style.background = "#1a7a40";' +
                 '        setTimeout(function(){ btn.textContent = "💾 Guardar cambios en la app"; btn.style.background = "linear-gradient(135deg,#27ae60,#1e8449)"; }, 2500); }' +
                 '    } catch(e) { alert("Error al guardar: " + e.message); }' +
-                '  } else { alert("Abre la tienda SuperKids y vuelve a intentarlo."); }' +
+                '  } else { alert("No se pudo comunicar con la aplicación SuperKids."); }' +
                 '};';
             vent.document.head.appendChild(scriptGuardar);
             vent.document.close();
@@ -5506,6 +5600,7 @@ ${ped.comprobanteUrl ? `
                     ped.nom ? '👤 <strong>'+ped.nom+'</strong>' : '',
                     ped.cc ? '🪪 CC: '+ped.cc : '',
                     ped.tel ? '📞 '+ped.tel : '',
+                    ped.correo ? '✉️ '+ped.correo : '',
                     ped.dir ? '📍 '+ped.dir : '',
                     ped.barrio ? '🏘️ Barrio: '+ped.barrio : '',
                     ped.ciudad ? '🏙️ '+ped.ciudad : '',
@@ -5526,7 +5621,9 @@ ${ped.comprobanteUrl ? `
                       '</div>' +
                     '</div>' +
                     '<div class="tp-body">' +
-                      '<div class="tp-datos-completo">' + datosCliente + '</div>' +
+                      '<div class="tp-datos-completo">' + datosCliente +
+                        '<button type="button" onclick="abrirEditarDatosClientePedido(' + ped.num + ')" style="display:block;margin-top:8px;padding:6px 10px;border:1.5px solid #c084fc;border-radius:8px;background:white;color:#7e22ce;font-family:Nunito,sans-serif;font-size:0.8em;font-weight:800;cursor:pointer;">✏️ Editar datos del cliente</button>' +
+                      '</div>' +
                       '<div class="tp-items">' + htmlItems + '</div>' +
                       '<div class="tp-total">' + (function() {
                           var envio = parseInt((ped.valorEnvio||'0').toString().replace(/[^0-9]/g,''))||0;
@@ -7224,7 +7321,7 @@ ${ped.comprobanteUrl ? `
         }
 
         [
-            'abrirEditarEntradaBtn','abrirFotoGrande','previsualizarFotoEntradaInventario','renderResumenVisualInventario','actualizarBotonResumenInventario','toggleHistorialInventario','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
+            'abrirEditarEntradaBtn','abrirEditarDatosClientePedido','cerrarEditarDatosClientePedido','guardarDatosClientePedido','abrirFotoGrande','previsualizarFotoEntradaInventario','renderResumenVisualInventario','actualizarBotonResumenInventario','toggleHistorialInventario','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
             'agregarAlCarrito','agregarCategoria','agregarFilaEditEntrada','agregarFilaTalla',
             'agregarFilaTallaEdit','agregarFilaTallaInv','cambiarGenero','cambiarGeneroDiseno',
             'cambiarImg','cambiarTab','cerrarModalCheckout','cerrarModalEditar','cerrarModalFoto',
