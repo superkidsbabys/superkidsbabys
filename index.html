@@ -4019,6 +4019,24 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             renderCarrito();
         }
 
+        function calcularPromocionMamelucos25(items) {
+            let bruto = 0, cantidadPromo = 0;
+            (items || []).forEach(i => {
+                const cant = parseInt(i.cant, 10) || 1;
+                const precio = parseInt(i.precio, 10) || 0;
+                bruto += precio * cant;
+                const prod = productosDB.find(p => String(p.id) === String(i.id || i.id_prod)) || productosDB.find(p => String(p.codigo || '') === String(i.codigo || i.cod || ''));
+                const categoria = String((prod && prod.categoria) || i.categoria || '').trim().toLowerCase();
+                if (precio === 25000 && categoria === 'mamelucos') cantidadPromo += cant;
+            });
+            const grupos = Math.floor(cantidadPromo / 4);
+            const resto = cantidadPromo % 4;
+            const preciosResto = [0, 25000, 45000, 65000];
+            const valorPromo = (grupos * 85000) + preciosResto[resto];
+            const descuentoPromocion = Math.max(0, (cantidadPromo * 25000) - valorPromo);
+            return { bruto, cantidadPromo, descuentoPromocion, total: bruto - descuentoPromocion };
+        }
+
         function renderCarrito() {
             let c = document.getElementById('lista-carrito'), t = 0;
             c.innerHTML = '';
@@ -4030,7 +4048,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     c.innerHTML += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f5e6f8;"><div style="flex:1;"><div style="font-weight:700;font-size:0.88em;color:#333;">' + i.nombre + '</div><div style="font-size:0.78em;color:#888;">Talla: ' + (i.talla || 'Única') + ' · ' + formatMoney(i.precio) + '</div></div><button onclick="carrito.splice(' + idx + ',1);renderCarrito()" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:1.1em;margin-left:10px;">🗑️</button></div>';
                 });
             }
-            document.getElementById('total-display').innerText = 'Total: ' + formatMoney(t);
+            const promo = calcularPromocionMamelucos25(carrito);
+            t = promo.total;
+            document.getElementById('total-display').innerHTML = (promo.descuentoPromocion > 0 ? '<div style="font-size:.62em;color:#555;margin-bottom:3px;">Subtotal: '+formatMoney(promo.bruto)+'<br><span style="color:#15935a;">Promoción mamelucos: −'+formatMoney(promo.descuentoPromocion)+'</span></div>' : '') + 'Total: ' + formatMoney(t);
             let btn = document.getElementById('btn-flotante-carrito');
             if (carrito.length > 0) {
                 document.getElementById('flotante-cantidad').innerText = carrito.length;
@@ -4453,8 +4473,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 let codText = i.codigo ? ` (REF: ${i.codigo})` : '';
                 txtProductos += `* ${i.nombre}${codText} - Talla: ${i.talla || 'Única'} (${formatMoney(i.precio)})\n`;
                 t += i.precio;
-                itemsParaPanel.push({ id_prod: i.id, cant: 1, talla: i.talla, nom: i.nombre, cod: i.codigo, precio: i.precio, imagen: i.imagen || '' });
+                const prodItem = productosDB.find(p => String(p.id) === String(i.id));
+                itemsParaPanel.push({ id_prod: i.id, cant: 1, talla: i.talla, nom: i.nombre, cod: i.codigo, precio: i.precio, categoria: (prodItem && prodItem.categoria) || '', imagen: i.imagen || '' });
             });
+            const promoPedido = calcularPromocionMamelucos25(carrito);
+            t = promoPedido.total;
             let ahoraPedido = Date.now();
             let fechaHoy = new Date(ahoraPedido).toLocaleString('es-CO', { hour12: true });
             let asesoraVal = (function() {
@@ -4492,10 +4515,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (transp) txtWA += `\n🚚 Transportadora: ${transp}`;
                 if (obs) txtWA += `\n📝 Obs: ${obs}`;
                 txtWA += `\n\nPRODUCTOS:\n` + txtProductos;
+                if (promoPedido.descuentoPromocion > 0) txtWA += `\n🏷️ PROMOCIÓN MAMELUCOS: -${formatMoney(promoPedido.descuentoPromocion)}`;
                 txtWA += `\n💰 TOTAL: ${formatMoney(t)}`;
 
                 let objetoOrden = {
                     num: numOrden, numOrden: numOrdenFormato, nom: n, cc: cc || '', dir: d, barrio: barrio || '', ciudad: ciudad || '', tel, correo: correo || '', tipoVenta: 'Contraentrega', tot: t,
+                    subtotalBruto: promoPedido.bruto, cantidadPromoMamelucos: promoPedido.cantidadPromo, descuentoPromocion: promoPedido.descuentoPromocion, descuentoPorcentaje: 0, descuentoPorcentajeValor: 0,
                     items: itemsParaPanel, fecha: fechaHoy, estado: 'nuevo',
                     valorEnvio: '',
                     timestampPedido: ahoraPedido,
