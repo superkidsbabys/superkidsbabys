@@ -5166,7 +5166,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 bruto += precio * cant;
                 const prod = productosDB.find(p => String(p.id) === String(i.id_prod)) || productosDB.find(p => String(p.codigo || '') === String(i.cod || ''));
                 const categoria = String((prod && prod.categoria) || i.categoria || '').trim().toLowerCase();
-                if (precio === 25000 && categoria === 'mamelucos') cantidadPromo += cant;
+                const nombre = String((prod && prod.nombre) || i.nom || i.nombre || '').trim().toLowerCase();
+                if (precio === 25000 && (categoria.includes('mameluco') || nombre.includes('mameluco'))) cantidadPromo += cant;
             });
             const preciosResto = [0, 25000, 45000, 65000];
             const valorPromo = Math.floor(cantidadPromo / 4) * 85000 + preciosResto[cantidadPromo % 4];
