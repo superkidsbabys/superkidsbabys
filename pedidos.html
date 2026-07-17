@@ -5699,6 +5699,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
 <div class="btn-no-print">
   <button class="btn-g btn-verde" onclick="guardarCambiosPrefactura()">💾 Guardar cambios</button>
   <button class="btn-g btn-rojo" onclick="window.print()">📄 Guardar como PDF</button>
+  <button class="btn-g" onclick="guardarFacturaComoFoto(this)" style="background:linear-gradient(135deg,#8e44ad,#b05cc5);color:white;">🖼️ Guardar foto</button>
 </div>
 ${ped.comprobanteUrl ? `
 <div style="border:1.5px solid #7dd8a0;border-radius:7px;padding:10px;margin-top:8px;">
@@ -5724,6 +5725,31 @@ ${ped.comprobanteUrl ? `
                 '  if(elTot)elTot.textContent="$"+total.toLocaleString("es-CO");' +
                 '}';
             vent.document.head.appendChild(scriptEl);
+
+            var scriptFotoLib = vent.document.createElement('script');
+            scriptFotoLib.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+            scriptFotoLib.crossOrigin = 'anonymous';
+            vent.document.head.appendChild(scriptFotoLib);
+
+            var scriptFoto = vent.document.createElement('script');
+            scriptFoto.textContent = 'window.guardarFacturaComoFoto = async function(btn) {' +
+                ' if(!window.html2canvas){ alert("La función de foto todavía está cargando. Espera unos segundos e inténtalo nuevamente."); return; }' +
+                ' var texto=btn.textContent; btn.disabled=true; btn.textContent="Preparando foto...";' +
+                ' try {' +
+                '  var tarjeta=document.createElement("div"); tarjeta.style.cssText="position:fixed;left:-10000px;top:0;width:680px;background:#fff;padding:28px;font-family:Segoe UI,sans-serif;color:#222;border:10px solid #f3d8ee;";' +
+                '  tarjeta.innerHTML="<div style=\"text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:3px solid #8e44ad;\"><div style=\"font-size:25px;font-weight:900;color:#8e44ad;\">SuperKids&Babys</div><div style=\"font-size:13px;color:#777;\">Resumen de tu pedido</div></div>";' +
+                '  [".encabezado","table",".fila-envio",".resumen-total"].forEach(function(sel){var el=document.querySelector(sel);if(el)tarjeta.appendChild(el.cloneNode(true));});' +
+                '  tarjeta.querySelectorAll("input,textarea").forEach(function(inp){var span=document.createElement("span");span.textContent=inp.value||"—";span.style.cssText="display:block;font-size:13px;color:#333;font-weight:700;white-space:pre-wrap;";inp.replaceWith(span);});' +
+                '  tarjeta.querySelectorAll("[contenteditable]").forEach(function(el){el.removeAttribute("contenteditable");el.style.border="none";});' +
+                '  tarjeta.querySelectorAll("img").forEach(function(img){img.crossOrigin="anonymous";});' +
+                '  var pie=document.createElement("div");pie.style.cssText="text-align:center;margin-top:15px;padding-top:11px;border-top:1px solid #ead8f3;color:#8e44ad;font-weight:800;font-size:13px;";pie.textContent="Gracias por comprar en SuperKids&Babys 💗";tarjeta.appendChild(pie);' +
+                '  document.body.appendChild(tarjeta);' +
+                '  await Promise.all(Array.from(tarjeta.querySelectorAll("img")).map(function(img){return img.complete?Promise.resolve():new Promise(function(ok){img.onload=ok;img.onerror=ok;});}));' +
+                '  var canvas=await html2canvas(tarjeta,{backgroundColor:"#ffffff",scale:2,useCORS:true,allowTaint:false,logging:false}); tarjeta.remove();' +
+                '  var a=document.createElement("a");a.download="Pedido-"+(document.getElementById("fac-num-orden").textContent||"SuperKids").replace(/[^a-zA-Z0-9_-]/g,"")+".png";a.href=canvas.toDataURL("image/png");a.click();' +
+                ' } catch(e){ alert("No se pudo crear la foto: "+e.message); } finally {btn.disabled=false;btn.textContent=texto;}' +
+                '};';
+            vent.document.head.appendChild(scriptFoto);
 
             // Inyectar guardarCambiosPrefactura — sincroniza con app principal y Firebase
             var scriptGuardar = vent.document.createElement('script');
