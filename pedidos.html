@@ -5152,6 +5152,136 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             })();
         };
 
+        function puedeEditarPrendasPedido() {
+            const u = window.usuarioActual;
+            return !!(u && (u.rol === 'admin' || u.uid === UID_GINA));
+        }
+
+        function recalcularTotalPedidoConEnvio(ped) {
+            const subtotal = (ped.items || []).reduce((s, i) => s + ((parseInt(i.precio, 10) || 0) * (parseInt(i.cant, 10) || 1)), 0);
+            const envio = parseInt(String(ped.valorEnvio || '0').replace(/[^0-9]/g, ''), 10) || 0;
+            ped.tot = subtotal + envio;
+            ped.actualizadoEn = new Date().toISOString();
+        }
+
+        async function guardarEdicionPrendasPedidoFirebase(ped, productosModificados) {
+            localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+            localStorage.setItem('productosV36', JSON.stringify(productosDB));
+            try {
+                const { collection, query, where, getDocs, updateDoc, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                for (const prod of (productosModificados || [])) {
+                    prod.stockTotal = (prod.tallasObj || []).reduce((s,t) => s + (parseInt(t.stock,10) || 0), 0);
+                    await setDoc(doc(db, 'productos', prod.id), Object.assign({}, prod, { actualizadoEn: new Date().toISOString() }), { merge: true });
+                }
+                const q = query(collection(db, 'pedidos'), where('num', '==', ped.num));
+                const snap = await getDocs(q);
+                const cambios = { items: ped.items, tot: ped.tot, actualizadoEn: ped.actualizadoEn };
+                const tareas = [];
+                snap.forEach(ds => tareas.push(updateDoc(ds.ref, cambios)));
+                await Promise.all(tareas);
+            } catch(e) {
+                console.log('Edición guardada localmente; error sincronizando Firebase:', e);
+            }
+        }
+
+        function abrirEditarPrendasPedido(numPed) {
+            if (!puedeEditarPrendasPedido()) return alert('No tienes permiso para editar las prendas del pedido.');
+            const ped = historialPedidos.find(p => String(p.num) === String(numPed));
+            if (!ped) return alert('No se encontró el pedido.');
+            let modal = document.getElementById('modal-editar-prendas-pedido');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'modal-editar-prendas-pedido';
+                modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(25,20,30,.68);z-index:100020;overflow:auto;padding:14px;box-sizing:border-box;';
+                modal.innerHTML = '<div style="background:white;max-width:680px;margin:18px auto;border-radius:16px;padding:18px;font-family:Nunito,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.3);">'
+                    + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;"><h3 style="margin:0;color:#7e22ce;">✏️ Editar prendas del pedido</h3><button onclick="cerrarEditarPrendasPedido()" style="border:0;background:#eee;border-radius:50%;width:34px;height:34px;font-size:18px;cursor:pointer;">×</button></div>'
+                    + '<input type="hidden" id="edit-prendas-pedido-num"><div id="edit-prendas-pedido-items" style="margin-top:14px;"></div>'
+                    + '<div style="margin-top:16px;padding-top:14px;border-top:1px solid #ead8f3;"><strong style="color:#555;">Agregar otra prenda</strong><input id="buscar-agregar-pedido" type="search" placeholder="Buscar nombre o referencia..." oninput="buscarProductoParaPedido(this.value)" style="display:block;width:100%;box-sizing:border-box;margin-top:8px;padding:11px 13px;border:1.5px solid #d8b4fe;border-radius:10px;font:inherit;"><div id="resultados-agregar-pedido" style="margin-top:8px;max-height:310px;overflow:auto;"></div></div>'
+                    + '<div id="edit-prendas-pedido-msg" style="display:none;margin-top:10px;text-align:center;font-weight:800;font-size:.84em;"></div>'
+                    + '<button onclick="cerrarEditarPrendasPedido()" style="width:100%;margin-top:14px;padding:11px;border:0;border-radius:9px;background:#7e22ce;color:white;font-weight:900;cursor:pointer;">Listo</button></div>';
+                document.body.appendChild(modal);
+            }
+            document.getElementById('edit-prendas-pedido-num').value = ped.num;
+            document.getElementById('buscar-agregar-pedido').value = '';
+            document.getElementById('resultados-agregar-pedido').innerHTML = '';
+            renderItemsEditorPedido(ped);
+            modal.style.display = 'block';
+        }
+
+        function renderItemsEditorPedido(ped) {
+            const cont = document.getElementById('edit-prendas-pedido-items');
+            if (!cont) return;
+            cont.innerHTML = (ped.items || []).map((item, idx) => {
+                const prod = productosDB.find(p => String(p.id) === String(item.id_prod)) || productosDB.find(p => String(p.codigo || '') === String(item.cod || ''));
+                const actual = normalizarTallaValor(item.talla);
+                const opciones = prod && prod.tallasObj ? prod.tallasObj.filter(t => (parseInt(t.stock,10)||0) > 0 || normalizarTallaValor(t.nombre) === actual).map(t => '<option value="'+escapeHtmlAttr(t.nombre)+'"'+(normalizarTallaValor(t.nombre)===actual?' selected':'')+'>'+t.nombre+' ('+(parseInt(t.stock,10)||0)+' disponibles)</option>').join('') : '<option>'+escapeHtmlAttr(item.talla || 'Única')+'</option>';
+                return '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(125px,180px);gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #f0e6f5;"><div><strong style="font-size:.88em;">'+escapeHtml(item.nom || '')+'</strong><div style="font-size:.75em;color:#777;">REF: '+escapeHtml(item.cod || 'S/N')+' · Cantidad: '+(parseInt(item.cant,10)||1)+'</div></div><select onchange="cambiarTallaProductoPedido('+ped.num+','+idx+',this.value,this)" style="width:100%;padding:8px;border:1.5px solid #d8b4fe;border-radius:8px;background:white;font:inherit;font-size:.82em;">'+opciones+'</select></div>';
+            }).join('') || '<div style="padding:15px;text-align:center;color:#888;">Este pedido no tiene prendas.</div>';
+        }
+
+        async function cambiarTallaProductoPedido(numPed, itemIdx, tallaNueva, select) {
+            if (!puedeEditarPrendasPedido()) return;
+            const ped = historialPedidos.find(p => String(p.num) === String(numPed));
+            const item = ped && ped.items && ped.items[itemIdx];
+            if (!item) return;
+            const prod = productosDB.find(p => String(p.id) === String(item.id_prod)) || productosDB.find(p => String(p.codigo || '') === String(item.cod || ''));
+            if (!prod || !prod.tallasObj) return alert('No se encontró esta prenda en el catálogo.');
+            const anterior = normalizarTallaValor(item.talla), nueva = normalizarTallaValor(tallaNueva);
+            if (anterior === nueva) return;
+            const cant = parseInt(item.cant,10) || 1;
+            const tAnterior = prod.tallasObj.find(t => normalizarTallaValor(t.nombre) === anterior);
+            const tNueva = prod.tallasObj.find(t => normalizarTallaValor(t.nombre) === nueva);
+            if (!tNueva || (ped.stockDescontado && !ped.stockDevuelto && (parseInt(tNueva.stock,10)||0) < cant)) {
+                alert('No hay unidades suficientes en esa talla.'); renderItemsEditorPedido(ped); return;
+            }
+            if (ped.stockDescontado && !ped.stockDevuelto) {
+                if (tAnterior) tAnterior.stock = (parseInt(tAnterior.stock,10)||0) + cant;
+                tNueva.stock = (parseInt(tNueva.stock,10)||0) - cant;
+            }
+            item.talla = tNueva.nombre;
+            item.imagen = obtenerImagenProducto(prod, tNueva.nombre);
+            recalcularTotalPedidoConEnvio(ped);
+            await guardarEdicionPrendasPedidoFirebase(ped, [prod]);
+            renderItemsEditorPedido(ped); renderizarPedidosPanel();
+            if (typeof renderStockActual === 'function') renderStockActual();
+        }
+
+        function buscarProductoParaPedido(valor) {
+            const q = String(valor || '').trim().toLowerCase();
+            const cont = document.getElementById('resultados-agregar-pedido');
+            if (!cont) return;
+            if (q.length < 2) { cont.innerHTML = ''; return; }
+            const resultados = productosDB.filter(p => [p.codigo,p.nombre,p.categoria].join(' ').toLowerCase().includes(q)).slice(0,20);
+            cont.innerHTML = resultados.map(prod => {
+                const tallas = (prod.tallasObj || []).filter(t => (parseInt(t.stock,10)||0) > 0).map(t => '<button onclick="agregarProductoAPedidoDesdeEditor(\''+prod.id+'\',\''+encodeURIComponent(t.nombre)+'\')" style="border:1px solid #a8e6c1;background:#eefaf2;color:#176b3a;border-radius:16px;padding:5px 9px;font-weight:800;cursor:pointer;">+ '+escapeHtml(t.nombre)+' ('+(parseInt(t.stock,10)||0)+')</button>').join(' ');
+                return '<div style="padding:9px;border:1px solid #ead8f3;border-radius:9px;margin-bottom:7px;"><strong>'+escapeHtml(prod.nombre || '')+'</strong><div style="font-size:.75em;color:#777;margin:2px 0 6px;">REF: '+escapeHtml(prod.codigo || 'S/N')+' · '+formatMoney(prod.precio)+'</div><div style="display:flex;flex-wrap:wrap;gap:5px;">'+(tallas || '<span style="color:#b33;font-size:.8em;">Sin existencias</span>')+'</div></div>';
+            }).join('') || '<div style="padding:12px;text-align:center;color:#888;">No se encontraron prendas.</div>';
+        }
+
+        async function agregarProductoAPedidoDesdeEditor(prodId, tallaCodificada) {
+            if (!puedeEditarPrendasPedido()) return;
+            const numPed = document.getElementById('edit-prendas-pedido-num').value;
+            const ped = historialPedidos.find(p => String(p.num) === String(numPed));
+            const prod = productosDB.find(p => String(p.id) === String(prodId));
+            const talla = decodeURIComponent(tallaCodificada || '');
+            const tObj = prod && (prod.tallasObj || []).find(t => normalizarTallaValor(t.nombre) === normalizarTallaValor(talla));
+            if (!ped || !prod || !tObj) return;
+            if ((parseInt(tObj.stock,10)||0) < 1) return alert('Esa talla ya no tiene existencias.');
+            if (ped.stockDescontado && !ped.stockDevuelto) tObj.stock = (parseInt(tObj.stock,10)||0) - 1;
+            const existente = (ped.items || []).find(i => String(i.id_prod) === String(prod.id) && normalizarTallaValor(i.talla) === normalizarTallaValor(tObj.nombre));
+            if (existente) existente.cant = (parseInt(existente.cant,10)||1) + 1;
+            else ped.items.push({ id_prod: prod.id, nom: prod.nombre, cod: prod.codigo || '', talla: tObj.nombre, cant: 1, precio: parseInt(prod.precio,10)||0, imagen: obtenerImagenProducto(prod, tObj.nombre) });
+            recalcularTotalPedidoConEnvio(ped);
+            await guardarEdicionPrendasPedidoFirebase(ped, [prod]);
+            renderItemsEditorPedido(ped); buscarProductoParaPedido(document.getElementById('buscar-agregar-pedido').value); renderizarPedidosPanel();
+            if (typeof renderStockActual === 'function') renderStockActual();
+        }
+
+        function cerrarEditarPrendasPedido() {
+            const modal = document.getElementById('modal-editar-prendas-pedido');
+            if (modal) modal.style.display = 'none';
+        }
+
         window.eliminarProductoDePedido = async function(numPed, itemIdx) {
             if (!confirm('Estas segura de eliminar este producto del pedido? Se devolvera el stock de esa prenda.')) return;
             let pedIdx = historialPedidos.findIndex(p => String(p.num) === String(numPed));
@@ -5178,8 +5308,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
 
             ped.items.splice(itemIdx, 1);
-            ped.tot = ped.items.reduce((s, i) => s + ((parseInt(i.precio, 10) || 0) * (parseInt(i.cant, 10) || 1)), 0);
-            ped.actualizadoEn = new Date().toISOString();
+            recalcularTotalPedidoConEnvio(ped);
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
 
             try {
@@ -5743,6 +5872,7 @@ ${ped.comprobanteUrl ? `
                     '<div class="tp-body">' +
                       '<div class="tp-datos-completo">' + datosCliente +
                         '<button type="button" onclick="abrirEditarDatosClientePedido(' + ped.num + ')" style="display:block;margin-top:8px;padding:6px 10px;border:1.5px solid #c084fc;border-radius:8px;background:white;color:#7e22ce;font-family:Nunito,sans-serif;font-size:0.8em;font-weight:800;cursor:pointer;">✏️ Editar datos del cliente</button>' +
+                        (puedeEditarPrendasPedido() ? '<button type="button" onclick="abrirEditarPrendasPedido(' + ped.num + ')" style="display:block;margin-top:7px;padding:7px 11px;border:1.5px solid #34a66f;border-radius:8px;background:#effaf4;color:#187548;font-family:Nunito,sans-serif;font-size:0.8em;font-weight:900;cursor:pointer;">👗 Editar prendas y tallas</button>' : '') +
                       '</div>' +
                       '<div class="tp-items">' + htmlItems + '</div>' +
                       '<div class="tp-total">' + (function() {
@@ -7500,7 +7630,7 @@ ${ped.comprobanteUrl ? `
         }
 
         [
-            'abrirEditarEntradaBtn','abrirEditarStockGina','agregarTallaStockGina','cerrarEditarStockGina','guardarEdicionStockGina','abrirEditarDatosClientePedido','cerrarEditarDatosClientePedido','guardarDatosClientePedido','abrirFotoGrande','previsualizarFotoEntradaInventario','renderResumenVisualInventario','actualizarBotonResumenInventario','toggleHistorialInventario','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
+            'abrirEditarEntradaBtn','abrirEditarStockGina','agregarTallaStockGina','cerrarEditarStockGina','guardarEdicionStockGina','abrirEditarDatosClientePedido','cerrarEditarDatosClientePedido','guardarDatosClientePedido','abrirEditarPrendasPedido','cerrarEditarPrendasPedido','buscarProductoParaPedido','cambiarTallaProductoPedido','agregarProductoAPedidoDesdeEditor','abrirFotoGrande','previsualizarFotoEntradaInventario','renderResumenVisualInventario','actualizarBotonResumenInventario','toggleHistorialInventario','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
             'agregarAlCarrito','agregarCategoria','agregarFilaEditEntrada','agregarFilaTalla',
             'agregarFilaTallaEdit','agregarFilaTallaInv','cambiarGenero','cambiarGeneroDiseno',
             'cambiarImg','cambiarTab','cerrarModalCheckout','cerrarModalEditar','cerrarModalFoto',
