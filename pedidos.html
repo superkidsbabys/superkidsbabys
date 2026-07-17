@@ -5356,6 +5356,9 @@ body{font-family:'Segoe UI',sans-serif;background:#fff;color:#222;padding:12px;m
 .bloque strong{color:#222}
 .num-editable{font-weight:800;color:#8e44ad;border:1px dashed #c9a0dc;border-radius:5px;padding:1px 5px;cursor:pointer;display:inline-block}
 .num-editable:focus{outline:none;border-color:#8e44ad}
+.observaciones-amplias{width:100%;border:1px solid #e0d0f0;border-radius:7px;padding:8px 11px;margin-bottom:8px;background:#fdfaff}
+.observaciones-amplias label{font-size:0.7em;color:#8e44ad;font-weight:800;text-transform:uppercase;display:block;margin-bottom:4px;letter-spacing:.4px}
+.observaciones-amplias textarea{width:100%;min-height:64px;border:1px dashed #c9a0dc;border-radius:6px;background:white;padding:7px 9px;font-size:0.84em;line-height:1.45;color:#333;font-family:'Segoe UI',sans-serif;resize:vertical}
 table{width:100%;border-collapse:collapse;margin-bottom:8px;border:1px solid #ede0f8;border-radius:7px;overflow:hidden}
 thead tr{background:#8e44ad;color:white}
 th{padding:5px 7px;font-size:0.72em;text-transform:uppercase;letter-spacing:0.4px;font-weight:700}
@@ -5391,6 +5394,10 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
     <p>N° <strong class="num-editable" contenteditable="true" spellcheck="false" id="fac-num-orden">${ped.numOrden || ('#SK-' + ped.num)}</strong> <span style="background:#f0e6fb;color:#8e44ad;font-size:0.75em;font-weight:800;padding:1px 7px;border-radius:20px;" id="fac-tipo-venta-display">${ped.tipoVenta || 'Contraentrega'}</span><br>${ped.fecha}<br>Estado: <strong>${ped.estado}</strong>${ped.asesora ? ' · Asesora: <strong>' + ped.asesora + '</strong>' : ''}</p>
   </div>
 </div>
+<div class="observaciones-amplias">
+  <label>📝 Observaciones</label>
+  <textarea id="fac-observaciones" rows="3" placeholder="Escribe aquí las observaciones del pedido...">${ped.observaciones || ''}</textarea>
+</div>
 <table>
   <thead><tr><th>Foto</th><th>Producto / REF / Talla</th><th style="text-align:right">Precio</th></tr></thead>
   <tbody>${htmlProductos}</tbody>
@@ -5398,7 +5405,6 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
 <div class="fila-envio">
   <div><label>🚚 Transportadora</label><input id="fac-transportadora" type="text" value="${ped.transportadora || ''}" placeholder="Ej: Servientrega" oninput="recalcularTotal()"></div>
   <div><label>📋 Guía</label><input id="fac-guia" type="text" value="${ped.guia || ''}" placeholder="892341234"></div>
-  <div style="flex:2"><label>📝 Observaciones</label><textarea id="fac-observaciones" rows="2">${ped.observaciones || ''}</textarea></div>
 </div>
 <div class="resumen-total">
   <div class="resumen-fila"><span>Subtotal productos</span><span id="subtotal-productos" data-sub="${subtotalReal}">${formatMoney(subtotalReal)}</span></div>
@@ -7036,7 +7042,11 @@ ${ped.comprobanteUrl ? `
                 return s + ((parseInt(i.precio, 10) || 0) * (parseInt(i.cant, 10) || 1));
             }, 0);
             const totalPedido = parseInt(pedido.tot, 10) || 0;
-            return Math.max(totalItems, totalPedido);
+            // En Clientes solo se contabiliza la venta neta de prendas. El envío lo
+            // paga la clienta y no forma parte de las ventas del negocio.
+            if (totalItems > 0) return totalItems;
+            const valorEnvio = parseInt(String(pedido.valorEnvio || '0').replace(/[^0-9]/g, ''), 10) || 0;
+            return Math.max(0, totalPedido - valorEnvio);
         }
 
         function construirBaseClientesDesdePedidos() {
