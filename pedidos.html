@@ -4796,6 +4796,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
             var buscar = (document.getElementById('stock-buscar') || {value:''}).value.trim().toLowerCase();
             var filtroCat = (document.getElementById('stock-filtro-cat') || {value:''}).value;
+            var puedeEditarStock = !!(window.usuarioActual && (window.usuarioActual.uid === UID_GINA || window.usuarioActual.rol === 'admin'));
 
             // Poblar select de categorías (solo la primera vez o si cambió)
             var selCat = document.getElementById('stock-filtro-cat');
@@ -4905,11 +4906,124 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         '<td style="padding:8px 12px;border-bottom:1px solid #f0e6ff;font-weight:700;color:#7e22ce;white-space:nowrap;">' + (p.codigo || 'S/N') + '</td>' +
                         '<td style="padding:8px 12px;border-bottom:1px solid #f0e6ff;font-weight:600;color:#222;">' + (p.nombre || '') + '</td>' +
                         '<td style="padding:6px 12px;border-bottom:1px solid #f0e6ff;">' + chipsHtml + '</td>' +
-                        '<td style="text-align:center;padding:8px;border-bottom:1px solid #f0e6ff;font-weight:900;color:#7e22ce;font-size:1.05em;">' + totalProd + '</td>' +
+                        '<td style="text-align:center;padding:8px;border-bottom:1px solid #f0e6ff;font-weight:900;color:#7e22ce;font-size:1.05em;">' + totalProd +
+                            (puedeEditarStock ? '<br><button type="button" onclick="abrirEditarStockGina(\'' + p.id + '\')" style="margin-top:5px;border:1px solid #c084fc;background:#faf5ff;color:#7e22ce;border-radius:7px;padding:4px 8px;font-size:0.7em;font-weight:900;cursor:pointer;">✏️ Editar</button>' : '') +
+                        '</td>' +
                         '</tr>';
                 });
             });
             tbody.innerHTML = html;
+        }
+
+        function usuarioPuedeEditarStockRestringido() {
+            return !!(window.usuarioActual && (window.usuarioActual.uid === UID_GINA || window.usuarioActual.rol === 'admin'));
+        }
+
+        function abrirEditarStockGina(idProducto) {
+            if (!usuarioPuedeEditarStockRestringido()) return alert('No tienes permiso para editar el stock.');
+            const producto = (productosDB || []).find(p => p.id === idProducto);
+            if (!producto) return alert('No se encontró la prenda.');
+            let modal = document.getElementById('modal-editar-stock-gina');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'modal-editar-stock-gina';
+                modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100008;overflow-y:auto;padding:20px;box-sizing:border-box;';
+                modal.innerHTML = '<div style="background:white;max-width:540px;margin:25px auto;border-radius:16px;padding:22px;font-family:Nunito,sans-serif;box-shadow:0 20px 55px rgba(0,0,0,.3);">'
+                    + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;"><h3 style="margin:0;color:#7e22ce;">✏️ Editar prenda desde Inventario</h3><button type="button" onclick="cerrarEditarStockGina()" style="border:0;background:#eee;border-radius:50%;width:34px;height:34px;font-size:1.1em;font-weight:900;cursor:pointer;">✕</button></div>'
+                    + '<p style="color:#667085;font-size:.82em;margin:6px 0 14px;">Solo puedes modificar código, nombre, tallas y cantidades.</p>'
+                    + '<input type="hidden" id="edit-stock-gina-id"><input type="hidden" id="edit-stock-gina-codigo-original">'
+                    + '<label style="font-weight:800;font-size:.82em;display:block;margin-bottom:9px;">Código<input id="edit-stock-gina-codigo" style="width:100%;padding:9px;border:1.5px solid #d8b4fe;border-radius:8px;box-sizing:border-box;margin-top:3px;"></label>'
+                    + '<label style="font-weight:800;font-size:.82em;display:block;margin-bottom:11px;">Nombre<input id="edit-stock-gina-nombre" style="width:100%;padding:9px;border:1.5px solid #d8b4fe;border-radius:8px;box-sizing:border-box;margin-top:3px;"></label>'
+                    + '<div style="font-weight:900;font-size:.84em;color:#475467;margin-bottom:6px;">Tallas y cantidades</div><div id="edit-stock-gina-tallas"></div>'
+                    + '<button type="button" onclick="agregarTallaStockGina()" style="margin-top:5px;border:1px solid #a8e6c1;background:#eefaf2;color:#1a7a4a;border-radius:8px;padding:7px 10px;font-weight:800;cursor:pointer;">+ Agregar talla</button>'
+                    + '<div id="edit-stock-gina-msg" style="display:none;text-align:center;margin-top:10px;font-size:.84em;font-weight:800;"></div>'
+                    + '<button type="button" id="btn-guardar-stock-gina" onclick="guardarEdicionStockGina()" style="width:100%;margin-top:14px;border:0;background:linear-gradient(135deg,#8e44ad,#7e22ce);color:white;border-radius:9px;padding:12px;font-weight:900;cursor:pointer;">💾 Guardar cambios</button>'
+                    + '</div>';
+                document.body.appendChild(modal);
+            }
+            document.getElementById('edit-stock-gina-id').value = producto.id;
+            document.getElementById('edit-stock-gina-codigo-original').value = producto.codigo || '';
+            document.getElementById('edit-stock-gina-codigo').value = producto.codigo || '';
+            document.getElementById('edit-stock-gina-nombre').value = producto.nombre || '';
+            const cont = document.getElementById('edit-stock-gina-tallas');
+            cont.innerHTML = '';
+            (producto.tallasObj || []).forEach(t => agregarTallaStockGina(t.nombre, t.stock));
+            if (!(producto.tallasObj || []).length) agregarTallaStockGina('', 0);
+            const msg = document.getElementById('edit-stock-gina-msg'); if (msg) msg.style.display = 'none';
+            modal.style.display = 'block';
+        }
+
+        function agregarTallaStockGina(nombre, cantidad) {
+            const cont = document.getElementById('edit-stock-gina-tallas');
+            if (!cont) return;
+            const fila = document.createElement('div');
+            fila.className = 'fila-stock-gina';
+            fila.style.cssText = 'display:flex;gap:7px;margin-bottom:7px;';
+            const inpTalla = document.createElement('input');
+            inpTalla.className = 'stock-gina-talla'; inpTalla.placeholder = 'Talla'; inpTalla.value = nombre || '';
+            inpTalla.style.cssText = 'flex:1;padding:8px;border:1.5px solid #d8b4fe;border-radius:8px;min-width:0;';
+            const inpCant = document.createElement('input');
+            inpCant.className = 'stock-gina-cantidad'; inpCant.type = 'number'; inpCant.min = '0'; inpCant.placeholder = 'Cantidad'; inpCant.value = Number(cantidad || 0);
+            inpCant.style.cssText = 'width:110px;padding:8px;border:1.5px solid #d8b4fe;border-radius:8px;';
+            const quitar = document.createElement('button');
+            quitar.type = 'button'; quitar.textContent = '✕'; quitar.title = 'Quitar talla';
+            quitar.style.cssText = 'border:0;background:#fde8e8;color:#c0392b;border-radius:8px;padding:8px 10px;font-weight:900;cursor:pointer;';
+            quitar.addEventListener('click', () => fila.remove());
+            fila.append(inpTalla, inpCant, quitar); cont.appendChild(fila);
+        }
+
+        function cerrarEditarStockGina() {
+            const modal = document.getElementById('modal-editar-stock-gina');
+            if (modal) modal.style.display = 'none';
+        }
+
+        async function guardarEdicionStockGina() {
+            if (!usuarioPuedeEditarStockRestringido()) return alert('No tienes permiso para guardar estos cambios.');
+            const id = document.getElementById('edit-stock-gina-id').value;
+            const codigoOriginal = document.getElementById('edit-stock-gina-codigo-original').value.trim();
+            const codigo = document.getElementById('edit-stock-gina-codigo').value.trim();
+            const nombre = document.getElementById('edit-stock-gina-nombre').value.trim();
+            const msg = document.getElementById('edit-stock-gina-msg');
+            if (!codigo || !nombre) { msg.style.display='block'; msg.style.color='#e74c3c'; msg.textContent='Completa código y nombre.'; return; }
+            if (referenciaProductoExiste(codigo, id)) { msg.style.display='block'; msg.style.color='#e74c3c'; msg.textContent='Ese código ya pertenece a otra prenda publicada.'; return; }
+            const tallasObj = [];
+            document.querySelectorAll('#edit-stock-gina-tallas .fila-stock-gina').forEach(function(fila) {
+                const talla = fila.querySelector('.stock-gina-talla').value.trim();
+                const stock = Math.max(0, parseInt(fila.querySelector('.stock-gina-cantidad').value, 10) || 0);
+                if (talla) tallasObj.push({ nombre: talla, stock: stock });
+            });
+            if (!tallasObj.length) { msg.style.display='block'; msg.style.color='#e74c3c'; msg.textContent='Agrega al menos una talla.'; return; }
+            const indice = productosDB.findIndex(p => p.id === id);
+            if (indice < 0) return;
+            const tallasFinales = tallasObj.map(function(tallaNueva) {
+                const existente = (productosDB[indice].tallasObj || []).find(t => normalizarTallaValor(t.nombre) === normalizarTallaValor(tallaNueva.nombre));
+                return Object.assign({}, existente || {}, tallaNueva);
+            });
+            const actualizado = Object.assign({}, productosDB[indice], {
+                codigo: codigo,
+                nombre: nombre,
+                tallasObj: tallasFinales,
+                stockTotal: tallasFinales.reduce((s,t) => s + Number(t.stock || 0), 0),
+                actualizadoEn: new Date().toISOString()
+            });
+            const btn = document.getElementById('btn-guardar-stock-gina');
+            try {
+                btn.disabled = true; msg.style.display='block'; msg.style.color='#56836a'; msg.textContent='Guardando en catálogo...';
+                const { doc, setDoc, collection, getDocs, query, where, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                await setDoc(doc(db, 'productos', actualizado.id), actualizado, { merge: true });
+                if (codigoOriginal) {
+                    const snap = await getDocs(query(collection(db, 'inventario_mercancia'), where('ref', '==', codigoOriginal)));
+                    await Promise.all(snap.docs.map(d => updateDoc(doc(db, 'inventario_mercancia', d.id), { ref: codigo, desc: nombre })));
+                }
+                productosDB[indice] = actualizado;
+                window.productosDB = productosDB;
+                localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                renderStockActual(); renderizarCatalogo();
+                msg.style.color='#27ae60'; msg.textContent='✅ Prenda y catálogo actualizados';
+                setTimeout(cerrarEditarStockGina, 700);
+            } catch(e) {
+                msg.style.color='#e74c3c'; msg.textContent='❌ No se pudo guardar: ' + e.message;
+            } finally { btn.disabled = false; }
         }
 
         window.exportarStockActualPDF = function() {
@@ -7386,7 +7500,7 @@ ${ped.comprobanteUrl ? `
         }
 
         [
-            'abrirEditarEntradaBtn','abrirEditarDatosClientePedido','cerrarEditarDatosClientePedido','guardarDatosClientePedido','abrirFotoGrande','previsualizarFotoEntradaInventario','renderResumenVisualInventario','actualizarBotonResumenInventario','toggleHistorialInventario','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
+            'abrirEditarEntradaBtn','abrirEditarStockGina','agregarTallaStockGina','cerrarEditarStockGina','guardarEdicionStockGina','abrirEditarDatosClientePedido','cerrarEditarDatosClientePedido','guardarDatosClientePedido','abrirFotoGrande','previsualizarFotoEntradaInventario','renderResumenVisualInventario','actualizarBotonResumenInventario','toggleHistorialInventario','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
             'agregarAlCarrito','agregarCategoria','agregarFilaEditEntrada','agregarFilaTalla',
             'agregarFilaTallaEdit','agregarFilaTallaInv','cambiarGenero','cambiarGeneroDiseno',
             'cambiarImg','cambiarTab','cerrarModalCheckout','cerrarModalEditar','cerrarModalFoto',
