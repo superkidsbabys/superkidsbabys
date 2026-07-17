@@ -1944,7 +1944,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 const btnAgregar = carritoNuevaBloqueado
                     ? `<button class="btn-agregar bloqueado-nueva" disabled title="Producto disponible pronto">Proximamente</button>`
                     : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
-                const botonesAdmin = ''; // Edición bloqueada en catálogo público — usar pedidos.html
+                const puedeEditarBusqueda = modoEdicion && window.usuarioActual && window.usuarioActual.rol === 'admin';
+                const botonesAdmin = puedeEditarBusqueda
+                    ? `<div style="display:flex;gap:6px;margin-top:6px;"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button><button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button></div>`
+                    : '';
                 return `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgs[0]}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgs[0])}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><div style="background:#fff2fa;border:1px solid #f0b9da;border-radius:8px;padding:5px 8px;margin-bottom:7px;color:#8d3b69;font-size:0.74em;font-weight:900;">📍 ${prod.genero || 'Catálogo general'} · ${prod.categoria || 'Sin categoría'}</div><h3>${prod.nombre}</h3><p style="font-size:0.78em;color:#777;margin:0 0 4px;font-weight:800;">Ref: ${prod.codigo || 'S/N'}</p><div class="precio-contenedor">${pNew}</div>${tallasChips}${btnAgregar}${botonesAdmin}</div></div>`;
             }).join('');
             cont.innerHTML = `<div style="grid-column:1/-1;background:#f8f4fb;border:1px solid #ead8f3;border-radius:10px;padding:9px 12px;color:#6d4b78;font-weight:900;font-size:0.85em;">🔎 ${resultados.length} resultado${resultados.length === 1 ? '' : 's'} encontrado${resultados.length === 1 ? '' : 's'}</div>` + tarjetasHtml;
