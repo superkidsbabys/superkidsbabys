@@ -3006,9 +3006,34 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
+        const GENEROS_ORDEN_VISUAL = ['Niñas','Niños','Junior Niñas','Junior Niños','Accesorios'];
+        let generoOrdenVisualAdmin = 'Niñas';
+
+        function obtenerOrdenCategoriasGenero(genero) {
+            genero = genero || generoActual;
+            if (!config.ordenCategoriasVisualPorGenero || typeof config.ordenCategoriasVisualPorGenero !== 'object') config.ordenCategoriasVisualPorGenero = {};
+            if (!Array.isArray(config.ordenCategoriasVisualPorGenero[genero])) {
+                const disponibles = [];
+                (productosDB || []).forEach(p => { if (p.genero === genero || p.genero === 'Unisex' || !p.genero) { const c=obtenerSubcategoriaCatalogo(p); if(c&&!disponibles.includes(c))disponibles.push(c); } });
+                const legado = Array.isArray(config.ordenCategoriasVisual) ? config.ordenCategoriasVisual : [];
+                config.ordenCategoriasVisualPorGenero[genero] = legado.filter(c => disponibles.includes(c)).concat(disponibles.filter(c => !legado.includes(c)));
+            }
+            return config.ordenCategoriasVisualPorGenero[genero];
+        }
+
+        function seleccionarGeneroOrdenVisual(genero) {
+            if (!GENEROS_ORDEN_VISUAL.includes(genero)) return;
+            generoOrdenVisualAdmin = genero;
+            renderizarCategoriasAdminYPublic();
+        }
+
         function actualizarOrdenCategoriasVisual(anterior, nuevo) {
             if (!config.ordenCategoriasVisual) config.ordenCategoriasVisual = obtenerCategoriasVisualesCatalogo();
             config.ordenCategoriasVisual = (config.ordenCategoriasVisual || []).map(c => c === anterior ? nuevo : c).filter((c, idx, arr) => c && arr.indexOf(c) === idx);
+            GENEROS_ORDEN_VISUAL.forEach(g => {
+                const orden = obtenerOrdenCategoriasGenero(g);
+                config.ordenCategoriasVisualPorGenero[g] = orden.map(c => c === anterior ? nuevo : c).filter((c,i,a) => c && a.indexOf(c) === i);
+            });
         }
 
         function sincronizarCategoriasConfigConVisuales() {
@@ -3026,14 +3051,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     const catClick = encodeURIComponent(cat);
                     adminCont.innerHTML += `<div class="tag-categoria" style="gap:6px; flex-wrap:wrap;"><button onclick="moverCategoria(${idx}, -1)" title="Subir categoria" style="color:#2980b9;">↑</button><button onclick="moverCategoria(${idx}, 1)" title="Bajar categoria" style="color:#2980b9;">↓</button><input type="text" id="edit-cat-${idx}" value="${escapeHtmlAttr(cat)}" style="border:1px solid #b3d7f0;border-radius:14px;padding:5px 8px;min-width:130px;font-weight:600;color:#2980b9;"><button onclick="renombrarCategoria(${idx})" title="Guardar nombre">✓</button><button onclick="eliminarCategoria(decodeURIComponent('${catClick}'))">X</button></div>`;
                 });
-                const visuales = obtenerCategoriasVisualesCatalogo();
+                const visuales = obtenerCategoriasVisualesCatalogo(generoOrdenVisualAdmin);
+                adminCont.innerHTML += `<div style="width:100%;margin-top:12px;padding-top:12px;border-top:1px dashed #b3d7f0;font-size:0.9em;font-weight:900;color:#555;">Orden visual del collage</div><div style="width:100%;display:flex;gap:6px;flex-wrap:wrap;margin:7px 0 10px;">${GENEROS_ORDEN_VISUAL.map(g => `<button type="button" onclick="seleccionarGeneroOrdenVisual('${g}')" style="border:1.5px solid ${g===generoOrdenVisualAdmin?'#c0397a':'#edbfd9'};background:${g===generoOrdenVisualAdmin?'#c0397a':'#fff7fb'};color:${g===generoOrdenVisualAdmin?'white':'#a53270'};border-radius:18px;padding:6px 11px;font-weight:800;cursor:pointer;">${g}</button>`).join('')}</div>`;
                 if (visuales.length > 0) {
-                    adminCont.innerHTML += `<div style="width:100%;margin-top:12px;padding-top:12px;border-top:1px dashed #b3d7f0;font-size:0.9em;font-weight:900;color:#555;">Orden visual del collage</div>`;
                     visuales.forEach((cat, idx) => {
                         const catClick = encodeURIComponent(cat);
                         adminCont.innerHTML += `<div class="tag-categoria" style="gap:6px; flex-wrap:wrap;background:#fff7fb;border-color:#f5bfdc;"><button onclick="moverCategoriaVisual(decodeURIComponent('${catClick}'), -1)" title="Subir portada" style="color:#c0397a;">↑</button><button onclick="moverCategoriaVisual(decodeURIComponent('${catClick}'), 1)" title="Bajar portada" style="color:#c0397a;">↓</button><span style="font-weight:800;color:#c0397a;">${idx + 1}.</span><input type="text" id="edit-cat-visual-${idx}" value="${escapeHtmlAttr(cat)}" style="border:1px solid #f5bfdc;border-radius:14px;padding:5px 8px;min-width:150px;font-weight:700;color:#c0397a;background:white;"><button onclick="renombrarCategoriaVisual(decodeURIComponent('${catClick}'), 'edit-cat-visual-${idx}')" title="Guardar nombre">✓</button></div>`;
                     });
-                }
+                } else adminCont.innerHTML += `<div style="width:100%;padding:12px;text-align:center;color:#999;font-size:.82em;">No hay subcategorías con productos en ${generoOrdenVisualAdmin}.</div>`;
                 document.getElementById('nueva-categoria-select').innerHTML = obtenerCategoriasFuncionalesCatalogo().map(cat => `<option value="${escapeHtmlAttr(cat)}">${cat}</option>`).join('');
                 const editCatSelect = document.getElementById('edit-prod-categoria');
                 if (editCatSelect) editCatSelect.innerHTML = obtenerCategoriasFuncionalesCatalogo().map(cat => `<option value="${escapeHtmlAttr(cat)}">${cat}</option>`).join('');
@@ -3057,14 +3082,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
-        function obtenerCategoriasVisualesCatalogo() {
+        function obtenerCategoriasVisualesCatalogo(genero) {
+            genero = genero || generoActual;
             const grupos = [];
             (productosDB || []).forEach(p => {
-                if (!(p.genero === generoActual || p.genero === 'Unisex' || !p.genero)) return;
+                if (!(p.genero === genero || p.genero === 'Unisex' || !p.genero)) return;
                 const nombre = obtenerSubcategoriaCatalogo(p);
                 if (nombre && !grupos.includes(nombre)) grupos.push(nombre);
             });
-            return ordenarCategoriasVisuales(grupos);
+            return ordenarCategoriasVisuales(grupos, genero);
         }
 
         function obtenerCategoriasFuncionalesCatalogo() {
@@ -3074,8 +3100,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             return ordenarCategoriasVisuales(todas);
         }
 
-        function ordenarCategoriasVisuales(lista) {
-            const ordenManual = config.ordenCategoriasVisual || [];
+        function ordenarCategoriasVisuales(lista, genero) {
+            const ordenManual = obtenerOrdenCategoriasGenero(genero || generoActual);
             const ordenBase = config.categorias || [];
             return lista.slice().sort((a, b) => {
                 const ma = ordenManual.indexOf(a), mb = ordenManual.indexOf(b);
@@ -3094,13 +3120,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         function moverCategoriaVisual(cat, direccion) {
             if (window.datosQuemados) return;
-            const actuales = obtenerCategoriasVisualesCatalogo();
+            const actuales = obtenerCategoriasVisualesCatalogo(generoOrdenVisualAdmin);
             const idx = actuales.indexOf(cat);
             const destino = idx + direccion;
             if (idx < 0 || destino < 0 || destino >= actuales.length) return;
             actuales.splice(idx, 1);
             actuales.splice(destino, 0, cat);
-            config.ordenCategoriasVisual = actuales;
+            config.ordenCategoriasVisualPorGenero[generoOrdenVisualAdmin] = actuales;
             persistirConfigTiendaSilencioso();
             marcarCambio();
             renderizarCategoriasAdminYPublic(); renderizarCatalogo();
@@ -3180,6 +3206,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (confirm(`¿Borrar ${cat}?`)) {
                 config.categorias = config.categorias.filter(c => c !== cat);
                 config.ordenCategoriasVisual = (config.ordenCategoriasVisual || []).filter(c => c !== cat);
+                if (config.ordenCategoriasVisualPorGenero) Object.keys(config.ordenCategoriasVisualPorGenero).forEach(g => { config.ordenCategoriasVisualPorGenero[g] = (config.ordenCategoriasVisualPorGenero[g] || []).filter(c => c !== cat); });
                 if (filtroActual === cat) filtroActual = 'Todos';
                 persistirConfigTiendaSilencioso();
                 renderizarCategoriasAdminYPublic(); renderizarFiltroTallas(); renderizarCatalogo();
@@ -3252,6 +3279,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         window.agregarCategoria = agregarCategoria;
         window.moverCategoria = moverCategoria;
         window.moverCategoriaVisual = moverCategoriaVisual;
+        window.seleccionarGeneroOrdenVisual = seleccionarGeneroOrdenVisual;
         window.renombrarCategoria = renombrarCategoria;
         window.renombrarCategoriaVisual = renombrarCategoriaVisual;
         window.eliminarCategoria = eliminarCategoria;
@@ -7897,7 +7925,7 @@ ${ped.comprobanteUrl ? `
             'exportarClientesCSV','exportarReporteVentasCSV','imprimirReporteVentas','renderizarReporteVentas','cargarPapeleraPedidos','restaurarPedidoPapelera','exportarInventarioExcel','exportarInventarioPDF','exportarParaInternet','filtrarCatalogo',
             'filtrarPorTalla','filtrarVistaPedidos','guardarDatosTienda','guardarEdicionEntrada',
             'guardarEdicionProducto','guardarEntradaInventario','imprimirFactura','moverCategoria','sugerirReferenciaInventario','marcarReferenciaInventarioManual',
-            'moverCategoriaVisual','procesarOrdenWA','procesarYAgregarProducto','renderizarClientesGestion',
+            'moverCategoriaVisual','seleccionarGeneroOrdenVisual','procesarOrdenWA','procesarYAgregarProducto','renderizarClientesGestion',
             'cerrarDetalleClienteGestion','enviarWhatsAppCliente','mostrarDetalleClienteGestion','renombrarCategoria',
             'renombrarCategoriaVisual','resetearOrdenEnFirebase','seleccionarTallaChip','seleccionarTema',
             'seleccionarTextura','subirFotosNuevasEdit','toggleAcordeon','toggleAdmin','togglePromociones'
