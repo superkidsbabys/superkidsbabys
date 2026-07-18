@@ -1670,7 +1670,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             <div id="tab-reporte-ventas" class="seccion-tab">
                 <div class="seccion-admin-sub" style="background:#fbfffc;border:1.5px solid #b9e4c9;border-radius:14px;padding:17px;">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-                        <div><h3 style="margin:0;color:#187548;">Reporte contable de ventas</h3><p style="margin:4px 0 0;color:#667085;font-size:.85em;">Ventas pagadas y entregadas. No incluye envíos ni datos de clientes.</p></div>
+                        <div><h3 style="margin:0;color:#187548;">Reporte contable de ventas</h3><p style="margin:4px 0 0;color:#667085;font-size:.85em;">Pedidos enviados, pagados y entregados. No incluye envíos ni datos de clientes.</p></div>
                         <div style="display:flex;gap:7px;flex-wrap:wrap;"><button onclick="exportarReporteVentasCSV()" style="border:0;background:#168653;color:white;border-radius:9px;padding:9px 13px;font-weight:900;cursor:pointer;">Exportar Excel</button><button onclick="imprimirReporteVentas()" style="border:0;background:#8e44ad;color:white;border-radius:9px;padding:9px 13px;font-weight:900;cursor:pointer;">Exportar PDF</button></div>
                     </div>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin-bottom:14px;">
@@ -7653,7 +7653,7 @@ ${ped.comprobanteUrl ? `
             const grupos = {};
             (historialPedidos || []).forEach(ped => {
                 const estado = String(ped.estado || '').trim().toLowerCase().replace(/\s+/g,'_');
-                if (estado !== 'pagado' && estado !== 'entregado') return;
+                if (estado !== 'enviado' && estado !== 'pagado' && estado !== 'entregado') return;
                 if (tipo && String(ped.tipoVenta || '') !== tipo) return;
                 if (asesora && String(ped.asesora || '').toLowerCase() !== asesora.toLowerCase()) return;
                 const fecha = fechaPedidoReporte(ped); if (!fecha) return;
@@ -7705,7 +7705,7 @@ ${ped.comprobanteUrl ? `
             const d = obtenerDatosReporteVentas();
             const filas = d.dias.map(x => '<tr><td>'+x.fecha.split('-').reverse().join('/')+'</td><td>'+x.ventas+'</td><td>'+x.prendas+'</td><td>'+formatMoney(x.bruto)+'</td><td>−'+formatMoney(x.descuentos)+'</td><td><strong>'+formatMoney(x.neto)+'</strong></td></tr>').join('');
             const vent = abrirFacturaEnApp();
-            vent.document.write('<!doctype html><html><head><meta charset="UTF-8"><title>Reporte ventas</title><style>body{font-family:Segoe UI,sans-serif;max-width:900px;margin:auto;padding:25px;color:#26332b}h1{color:#187548}table{width:100%;border-collapse:collapse}th{background:#187548;color:white;padding:9px}td{padding:9px;border-bottom:1px solid #ddd;text-align:right}td:first-child{text-align:left}.total{background:#eaf8ef;font-weight:900}.btn{margin:18px auto;display:block;padding:11px 24px;border:0;border-radius:9px;background:#8e44ad;color:white;font-weight:900}@media print{.btn{display:none}}</style></head><body><h1>Reporte de ventas</h1><p>Periodo: '+(d.desde||'Inicio')+' a '+(d.hasta||'Hoy')+' · Solo pagados y entregados · Sin envíos</p><table><thead><tr><th>Fecha</th><th>Ventas</th><th>Prendas</th><th>Bruta</th><th>Descuentos</th><th>Neta</th></tr></thead><tbody>'+filas+'<tr class="total"><td>TOTAL</td><td>'+d.total.ventas+'</td><td>'+d.total.prendas+'</td><td>'+formatMoney(d.total.bruto)+'</td><td>−'+formatMoney(d.total.descuentos)+'</td><td>'+formatMoney(d.total.neto)+'</td></tr></tbody></table><button class="btn" onclick="print()">Guardar como PDF</button></body></html>');
+            vent.document.write('<!doctype html><html><head><meta charset="UTF-8"><title>Reporte ventas</title><style>body{font-family:Segoe UI,sans-serif;max-width:900px;margin:auto;padding:25px;color:#26332b}h1{color:#187548}table{width:100%;border-collapse:collapse}th{background:#187548;color:white;padding:9px}td{padding:9px;border-bottom:1px solid #ddd;text-align:right}td:first-child{text-align:left}.total{background:#eaf8ef;font-weight:900}.btn{margin:18px auto;display:block;padding:11px 24px;border:0;border-radius:9px;background:#8e44ad;color:white;font-weight:900}@media print{.btn{display:none}}</style></head><body><h1>Reporte de ventas</h1><p>Periodo: '+(d.desde||'Inicio')+' a '+(d.hasta||'Hoy')+' · Enviados, pagados y entregados · Sin envíos</p><table><thead><tr><th>Fecha</th><th>Ventas</th><th>Prendas</th><th>Bruta</th><th>Descuentos</th><th>Neta</th></tr></thead><tbody>'+filas+'<tr class="total"><td>TOTAL</td><td>'+d.total.ventas+'</td><td>'+d.total.prendas+'</td><td>'+formatMoney(d.total.bruto)+'</td><td>−'+formatMoney(d.total.descuentos)+'</td><td>'+formatMoney(d.total.neto)+'</td></tr></tbody></table><button class="btn" onclick="print()">Guardar como PDF</button></body></html>');
             vent.document.close();
         }
 
