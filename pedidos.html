@@ -1236,6 +1236,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('inventario')" style="display:none;">Inventario</button>
                 <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('clientes')" style="display:none;">Clientes</button>
                 <button class="btn-tab" onclick="window.open('https://superkidsbabys.com','_blank')">Ver tienda</button>
+                <button class="btn-tab" onclick="cambiarTab('papelera')">Papelera</button>
                 <button class="btn-tab" onclick="cambiarTab('reporte-ventas')">Reporte ventas</button>
                 <button class="btn-tab" onclick="window.fbLogout && window.fbLogout()" style="background-color: #e74c3c; color: white;">Cerrar sesión</button>
             </div>
@@ -1682,6 +1683,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <div id="rv-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px;margin-bottom:14px;"></div>
                     <div style="overflow:auto;border:1.5px solid #ccebd7;border-radius:11px;background:white;"><table style="width:100%;border-collapse:collapse;font-size:.82em;min-width:720px;"><thead style="background:#eaf8ef;color:#187548;"><tr><th style="padding:10px;text-align:left;">Fecha</th><th>Ventas</th><th>Prendas</th><th style="text-align:right;">Venta bruta</th><th style="text-align:right;">Descuentos</th><th style="text-align:right;padding-right:12px;">Venta neta</th></tr></thead><tbody id="rv-tbody"></tbody></table></div>
                     <p id="rv-vacio" style="display:none;text-align:center;color:#98a2b3;font-weight:800;padding:22px;">No hay ventas finalizadas en las fechas elegidas.</p>
+                </div>
+            </div>
+
+            <!-- TAB PAPELERA DE PEDIDOS -->
+            <div id="tab-papelera" class="seccion-tab">
+                <div class="seccion-admin-sub" style="background:#fffdfd;border:1.5px solid #f2c5c5;border-radius:14px;padding:17px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;"><div><h3 style="margin:0;color:#a83232;">Papelera de pedidos</h3><p style="margin:4px 0 0;color:#667085;font-size:.85em;">Los pedidos eliminados se conservan durante 30 días.</p></div><button onclick="cargarPapeleraPedidos()" style="border:0;background:#a83232;color:white;border-radius:9px;padding:9px 13px;font-weight:900;cursor:pointer;">Actualizar</button></div>
+                    <div id="papelera-pedidos-lista" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;"></div>
+                    <p id="papelera-pedidos-vacia" style="display:none;text-align:center;color:#98a2b3;font-weight:800;padding:28px;">La papelera está vacía.</p>
                 </div>
             </div>
 
@@ -5535,9 +5545,78 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             renderizarPedidosPanel();
         }
 
+        const CLAVE_PAPELERA_PEDIDOS = 'papeleraPedidosV1';
+        const DIAS_PAPELERA_PEDIDOS = 30;
+
+        function obtenerPapeleraPedidosLocal() { return safeParse(CLAVE_PAPELERA_PEDIDOS) || []; }
+        function guardarPapeleraPedidosLocal(lista) { localStorage.setItem(CLAVE_PAPELERA_PEDIDOS, JSON.stringify(lista || [])); }
+
+        async function enviarPedidoAPapelera(pedido) {
+            if (!pedido) return;
+            const copia = JSON.parse(JSON.stringify(pedido));
+            copia.eliminadoEn = new Date().toISOString();
+            copia._firebaseIdOriginal = pedido._firebaseId || ('pedido_' + pedido.num);
+            copia._papeleraId = 'papelera_' + String(copia._firebaseIdOriginal).replace(/[^a-zA-Z0-9_-]/g,'_');
+            const lista = obtenerPapeleraPedidosLocal().filter(p => p._papeleraId !== copia._papeleraId);
+            lista.unshift(copia); guardarPapeleraPedidosLocal(lista);
+            try {
+                const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                await setDoc(doc(db, 'pedidos_papelera', copia._papeleraId), copia);
+            } catch(e) { console.log('Pedido guardado solo en papelera local:', e.message); }
+        }
+
+        async function cargarPapeleraPedidos() {
+            let lista = obtenerPapeleraPedidosLocal();
+            try {
+                const { collection, getDocs, doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const snap = await getDocs(collection(db, 'pedidos_papelera'));
+                const mapa = {}; lista.forEach(p => { if (p._papeleraId) mapa[p._papeleraId] = p; });
+                snap.forEach(ds => { const p = Object.assign({_papeleraId:ds.id}, ds.data()); mapa[p._papeleraId] = p; });
+                lista = Object.values(mapa);
+                const limite = Date.now() - DIAS_PAPELERA_PEDIDOS * 86400000;
+                const vencidos = lista.filter(p => new Date(p.eliminadoEn || 0).getTime() < limite);
+                lista = lista.filter(p => new Date(p.eliminadoEn || 0).getTime() >= limite);
+                for (const p of vencidos) { try { await deleteDoc(doc(db,'pedidos_papelera',p._papeleraId)); } catch(e){} }
+            } catch(e) { console.log('Papelera Firebase no disponible:', e.message); }
+            lista.sort((a,b) => new Date(b.eliminadoEn||0) - new Date(a.eliminadoEn||0));
+            guardarPapeleraPedidosLocal(lista); renderizarPapeleraPedidos(lista);
+        }
+
+        function renderizarPapeleraPedidos(lista) {
+            lista = lista || obtenerPapeleraPedidosLocal();
+            const cont = document.getElementById('papelera-pedidos-lista'); if (!cont) return;
+            cont.innerHTML = lista.map(p => {
+                const fechaBorrado = p.eliminadoEn ? new Date(p.eliminadoEn).toLocaleString('es-CO') : '';
+                const vence = p.eliminadoEn ? new Date(new Date(p.eliminadoEn).getTime()+DIAS_PAPELERA_PEDIDOS*86400000).toLocaleDateString('es-CO') : '';
+                return '<div style="background:white;border:1.5px solid #f0cccc;border-radius:11px;padding:13px;"><div style="display:flex;justify-content:space-between;gap:8px;"><strong style="color:#a83232;">'+escapeHtml(p.numOrden || ('SK'+String(p.num||'')))+'</strong><span style="font-size:.72em;color:#888;">'+fechaBorrado+'</span></div><div style="font-size:.82em;color:#444;margin-top:7px;"><strong>'+escapeHtml(p.nom || 'Sin nombre')+'</strong><br>'+(p.items||[]).reduce((s,i)=>s+(parseInt(i.cant,10)||1),0)+' prendas · '+formatMoney(p.tot||0)+'<br><span style="color:#888;">Se elimina definitivamente: '+vence+'</span></div><button onclick="restaurarPedidoPapelera(\''+escapeHtmlAttr(p._papeleraId)+'\')" style="width:100%;margin-top:10px;border:0;background:#1d9b61;color:white;border-radius:8px;padding:8px;font-weight:900;cursor:pointer;">↩ Restaurar pedido</button></div>';
+            }).join('');
+            const vacia=document.getElementById('papelera-pedidos-vacia'); if(vacia)vacia.style.display=lista.length?'none':'block';
+        }
+
+        async function restaurarPedidoPapelera(papeleraId) {
+            const lista = obtenerPapeleraPedidosLocal(); const pedido = lista.find(p => p._papeleraId === papeleraId);
+            if (!pedido) return alert('No se encontró el pedido en la papelera. Pulsa Actualizar.');
+            if (!confirm('¿Restaurar el pedido ' + (pedido.numOrden || pedido.num) + '?')) return;
+            const restaurado = JSON.parse(JSON.stringify(pedido));
+            const firebaseId = restaurado._firebaseIdOriginal || restaurado._firebaseId || ('pedido_'+restaurado.num);
+            delete restaurado.eliminadoEn; delete restaurado._papeleraId; delete restaurado._firebaseIdOriginal;
+            restaurado._firebaseId = firebaseId;
+            try {
+                const { doc, setDoc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const dataFirebase = Object.assign({}, restaurado); delete dataFirebase._firebaseId;
+                await setDoc(doc(db,'pedidos',firebaseId),dataFirebase);
+                await deleteDoc(doc(db,'pedidos_papelera',papeleraId));
+            } catch(e) { console.log('Restaurado localmente; error Firebase:',e.message); }
+            if (!historialPedidos.some(p => String(p.num) === String(restaurado.num))) historialPedidos.unshift(restaurado);
+            guardarPapeleraPedidosLocal(lista.filter(p => p._papeleraId !== papeleraId));
+            localStorage.setItem('pedidosV36',JSON.stringify(historialPedidos));
+            renderizarPapeleraPedidos(); renderizarPedidosPanel(); alert('Pedido restaurado correctamente.');
+        }
+
         async function eliminarPedido(numPed) {
-            if (!confirm(`¿Seguro que deseas eliminar el pedido #SK-${numPed}? Esta acción no se puede deshacer.`)) return;
+            if (!confirm(`¿Mover el pedido #SK-${numPed} a la papelera durante 30 días?`)) return;
             const pedido = historialPedidos.find(p => p.num === numPed);
+            await enviarPedidoAPapelera(pedido);
             historialPedidos = historialPedidos.filter(p => p.num !== numPed);
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
             renderizarPedidosPanel();
@@ -7741,6 +7820,9 @@ ${ped.comprobanteUrl ? `
             if (tab === 'reporte-ventas') {
                 renderizarReporteVentas();
             }
+            if (tab === 'papelera') {
+                cargarPapeleraPedidos();
+            }
         }
 
         // ===== VISOR DE FOTOS CON FLECHAS =====
@@ -7812,7 +7894,7 @@ ${ped.comprobanteUrl ? `
             'cambiarImg','cambiarTab','cerrarModalCheckout','cerrarModalEditar','cerrarModalFoto',
             'compartirCatalogo','eliminarCategoria','eliminarEntradaInventario','eliminarFotoEdit',
             'eliminarPedido','eliminarProducto','eliminarSalidaInventario','exportarEditable',
-            'exportarClientesCSV','exportarReporteVentasCSV','imprimirReporteVentas','renderizarReporteVentas','exportarInventarioExcel','exportarInventarioPDF','exportarParaInternet','filtrarCatalogo',
+            'exportarClientesCSV','exportarReporteVentasCSV','imprimirReporteVentas','renderizarReporteVentas','cargarPapeleraPedidos','restaurarPedidoPapelera','exportarInventarioExcel','exportarInventarioPDF','exportarParaInternet','filtrarCatalogo',
             'filtrarPorTalla','filtrarVistaPedidos','guardarDatosTienda','guardarEdicionEntrada',
             'guardarEdicionProducto','guardarEntradaInventario','imprimirFactura','moverCategoria','sugerirReferenciaInventario','marcarReferenciaInventarioManual',
             'moverCategoriaVisual','procesarOrdenWA','procesarYAgregarProducto','renderizarClientesGestion',
