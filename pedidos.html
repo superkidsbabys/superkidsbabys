@@ -1236,6 +1236,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('inventario')" style="display:none;">Inventario</button>
                 <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('clientes')" style="display:none;">Clientes</button>
                 <button class="btn-tab" onclick="window.open('https://superkidsbabys.com','_blank')">Ver tienda</button>
+                <button class="btn-tab" onclick="cambiarTab('reporte-ventas')">Reporte ventas</button>
                 <button class="btn-tab" onclick="window.fbLogout && window.fbLogout()" style="background-color: #e74c3c; color: white;">Cerrar sesión</button>
             </div>
             <div id="control-nueva-coleccion-rapido" style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:10px 14px;margin:10px 0 14px;box-shadow:0 4px 12px rgba(154,52,18,0.08);">
@@ -1662,6 +1663,25 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                             <p style="color:#98a2b3;font-weight:800;text-align:center;margin:80px 0;">Selecciona un cliente para ver su historial.</p>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- TAB REPORTE CONTABLE DE VENTAS -->
+            <div id="tab-reporte-ventas" class="seccion-tab">
+                <div class="seccion-admin-sub" style="background:#fbfffc;border:1.5px solid #b9e4c9;border-radius:14px;padding:17px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+                        <div><h3 style="margin:0;color:#187548;">Reporte contable de ventas</h3><p style="margin:4px 0 0;color:#667085;font-size:.85em;">Ventas pagadas y entregadas. No incluye envíos ni datos de clientes.</p></div>
+                        <div style="display:flex;gap:7px;flex-wrap:wrap;"><button onclick="exportarReporteVentasCSV()" style="border:0;background:#168653;color:white;border-radius:9px;padding:9px 13px;font-weight:900;cursor:pointer;">Exportar Excel</button><button onclick="imprimirReporteVentas()" style="border:0;background:#8e44ad;color:white;border-radius:9px;padding:9px 13px;font-weight:900;cursor:pointer;">Exportar PDF</button></div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin-bottom:14px;">
+                        <label style="font-size:.78em;font-weight:800;color:#475467;">Desde<input id="rv-desde" type="date" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;"></label>
+                        <label style="font-size:.78em;font-weight:800;color:#475467;">Hasta<input id="rv-hasta" type="date" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;"></label>
+                        <label style="font-size:.78em;font-weight:800;color:#475467;">Tipo de venta<select id="rv-tipo" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todos</option><option>Contraentrega</option><option>Contado</option><option>Recaudo</option></select></label>
+                        <label style="font-size:.78em;font-weight:800;color:#475467;">Asesora<select id="rv-asesora" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todas</option><option>Yohana</option><option>Gina</option><option>Bibiana</option></select></label>
+                    </div>
+                    <div id="rv-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px;margin-bottom:14px;"></div>
+                    <div style="overflow:auto;border:1.5px solid #ccebd7;border-radius:11px;background:white;"><table style="width:100%;border-collapse:collapse;font-size:.82em;min-width:720px;"><thead style="background:#eaf8ef;color:#187548;"><tr><th style="padding:10px;text-align:left;">Fecha</th><th>Ventas</th><th>Prendas</th><th style="text-align:right;">Venta bruta</th><th style="text-align:right;">Descuentos</th><th style="text-align:right;padding-right:12px;">Venta neta</th></tr></thead><tbody id="rv-tbody"></tbody></table></div>
+                    <p id="rv-vacio" style="display:none;text-align:center;color:#98a2b3;font-weight:800;padding:22px;">No hay ventas finalizadas en las fechas elegidas.</p>
                 </div>
             </div>
 
@@ -7614,6 +7634,81 @@ ${ped.comprobanteUrl ? `
             URL.revokeObjectURL(a.href);
         }
 
+        function fechaPedidoReporte(ped) {
+            if (ped.timestampPedido) { const d = new Date(Number(ped.timestampPedido)); if (!isNaN(d)) return d; }
+            if (ped.actualizadoEn) { const d = new Date(ped.actualizadoEn); if (!isNaN(d)) return d; }
+            const d = new Date(ped.fecha || '');
+            return isNaN(d) ? null : d;
+        }
+
+        function fechaISOReporte(d) {
+            return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        }
+
+        function obtenerDatosReporteVentas() {
+            const desde = (document.getElementById('rv-desde') || {}).value || '';
+            const hasta = (document.getElementById('rv-hasta') || {}).value || '';
+            const tipo = (document.getElementById('rv-tipo') || {}).value || '';
+            const asesora = (document.getElementById('rv-asesora') || {}).value || '';
+            const grupos = {};
+            (historialPedidos || []).forEach(ped => {
+                const estado = String(ped.estado || '').trim().toLowerCase().replace(/\s+/g,'_');
+                if (estado !== 'pagado' && estado !== 'entregado') return;
+                if (tipo && String(ped.tipoVenta || '') !== tipo) return;
+                if (asesora && String(ped.asesora || '').toLowerCase() !== asesora.toLowerCase()) return;
+                const fecha = fechaPedidoReporte(ped); if (!fecha) return;
+                const iso = fechaISOReporte(fecha);
+                if (desde && iso < desde) return;
+                if (hasta && iso > hasta) return;
+                const envio = parseInt(String(ped.valorEnvio || '0').replace(/[^0-9]/g,''),10) || 0;
+                const bruto = (ped.items || []).reduce((s,i) => s + ((parseInt(i.precio,10)||0) * (parseInt(i.cant,10)||1)), 0);
+                const totalPedido = parseInt(String(ped.tot || '0').replace(/[^0-9]/g,''),10) || 0;
+                const neto = Math.max(0, totalPedido - envio);
+                const prendas = (ped.items || []).reduce((s,i) => s + (parseInt(i.cant,10)||1), 0);
+                if (!grupos[iso]) grupos[iso] = { fecha:iso, ventas:0, prendas:0, bruto:0, descuentos:0, neto:0 };
+                grupos[iso].ventas++; grupos[iso].prendas += prendas; grupos[iso].bruto += bruto; grupos[iso].neto += neto; grupos[iso].descuentos += Math.max(0, bruto-neto);
+            });
+            const dias = Object.values(grupos).sort((a,b) => a.fecha.localeCompare(b.fecha));
+            const total = dias.reduce((a,d) => ({ ventas:a.ventas+d.ventas, prendas:a.prendas+d.prendas, bruto:a.bruto+d.bruto, descuentos:a.descuentos+d.descuentos, neto:a.neto+d.neto }), {ventas:0,prendas:0,bruto:0,descuentos:0,neto:0});
+            total.promedio = total.ventas ? Math.round(total.neto / total.ventas) : 0;
+            return { dias, total, desde, hasta, tipo, asesora };
+        }
+
+        function iniciarFechasReporteVentas() {
+            const desde = document.getElementById('rv-desde'), hasta = document.getElementById('rv-hasta');
+            if (!desde || !hasta || desde.value || hasta.value) return;
+            const hoy = new Date(); const primero = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+            desde.value = fechaISOReporte(primero); hasta.value = fechaISOReporte(hoy);
+        }
+
+        function renderizarReporteVentas() {
+            iniciarFechasReporteVentas();
+            const data = obtenerDatosReporteVentas();
+            const resumen = document.getElementById('rv-resumen');
+            if (resumen) resumen.innerHTML = [
+                ['Ventas',data.total.ventas],['Prendas',data.total.prendas],['Venta bruta',formatMoney(data.total.bruto)],['Descuentos',formatMoney(data.total.descuentos)],['Venta neta',formatMoney(data.total.neto)],['Promedio por venta',formatMoney(data.total.promedio)]
+            ].map(x => '<div style="background:white;border:1.5px solid #ccebd7;border-radius:10px;padding:11px;"><div style="font-size:.72em;color:#667085;font-weight:800;text-transform:uppercase;">'+x[0]+'</div><div style="font-size:1.12em;color:#187548;font-weight:900;margin-top:3px;">'+x[1]+'</div></div>').join('');
+            const tbody = document.getElementById('rv-tbody');
+            if (tbody) tbody.innerHTML = data.dias.map(d => '<tr style="border-bottom:1px solid #e8f3ec;"><td style="padding:10px;font-weight:800;">'+d.fecha.split('-').reverse().join('/')+'</td><td style="text-align:center;">'+d.ventas+'</td><td style="text-align:center;">'+d.prendas+'</td><td style="text-align:right;">'+formatMoney(d.bruto)+'</td><td style="text-align:right;color:#b06b00;">−'+formatMoney(d.descuentos)+'</td><td style="text-align:right;padding-right:12px;font-weight:900;color:#187548;">'+formatMoney(d.neto)+'</td></tr>').join('');
+            const vacio = document.getElementById('rv-vacio'); if (vacio) vacio.style.display = data.dias.length ? 'none' : 'block';
+        }
+
+        function exportarReporteVentasCSV() {
+            const d = obtenerDatosReporteVentas();
+            const filas = [['Fecha','Ventas','Prendas','Venta bruta','Descuentos','Venta neta']].concat(d.dias.map(x => [x.fecha,x.ventas,x.prendas,x.bruto,x.descuentos,x.neto]));
+            filas.push(['TOTAL',d.total.ventas,d.total.prendas,d.total.bruto,d.total.descuentos,d.total.neto]);
+            const csv = '\uFEFF' + filas.map(f => f.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');
+            const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='reporte-ventas-'+(d.desde||'inicio')+'-'+(d.hasta||'hoy')+'.csv'; a.click(); URL.revokeObjectURL(a.href);
+        }
+
+        function imprimirReporteVentas() {
+            const d = obtenerDatosReporteVentas();
+            const filas = d.dias.map(x => '<tr><td>'+x.fecha.split('-').reverse().join('/')+'</td><td>'+x.ventas+'</td><td>'+x.prendas+'</td><td>'+formatMoney(x.bruto)+'</td><td>−'+formatMoney(x.descuentos)+'</td><td><strong>'+formatMoney(x.neto)+'</strong></td></tr>').join('');
+            const vent = abrirFacturaEnApp();
+            vent.document.write('<!doctype html><html><head><meta charset="UTF-8"><title>Reporte ventas</title><style>body{font-family:Segoe UI,sans-serif;max-width:900px;margin:auto;padding:25px;color:#26332b}h1{color:#187548}table{width:100%;border-collapse:collapse}th{background:#187548;color:white;padding:9px}td{padding:9px;border-bottom:1px solid #ddd;text-align:right}td:first-child{text-align:left}.total{background:#eaf8ef;font-weight:900}.btn{margin:18px auto;display:block;padding:11px 24px;border:0;border-radius:9px;background:#8e44ad;color:white;font-weight:900}@media print{.btn{display:none}}</style></head><body><h1>Reporte de ventas</h1><p>Periodo: '+(d.desde||'Inicio')+' a '+(d.hasta||'Hoy')+' · Solo pagados y entregados · Sin envíos</p><table><thead><tr><th>Fecha</th><th>Ventas</th><th>Prendas</th><th>Bruta</th><th>Descuentos</th><th>Neta</th></tr></thead><tbody>'+filas+'<tr class="total"><td>TOTAL</td><td>'+d.total.ventas+'</td><td>'+d.total.prendas+'</td><td>'+formatMoney(d.total.bruto)+'</td><td>−'+formatMoney(d.total.descuentos)+'</td><td>'+formatMoney(d.total.neto)+'</td></tr></tbody></table><button class="btn" onclick="print()">Guardar como PDF</button></body></html>');
+            vent.document.close();
+        }
+
         function cambiarTab(tab) {
             document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('activo'));
             document.querySelectorAll('.seccion-tab').forEach(s => s.classList.remove('activo'));
@@ -7642,6 +7737,9 @@ ${ped.comprobanteUrl ? `
             }
             if (tab === 'clientes') {
                 renderizarClientesGestion();
+            }
+            if (tab === 'reporte-ventas') {
+                renderizarReporteVentas();
             }
         }
 
@@ -7714,7 +7812,7 @@ ${ped.comprobanteUrl ? `
             'cambiarImg','cambiarTab','cerrarModalCheckout','cerrarModalEditar','cerrarModalFoto',
             'compartirCatalogo','eliminarCategoria','eliminarEntradaInventario','eliminarFotoEdit',
             'eliminarPedido','eliminarProducto','eliminarSalidaInventario','exportarEditable',
-            'exportarClientesCSV','exportarInventarioExcel','exportarInventarioPDF','exportarParaInternet','filtrarCatalogo',
+            'exportarClientesCSV','exportarReporteVentasCSV','imprimirReporteVentas','renderizarReporteVentas','exportarInventarioExcel','exportarInventarioPDF','exportarParaInternet','filtrarCatalogo',
             'filtrarPorTalla','filtrarVistaPedidos','guardarDatosTienda','guardarEdicionEntrada',
             'guardarEdicionProducto','guardarEntradaInventario','imprimirFactura','moverCategoria','sugerirReferenciaInventario','marcarReferenciaInventarioManual',
             'moverCategoriaVisual','procesarOrdenWA','procesarYAgregarProducto','renderizarClientesGestion',
