@@ -6747,9 +6747,10 @@ ${ped.comprobanteUrl ? `
                     lista.innerHTML = '<div style="grid-column:1/-1;background:#effbf3;border:1.5px solid #a8e6c1;border-radius:10px;padding:18px;text-align:center;color:#187548;font-weight:900;">✅ Todo lo registrado en Entradas ya está publicado en el catálogo.</div>';
                     return;
                 }
-                lista.innerHTML = pendientes.map(function(p) {
+                window._galeriasPendientesCatalogo = pendientes.map(function(p) { return p.fotos.slice(); });
+                lista.innerHTML = pendientes.map(function(p, indicePendiente) {
                     const fotos = p.fotos.length
-                        ? '<div style="display:flex;gap:5px;flex-shrink:0;">' + p.fotos.map(function(url) { return '<img src="'+escapeHtml(url)+'" loading="lazy" style="width:58px;height:68px;object-fit:cover;border-radius:8px;border:1.5px solid #f1b9d9;">'; }).join('') + '</div>'
+                        ? '<div style="display:flex;gap:5px;flex-shrink:0;">' + p.fotos.map(function(url, indiceFoto) { return '<img src="'+escapeHtml(url)+'" loading="lazy" onclick="abrirGaleriaPendiente('+indicePendiente+','+indiceFoto+')" title="Ampliar foto" style="width:58px;height:68px;object-fit:cover;border-radius:8px;border:1.5px solid #f1b9d9;cursor:zoom-in;transition:transform .15s,box-shadow .15s;" onmouseover="this.style.transform=\'scale(1.05)\';this.style.boxShadow=\'0 3px 10px rgba(165,47,115,.25)\'" onmouseout="this.style.transform=\'none\';this.style.boxShadow=\'none\'">'; }).join('') + '</div>'
                         : '<div style="width:58px;height:68px;border:1.5px dashed #e8a6cb;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#b884a1;font-size:.68em;text-align:center;flex-shrink:0;">Sin foto</div>';
                     const tallas = Object.keys(p.tallas).map(function(talla) { return '<span style="background:#fff0f8;border:1px solid #f1b9d9;color:#8d3367;border-radius:12px;padding:3px 7px;font-size:.72em;font-weight:900;">'+escapeHtml(talla)+': '+p.tallas[talla]+'</span>'; }).join(' ');
                     return '<div style="background:white;border:1.5px solid #f1c9df;border-radius:11px;padding:10px;box-shadow:0 2px 7px rgba(165,47,115,.06);">'
@@ -8025,6 +8026,16 @@ ${ped.comprobanteUrl ? `
             _actualizarFotoModal();
         }
 
+        function abrirGaleriaPendiente(indiceGaleria, indiceFoto) {
+            if (!esYohanaInventario()) return;
+            const galeria = (window._galeriasPendientesCatalogo || [])[Number(indiceGaleria)];
+            if (!galeria || !galeria.length) return;
+            _fotosActuales = galeria.slice();
+            _fotoActual = Math.max(0, Math.min(Number(indiceFoto) || 0, _fotosActuales.length - 1));
+            document.getElementById('modal-foto').style.display = 'block';
+            _actualizarFotoModal();
+        }
+
         function _actualizarFotoModal() {
             const img = document.getElementById('img-grande-modal');
             img.src = optimizarUrl(_fotosActuales[_fotoActual], 1200);
@@ -8063,6 +8074,16 @@ ${ped.comprobanteUrl ? `
             _fotosActuales = []; _fotoActual = 0;
         }
 
+        // Cerrar cualquier foto ampliada con la tecla Esc.
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Escape' && e.key !== 'Esc') return;
+            const modalFoto = document.getElementById('modal-foto');
+            if (modalFoto && modalFoto.style.display !== 'none') {
+                e.preventDefault();
+                cerrarModalFoto();
+            }
+        });
+
         function compartirCatalogo() {
             navigator.share
                 ? navigator.share({ title: config.titulo, url: window.location.href })
@@ -8070,7 +8091,7 @@ ${ped.comprobanteUrl ? `
         }
 
         [
-            'abrirEditarEntradaBtn','abrirEditarStockGina','agregarTallaStockGina','cerrarEditarStockGina','guardarEdicionStockGina','abrirEditarDatosClientePedido','cerrarEditarDatosClientePedido','guardarDatosClientePedido','abrirEditarPrendasPedido','cerrarEditarPrendasPedido','buscarProductoParaPedido','cambiarTallaProductoPedido','agregarProductoAPedidoDesdeEditor','cambiarDescuentoPedido','abrirFotoGrande','previsualizarFotoEntradaInventario','renderResumenVisualInventario','actualizarBotonResumenInventario','toggleHistorialInventario','togglePendientesCatalogo','cargarPendientesPorPublicar','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
+            'abrirEditarEntradaBtn','abrirEditarStockGina','agregarTallaStockGina','cerrarEditarStockGina','guardarEdicionStockGina','abrirEditarDatosClientePedido','cerrarEditarDatosClientePedido','guardarDatosClientePedido','abrirEditarPrendasPedido','cerrarEditarPrendasPedido','buscarProductoParaPedido','cambiarTallaProductoPedido','agregarProductoAPedidoDesdeEditor','cambiarDescuentoPedido','abrirFotoGrande','abrirGaleriaPendiente','previsualizarFotoEntradaInventario','renderResumenVisualInventario','actualizarBotonResumenInventario','toggleHistorialInventario','togglePendientesCatalogo','cargarPendientesPorPublicar','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
             'agregarAlCarrito','agregarCategoria','agregarFilaEditEntrada','agregarFilaTalla',
             'agregarFilaTallaEdit','agregarFilaTallaInv','cambiarGenero','cambiarGeneroDiseno',
             'cambiarImg','cambiarTab','cerrarModalCheckout','cerrarModalEditar','cerrarModalFoto',
