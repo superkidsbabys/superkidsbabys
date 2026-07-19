@@ -6724,9 +6724,11 @@ ${ped.comprobanteUrl ? `
         async function obtenerUltimaReferenciaInventarioMercancia() {
             try {
                 const { collection, getDocs, limit, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const q = query(collection(db, 'inventario_mercancia'), orderBy('timestamp', 'desc'), limit(1));
+                // Las reposiciones usan códigos antiguos y no deben cambiar la serie activa.
+                const q = query(collection(db, 'inventario_mercancia'), orderBy('timestamp', 'desc'), limit(50));
                 const snap = await getDocs(q);
-                if (!snap.empty) return String((snap.docs[0].data() || {}).ref || '').trim();
+                const ultimaEntradaNueva = snap.docs.find(function(d) { return (d.data() || {}).tipo !== 'reposicion'; });
+                if (ultimaEntradaNueva) return String((ultimaEntradaNueva.data() || {}).ref || '').trim();
             } catch(e) {
                 console.log('No se pudo leer la ultima referencia de inventario:', e);
             }
@@ -6771,6 +6773,33 @@ ${ped.comprobanteUrl ? `
             if (n > 0) localStorage.setItem(CLAVE_SIGUIENTE_REF_INVENTARIO, String(n + 1));
         }
 
+        function buscarProductoCatalogoPorReferencia(ref) {
+            const buscada = String(ref || '').trim().toUpperCase();
+            if (!buscada) return null;
+            return (productosDB || []).find(function(p) {
+                return String(p.codigo || '').trim().toUpperCase() === buscada;
+            }) || null;
+        }
+
+        function sumarEntradaAStockProducto(producto, tallasEntrada) {
+            const tallasFinales = (producto.tallasObj || []).map(function(t) { return Object.assign({}, t); });
+            (tallasEntrada || []).forEach(function(recibida) {
+                const nombre = String(recibida.talla || '').trim();
+                const cantidad = Math.max(0, parseInt(recibida.cantidad, 10) || 0);
+                if (!nombre || !cantidad) return;
+                const existente = tallasFinales.find(function(t) {
+                    return normalizarTallaValor(t.nombre) === normalizarTallaValor(nombre);
+                });
+                if (existente) existente.stock = Math.max(0, parseInt(existente.stock, 10) || 0) + cantidad;
+                else tallasFinales.push({ nombre: nombre, stock: cantidad });
+            });
+            return Object.assign({}, producto, {
+                tallasObj: tallasFinales,
+                stockTotal: tallasFinales.reduce(function(total, t) { return total + Math.max(0, parseInt(t.stock, 10) || 0); }, 0),
+                actualizadoEn: new Date().toISOString()
+            });
+        }
+
         async function guardarEntradaInventario() {
             const fecha = document.getElementById('inv-fecha').value;
             const refInput = document.getElementById('inv-ref');
@@ -6786,13 +6815,6 @@ ${ped.comprobanteUrl ? `
             if (!fecha || !ref || !desc) {
                 msg.style.color = '#e74c3c';
                 msg.textContent = 'Completa fecha, referencia y descripcion';
-                msg.style.display = 'block';
-                return;
-            }
-
-            if (await referenciaInventarioExiste(ref)) {
-                msg.style.color = '#e74c3c';
-                msg.textContent = 'Esa referencia ya existe. Cambiala antes de registrar la entrada.';
                 msg.style.display = 'block';
                 return;
             }
@@ -6817,6 +6839,14 @@ ${ped.comprobanteUrl ? `
             };
 
             try {
+                const productoExistente = buscarProductoCatalogoPorReferencia(ref);
+                const yaExisteEnEntradas = await referenciaInventarioExiste(ref);
+                if (yaExisteEnEntradas && !productoExistente) {
+                    msg.style.color = '#e74c3c';
+                    msg.textContent = 'La referencia ya tiene entradas, pero no está publicada en el catálogo. Publícala primero para poder sumar la reposición.';
+                    msg.style.display = 'block';
+                    return;
+                }
                 if (fotoFiles.length) {
                     msg.style.color = '#27ae60';
                     msg.textContent = 'Subiendo fotos de la entrada...';
@@ -6824,11 +6854,37 @@ ${ped.comprobanteUrl ? `
                     entrada.fotoUrls = await Promise.all(fotoFiles.map(file => subirACloudinary(file)));
                     entrada.fotoUrl = entrada.fotoUrls[0] || '';
                 }
-                const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                await addDoc(collection(db, 'inventario_mercancia'), entrada);
-                registrarReferenciaInventarioUsada(ref);
+                const { collection, addDoc, doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                let productoActualizado = null;
+                if (productoExistente) {
+                    entrada.tipo = 'reposicion';
+                    entrada.productoId = productoExistente.id;
+                    const productoRef = doc(db, 'productos', productoExistente.id);
+                    const entradaRef = doc(collection(db, 'inventario_mercancia'));
+                    await runTransaction(db, async function(transaction) {
+                        const productoSnap = await transaction.get(productoRef);
+                        const baseProducto = productoSnap.exists()
+                            ? Object.assign({}, productoExistente, productoSnap.data(), { id: productoExistente.id })
+                            : productoExistente;
+                        productoActualizado = sumarEntradaAStockProducto(baseProducto, tallasArr);
+                        transaction.set(productoRef, productoActualizado, { merge: true });
+                        transaction.set(entradaRef, entrada);
+                    });
+                    const indiceProducto = productosDB.findIndex(function(p) { return p.id === productoExistente.id; });
+                    if (indiceProducto >= 0) productosDB[indiceProducto] = productoActualizado;
+                    window.productosDB = productosDB;
+                    localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                    renderStockActual();
+                    renderizarFiltroTallas();
+                    renderizarCatalogo();
+                } else {
+                    await addDoc(collection(db, 'inventario_mercancia'), entrada);
+                }
+                if (!productoExistente) registrarReferenciaInventarioUsada(ref);
                 msg.style.color = '#27ae60';
-                msg.textContent = 'Entrada registrada correctamente';
+                msg.textContent = productoExistente
+                    ? 'Reposición registrada y cantidades sumadas al catálogo correctamente'
+                    : 'Entrada registrada correctamente';
                 msg.style.display = 'block';
                 document.getElementById('inv-fecha').value = '';
                 referenciaInventarioManual = false;
