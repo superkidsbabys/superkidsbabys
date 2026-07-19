@@ -1560,6 +1560,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                             <div id="inv-historial" style="max-height:400px;overflow-y:auto;"></div>
                         </div>
                     </div>
+                    <div id="inv-pendientes-catalogo-box" style="display:none;border:1.5px solid #f1b9d9;border-radius:12px;background:#fff9fc;margin-top:14px;overflow:hidden;">
+                        <button type="button" onclick="togglePendientesCatalogo()" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff0f8;border:none;padding:12px 14px;cursor:pointer;font-family:Nunito,sans-serif;color:#a52f73;font-weight:900;font-size:0.95em;text-align:left;">
+                            <span>📌 Pendientes por publicar <small id="inv-pendientes-contador" style="background:#d83d91;color:white;border-radius:12px;padding:2px 7px;font-size:0.78em;font-weight:900;margin-left:5px;">0</small></span>
+                            <span id="inv-pendientes-flecha" style="font-size:1.05em;">v</span>
+                        </button>
+                        <div id="inv-pendientes-panel" style="display:none;padding:12px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
+                                <p style="margin:0;color:#87536f;font-size:0.76em;font-weight:700;">Entradas que todavía no tienen una referencia publicada en el catálogo.</p>
+                                <button type="button" onclick="cargarPendientesPorPublicar()" style="border:1px solid #e8a6cb;background:white;color:#a52f73;border-radius:8px;padding:6px 9px;font-weight:900;cursor:pointer;white-space:nowrap;">↻ Actualizar</button>
+                            </div>
+                            <div id="inv-pendientes-lista" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;max-height:520px;overflow-y:auto;"></div>
+                        </div>
+                    </div>
                     <div style="margin-top:14px;background:#fbfffc;border:1.5px solid #c9efd8;border-radius:12px;padding:12px;">
                         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
                             <div>
@@ -6670,6 +6683,87 @@ ${ped.comprobanteUrl ? `
             if (flecha) flecha.textContent = abrir ? '^' : 'v';
         }
 
+        function esYohanaInventario() {
+            return !!(window.usuarioActual && window.usuarioActual.uid === UID_YOHANA);
+        }
+
+        function togglePendientesCatalogo(forzarAbierto) {
+            if (!esYohanaInventario()) return;
+            const panel = document.getElementById('inv-pendientes-panel');
+            const flecha = document.getElementById('inv-pendientes-flecha');
+            if (!panel) return;
+            const abrir = typeof forzarAbierto === 'boolean' ? forzarAbierto : panel.style.display === 'none';
+            panel.style.display = abrir ? 'block' : 'none';
+            if (flecha) flecha.textContent = abrir ? '^' : 'v';
+            if (abrir) cargarPendientesPorPublicar();
+        }
+
+        async function cargarPendientesPorPublicar() {
+            const caja = document.getElementById('inv-pendientes-catalogo-box');
+            const lista = document.getElementById('inv-pendientes-lista');
+            const contador = document.getElementById('inv-pendientes-contador');
+            if (!caja || !lista) return;
+            if (!esYohanaInventario()) {
+                caja.style.display = 'none';
+                lista.innerHTML = '';
+                return;
+            }
+            caja.style.display = 'block';
+            lista.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#9b6a85;font-weight:800;padding:18px;">Comparando entradas con el catálogo...</div>';
+            try {
+                const referenciasCatalogo = new Set((productosDB || []).map(function(p) {
+                    return String(p.codigo || '').trim().toUpperCase();
+                }).filter(Boolean));
+                const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const snap = await getDocs(collection(db, 'inventario_mercancia'));
+                const agrupadas = new Map();
+                snap.forEach(function(documento) {
+                    const entrada = Object.assign({ id: documento.id }, documento.data());
+                    const clave = String(entrada.ref || '').trim().toUpperCase();
+                    if (!clave || referenciasCatalogo.has(clave)) return;
+                    let grupo = agrupadas.get(clave);
+                    if (!grupo) {
+                        grupo = { ref: String(entrada.ref || '').trim(), desc: entrada.desc || '', fecha: entrada.fecha || '', timestamp: 0, registradoPor: entrada.registradoPor || '', fotos: [], tallas: {}, entradas: 0 };
+                        agrupadas.set(clave, grupo);
+                    }
+                    grupo.entradas++;
+                    (entrada.tallas || []).forEach(function(t) {
+                        const talla = String(t.talla || '').trim();
+                        if (talla) grupo.tallas[talla] = (grupo.tallas[talla] || 0) + Math.max(0, parseInt(t.cantidad, 10) || 0);
+                    });
+                    const momento = Number(entrada.timestamp || 0);
+                    if (momento >= grupo.timestamp) {
+                        grupo.timestamp = momento;
+                        grupo.desc = entrada.desc || grupo.desc;
+                        grupo.fecha = entrada.fecha || grupo.fecha;
+                        grupo.registradoPor = entrada.registradoPor || grupo.registradoPor;
+                        const fotos = (entrada.fotoUrls && entrada.fotoUrls.length) ? entrada.fotoUrls : (entrada.fotoUrl ? [entrada.fotoUrl] : []);
+                        if (fotos.length) grupo.fotos = fotos.slice(0, 3);
+                    }
+                });
+                const pendientes = Array.from(agrupadas.values()).sort(function(a, b) { return b.timestamp - a.timestamp; });
+                if (contador) contador.textContent = String(pendientes.length);
+                if (!pendientes.length) {
+                    lista.innerHTML = '<div style="grid-column:1/-1;background:#effbf3;border:1.5px solid #a8e6c1;border-radius:10px;padding:18px;text-align:center;color:#187548;font-weight:900;">✅ Todo lo registrado en Entradas ya está publicado en el catálogo.</div>';
+                    return;
+                }
+                lista.innerHTML = pendientes.map(function(p) {
+                    const fotos = p.fotos.length
+                        ? '<div style="display:flex;gap:5px;flex-shrink:0;">' + p.fotos.map(function(url) { return '<img src="'+escapeHtml(url)+'" loading="lazy" style="width:58px;height:68px;object-fit:cover;border-radius:8px;border:1.5px solid #f1b9d9;">'; }).join('') + '</div>'
+                        : '<div style="width:58px;height:68px;border:1.5px dashed #e8a6cb;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#b884a1;font-size:.68em;text-align:center;flex-shrink:0;">Sin foto</div>';
+                    const tallas = Object.keys(p.tallas).map(function(talla) { return '<span style="background:#fff0f8;border:1px solid #f1b9d9;color:#8d3367;border-radius:12px;padding:3px 7px;font-size:.72em;font-weight:900;">'+escapeHtml(talla)+': '+p.tallas[talla]+'</span>'; }).join(' ');
+                    return '<div style="background:white;border:1.5px solid #f1c9df;border-radius:11px;padding:10px;box-shadow:0 2px 7px rgba(165,47,115,.06);">'
+                        + '<div style="display:flex;gap:10px;align-items:flex-start;">'+fotos+'<div style="min-width:0;flex:1;">'
+                        + '<div style="color:#c1287e;font-weight:900;font-size:.9em;">REF: '+escapeHtml(p.ref)+'</div>'
+                        + '<div style="color:#27313a;font-weight:900;font-size:.86em;margin-top:2px;">'+escapeHtml(p.desc || 'Sin descripción')+'</div>'
+                        + '<div style="color:#8a7782;font-size:.72em;margin-top:5px;">'+escapeHtml(p.fecha || 'Sin fecha')+(p.registradoPor ? ' · '+escapeHtml(p.registradoPor) : '')+(p.entradas > 1 ? ' · '+p.entradas+' entradas' : '')+'</div>'
+                        + '</div></div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;">'+(tallas || '<span style="color:#999;font-size:.74em;">Sin cantidades</span>')+'</div></div>';
+                }).join('');
+            } catch(e) {
+                lista.innerHTML = '<div style="grid-column:1/-1;color:#c0392b;text-align:center;font-weight:800;padding:15px;">No se pudo realizar la comparación: '+escapeHtml(e.message)+'</div>';
+            }
+        }
+
         function previsualizarFotoEntradaInventario() {
             const input = document.getElementById('inv-foto');
             const preview = document.getElementById('inv-foto-preview');
@@ -6897,6 +6991,7 @@ ${ped.comprobanteUrl ? `
                 if (preview) preview.innerHTML = 'Sin foto';
                 limpiarTallasInventario();
                 cargarHistorialInventario();
+                cargarPendientesPorPublicar();
                 renderResumenVisualInventario();
                 setTimeout(() => { msg.style.display = 'none'; }, 3000);
             } catch(e) {
@@ -7130,6 +7225,7 @@ ${ped.comprobanteUrl ? `
                 setTimeout(function() {
                     document.getElementById('modal-editar-entrada').style.display = 'none';
                     cargarHistorialInventario();
+                    cargarPendientesPorPublicar();
                 }, 1200);
             } catch(e) {
                 msg.style.color = '#e74c3c';
@@ -7144,6 +7240,7 @@ ${ped.comprobanteUrl ? `
                 const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 await deleteDoc(doc(db, 'inventario_mercancia', id));
                 cargarHistorialInventario();
+                cargarPendientesPorPublicar();
             } catch(e) { alert('Error al eliminar'); }
         }
 
@@ -7882,6 +7979,7 @@ ${ped.comprobanteUrl ? `
             if (tab === 'inventario') {
                 cargarHistorialInventario();
                 cargarHistorialSalidas();
+                setTimeout(() => cargarPendientesPorPublicar(), 350);
                 setTimeout(() => sugerirReferenciaInventario(), 600);
                 // Renderizar stock actual con reintento si productosDB aún no está listo
                 (function intentarRenderStock(intentos) {
@@ -7972,7 +8070,7 @@ ${ped.comprobanteUrl ? `
         }
 
         [
-            'abrirEditarEntradaBtn','abrirEditarStockGina','agregarTallaStockGina','cerrarEditarStockGina','guardarEdicionStockGina','abrirEditarDatosClientePedido','cerrarEditarDatosClientePedido','guardarDatosClientePedido','abrirEditarPrendasPedido','cerrarEditarPrendasPedido','buscarProductoParaPedido','cambiarTallaProductoPedido','agregarProductoAPedidoDesdeEditor','cambiarDescuentoPedido','abrirFotoGrande','previsualizarFotoEntradaInventario','renderResumenVisualInventario','actualizarBotonResumenInventario','toggleHistorialInventario','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
+            'abrirEditarEntradaBtn','abrirEditarStockGina','agregarTallaStockGina','cerrarEditarStockGina','guardarEdicionStockGina','abrirEditarDatosClientePedido','cerrarEditarDatosClientePedido','guardarDatosClientePedido','abrirEditarPrendasPedido','cerrarEditarPrendasPedido','buscarProductoParaPedido','cambiarTallaProductoPedido','agregarProductoAPedidoDesdeEditor','cambiarDescuentoPedido','abrirFotoGrande','previsualizarFotoEntradaInventario','renderResumenVisualInventario','actualizarBotonResumenInventario','toggleHistorialInventario','togglePendientesCatalogo','cargarPendientesPorPublicar','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
             'agregarAlCarrito','agregarCategoria','agregarFilaEditEntrada','agregarFilaTalla',
             'agregarFilaTallaEdit','agregarFilaTallaInv','cambiarGenero','cambiarGeneroDiseno',
             'cambiarImg','cambiarTab','cerrarModalCheckout','cerrarModalEditar','cerrarModalFoto',
