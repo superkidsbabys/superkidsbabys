@@ -1568,7 +1568,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <div id="inv-pendientes-panel" style="display:none;padding:12px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
                                 <p style="margin:0;color:#87536f;font-size:0.76em;font-weight:700;">Entradas que todavía no tienen una referencia publicada en el catálogo.</p>
-                                <button type="button" onclick="cargarPendientesPorPublicar()" style="border:1px solid #e8a6cb;background:white;color:#a52f73;border-radius:8px;padding:6px 9px;font-weight:900;cursor:pointer;white-space:nowrap;">↻ Actualizar</button>
+                                <button type="button" onclick="cargarPendientesPorPublicar(true)" style="border:1px solid #e8a6cb;background:white;color:#a52f73;border-radius:8px;padding:6px 9px;font-weight:900;cursor:pointer;white-space:nowrap;">↻ Actualizar</button>
                             </div>
                             <div id="inv-pendientes-lista" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;max-height:520px;overflow-y:auto;"></div>
                         </div>
@@ -6698,7 +6698,59 @@ ${ped.comprobanteUrl ? `
             if (abrir) cargarPendientesPorPublicar();
         }
 
-        async function cargarPendientesPorPublicar() {
+        let _cachePendientesCatalogo = null;
+        let _cargaPendientesCatalogo = null;
+        let _pendientesRenderizados = 0;
+        const PENDIENTES_POR_PAGINA = 12;
+
+        function firmaCatalogoActual() {
+            return (productosDB || []).map(function(p) { return String(p.codigo || '').trim().toUpperCase(); }).filter(Boolean).sort().join('|');
+        }
+
+        function invalidarPendientesCatalogo() {
+            _cachePendientesCatalogo = null;
+            const panel = document.getElementById('inv-pendientes-panel');
+            if (panel && panel.style.display !== 'none' && esYohanaInventario()) cargarPendientesPorPublicar(true);
+        }
+
+        function tarjetaPendienteHtml(p, indicePendiente) {
+            const fotos = p.fotos.length
+                ? '<div style="display:flex;gap:5px;flex-shrink:0;">' + p.fotos.map(function(url, indiceFoto) {
+                    const miniatura = optimizarUrl(url, 140);
+                    return '<img src="'+escapeHtml(miniatura)+'" loading="lazy" decoding="async" onclick="abrirGaleriaPendiente('+indicePendiente+','+indiceFoto+')" title="Ampliar foto" style="width:58px;height:68px;object-fit:cover;border-radius:8px;border:1.5px solid #f1b9d9;cursor:zoom-in;transition:transform .15s,box-shadow .15s;" onmouseover="this.style.transform=\'scale(1.05)\';this.style.boxShadow=\'0 3px 10px rgba(165,47,115,.25)\'" onmouseout="this.style.transform=\'none\';this.style.boxShadow=\'none\'">';
+                }).join('') + '</div>'
+                : '<div style="width:58px;height:68px;border:1.5px dashed #e8a6cb;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#b884a1;font-size:.68em;text-align:center;flex-shrink:0;">Sin foto</div>';
+            const tallas = Object.keys(p.tallas).map(function(talla) { return '<span style="background:#fff0f8;border:1px solid #f1b9d9;color:#8d3367;border-radius:12px;padding:3px 7px;font-size:.72em;font-weight:900;">'+escapeHtml(talla)+': '+p.tallas[talla]+'</span>'; }).join(' ');
+            return '<div style="background:white;border:1.5px solid #f1c9df;border-radius:11px;padding:10px;box-shadow:0 2px 7px rgba(165,47,115,.06);">'
+                + '<div style="display:flex;gap:10px;align-items:flex-start;">'+fotos+'<div style="min-width:0;flex:1;">'
+                + '<div style="color:#c1287e;font-weight:900;font-size:.9em;">REF: '+escapeHtml(p.ref)+'</div>'
+                + '<div style="color:#27313a;font-weight:900;font-size:.86em;margin-top:2px;">'+escapeHtml(p.desc || 'Sin descripción')+'</div>'
+                + '<div style="color:#8a7782;font-size:.72em;margin-top:5px;">'+escapeHtml(p.fecha || 'Sin fecha')+(p.registradoPor ? ' · '+escapeHtml(p.registradoPor) : '')+(p.entradas > 1 ? ' · '+p.entradas+' entradas' : '')+'</div>'
+                + '</div></div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;">'+(tallas || '<span style="color:#999;font-size:.74em;">Sin cantidades</span>')+'</div></div>';
+        }
+
+        function renderizarPaginaPendientesCatalogo(reiniciar) {
+            const lista = document.getElementById('inv-pendientes-lista');
+            const pendientes = window._pendientesCatalogoDatos || [];
+            if (!lista) return;
+            if (reiniciar) { lista.innerHTML = ''; _pendientesRenderizados = 0; }
+            const fin = Math.min(_pendientesRenderizados + PENDIENTES_POR_PAGINA, pendientes.length);
+            let tarjetas = '';
+            for (let i = _pendientesRenderizados; i < fin; i++) tarjetas += tarjetaPendienteHtml(pendientes[i], i);
+            const botonAnterior = document.getElementById('btn-mas-pendientes');
+            if (botonAnterior) botonAnterior.remove();
+            lista.insertAdjacentHTML('beforeend', tarjetas);
+            _pendientesRenderizados = fin;
+            if (fin < pendientes.length) {
+                lista.insertAdjacentHTML('beforeend', '<button id="btn-mas-pendientes" type="button" onclick="mostrarMasPendientesCatalogo()" style="grid-column:1/-1;border:1.5px solid #e8a6cb;background:#fff0f8;color:#a52f73;border-radius:10px;padding:10px;font-weight:900;cursor:pointer;">Mostrar 12 más · '+fin+' de '+pendientes.length+'</button>');
+            }
+        }
+
+        function mostrarMasPendientesCatalogo() {
+            renderizarPaginaPendientesCatalogo(false);
+        }
+
+        async function cargarPendientesPorPublicar(forzar) {
             const caja = document.getElementById('inv-pendientes-catalogo-box');
             const lista = document.getElementById('inv-pendientes-lista');
             const contador = document.getElementById('inv-pendientes-contador');
@@ -6709,7 +6761,18 @@ ${ped.comprobanteUrl ? `
                 return;
             }
             caja.style.display = 'block';
+            const firma = firmaCatalogoActual();
+            const cacheValida = !forzar && _cachePendientesCatalogo && _cachePendientesCatalogo.firma === firma && Date.now() - _cachePendientesCatalogo.timestamp < 300000;
+            if (cacheValida) {
+                window._pendientesCatalogoDatos = _cachePendientesCatalogo.datos;
+                window._galeriasPendientesCatalogo = _cachePendientesCatalogo.datos.map(function(p) { return p.fotos.slice(); });
+                if (contador) contador.textContent = String(_cachePendientesCatalogo.datos.length);
+                renderizarPaginaPendientesCatalogo(true);
+                return;
+            }
+            if (_cargaPendientesCatalogo) return _cargaPendientesCatalogo;
             lista.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#9b6a85;font-weight:800;padding:18px;">Comparando entradas con el catálogo...</div>';
+            _cargaPendientesCatalogo = (async function() {
             try {
                 const referenciasCatalogo = new Set((productosDB || []).map(function(p) {
                     return String(p.codigo || '').trim().toUpperCase();
@@ -6742,27 +6805,22 @@ ${ped.comprobanteUrl ? `
                     }
                 });
                 const pendientes = Array.from(agrupadas.values()).sort(function(a, b) { return b.timestamp - a.timestamp; });
+                _cachePendientesCatalogo = { firma: firma, timestamp: Date.now(), datos: pendientes };
+                window._pendientesCatalogoDatos = pendientes;
                 if (contador) contador.textContent = String(pendientes.length);
                 if (!pendientes.length) {
                     lista.innerHTML = '<div style="grid-column:1/-1;background:#effbf3;border:1.5px solid #a8e6c1;border-radius:10px;padding:18px;text-align:center;color:#187548;font-weight:900;">✅ Todo lo registrado en Entradas ya está publicado en el catálogo.</div>';
                     return;
                 }
                 window._galeriasPendientesCatalogo = pendientes.map(function(p) { return p.fotos.slice(); });
-                lista.innerHTML = pendientes.map(function(p, indicePendiente) {
-                    const fotos = p.fotos.length
-                        ? '<div style="display:flex;gap:5px;flex-shrink:0;">' + p.fotos.map(function(url, indiceFoto) { return '<img src="'+escapeHtml(url)+'" loading="lazy" onclick="abrirGaleriaPendiente('+indicePendiente+','+indiceFoto+')" title="Ampliar foto" style="width:58px;height:68px;object-fit:cover;border-radius:8px;border:1.5px solid #f1b9d9;cursor:zoom-in;transition:transform .15s,box-shadow .15s;" onmouseover="this.style.transform=\'scale(1.05)\';this.style.boxShadow=\'0 3px 10px rgba(165,47,115,.25)\'" onmouseout="this.style.transform=\'none\';this.style.boxShadow=\'none\'">'; }).join('') + '</div>'
-                        : '<div style="width:58px;height:68px;border:1.5px dashed #e8a6cb;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#b884a1;font-size:.68em;text-align:center;flex-shrink:0;">Sin foto</div>';
-                    const tallas = Object.keys(p.tallas).map(function(talla) { return '<span style="background:#fff0f8;border:1px solid #f1b9d9;color:#8d3367;border-radius:12px;padding:3px 7px;font-size:.72em;font-weight:900;">'+escapeHtml(talla)+': '+p.tallas[talla]+'</span>'; }).join(' ');
-                    return '<div style="background:white;border:1.5px solid #f1c9df;border-radius:11px;padding:10px;box-shadow:0 2px 7px rgba(165,47,115,.06);">'
-                        + '<div style="display:flex;gap:10px;align-items:flex-start;">'+fotos+'<div style="min-width:0;flex:1;">'
-                        + '<div style="color:#c1287e;font-weight:900;font-size:.9em;">REF: '+escapeHtml(p.ref)+'</div>'
-                        + '<div style="color:#27313a;font-weight:900;font-size:.86em;margin-top:2px;">'+escapeHtml(p.desc || 'Sin descripción')+'</div>'
-                        + '<div style="color:#8a7782;font-size:.72em;margin-top:5px;">'+escapeHtml(p.fecha || 'Sin fecha')+(p.registradoPor ? ' · '+escapeHtml(p.registradoPor) : '')+(p.entradas > 1 ? ' · '+p.entradas+' entradas' : '')+'</div>'
-                        + '</div></div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;">'+(tallas || '<span style="color:#999;font-size:.74em;">Sin cantidades</span>')+'</div></div>';
-                }).join('');
+                renderizarPaginaPendientesCatalogo(true);
             } catch(e) {
                 lista.innerHTML = '<div style="grid-column:1/-1;color:#c0392b;text-align:center;font-weight:800;padding:15px;">No se pudo realizar la comparación: '+escapeHtml(e.message)+'</div>';
+            } finally {
+                _cargaPendientesCatalogo = null;
             }
+            })();
+            return _cargaPendientesCatalogo;
         }
 
         function previsualizarFotoEntradaInventario() {
@@ -6992,7 +7050,7 @@ ${ped.comprobanteUrl ? `
                 if (preview) preview.innerHTML = 'Sin foto';
                 limpiarTallasInventario();
                 cargarHistorialInventario();
-                cargarPendientesPorPublicar();
+                invalidarPendientesCatalogo();
                 renderResumenVisualInventario();
                 setTimeout(() => { msg.style.display = 'none'; }, 3000);
             } catch(e) {
@@ -7226,7 +7284,7 @@ ${ped.comprobanteUrl ? `
                 setTimeout(function() {
                     document.getElementById('modal-editar-entrada').style.display = 'none';
                     cargarHistorialInventario();
-                    cargarPendientesPorPublicar();
+                    invalidarPendientesCatalogo();
                 }, 1200);
             } catch(e) {
                 msg.style.color = '#e74c3c';
@@ -7241,7 +7299,7 @@ ${ped.comprobanteUrl ? `
                 const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 await deleteDoc(doc(db, 'inventario_mercancia', id));
                 cargarHistorialInventario();
-                cargarPendientesPorPublicar();
+                invalidarPendientesCatalogo();
             } catch(e) { alert('Error al eliminar'); }
         }
 
@@ -7980,7 +8038,10 @@ ${ped.comprobanteUrl ? `
             if (tab === 'inventario') {
                 cargarHistorialInventario();
                 cargarHistorialSalidas();
-                setTimeout(() => cargarPendientesPorPublicar(), 350);
+                const cajaPendientes = document.getElementById('inv-pendientes-catalogo-box');
+                if (cajaPendientes) cajaPendientes.style.display = esYohanaInventario() ? 'block' : 'none';
+                const panelPendientes = document.getElementById('inv-pendientes-panel');
+                if (panelPendientes && panelPendientes.style.display !== 'none') setTimeout(() => cargarPendientesPorPublicar(), 200);
                 setTimeout(() => sugerirReferenciaInventario(), 600);
                 // Renderizar stock actual con reintento si productosDB aún no está listo
                 (function intentarRenderStock(intentos) {
@@ -8091,7 +8152,7 @@ ${ped.comprobanteUrl ? `
         }
 
         [
-            'abrirEditarEntradaBtn','abrirEditarStockGina','agregarTallaStockGina','cerrarEditarStockGina','guardarEdicionStockGina','abrirEditarDatosClientePedido','cerrarEditarDatosClientePedido','guardarDatosClientePedido','abrirEditarPrendasPedido','cerrarEditarPrendasPedido','buscarProductoParaPedido','cambiarTallaProductoPedido','agregarProductoAPedidoDesdeEditor','cambiarDescuentoPedido','abrirFotoGrande','abrirGaleriaPendiente','previsualizarFotoEntradaInventario','renderResumenVisualInventario','actualizarBotonResumenInventario','toggleHistorialInventario','togglePendientesCatalogo','cargarPendientesPorPublicar','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
+            'abrirEditarEntradaBtn','abrirEditarStockGina','agregarTallaStockGina','cerrarEditarStockGina','guardarEdicionStockGina','abrirEditarDatosClientePedido','cerrarEditarDatosClientePedido','guardarDatosClientePedido','abrirEditarPrendasPedido','cerrarEditarPrendasPedido','buscarProductoParaPedido','cambiarTallaProductoPedido','agregarProductoAPedidoDesdeEditor','cambiarDescuentoPedido','abrirFotoGrande','abrirGaleriaPendiente','previsualizarFotoEntradaInventario','renderResumenVisualInventario','actualizarBotonResumenInventario','toggleHistorialInventario','togglePendientesCatalogo','cargarPendientesPorPublicar','mostrarMasPendientesCatalogo','invalidarPendientesCatalogo','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
             'agregarAlCarrito','agregarCategoria','agregarFilaEditEntrada','agregarFilaTalla',
             'agregarFilaTallaEdit','agregarFilaTallaInv','cambiarGenero','cambiarGeneroDiseno',
             'cambiarImg','cambiarTab','cerrarModalCheckout','cerrarModalEditar','cerrarModalFoto',
