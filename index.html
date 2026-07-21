@@ -1751,9 +1751,20 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         // f_auto = formato ideal (WebP/AVIF segun navegador)
         // q_auto = calidad optima automatica
         // w_NNN  = ancho maximo en px
+        const R2_FOTOS_ORIGIN = 'https://superkids-fotos-api.superkids-babys.workers.dev';
+        const R2_UPLOAD_ENDPOINT = R2_FOTOS_ORIGIN + '/upload';
+        const R2_SECRET_KEY = 'superkids_r2_upload_secret';
+
+        // Cloudinary antiguo y Cloudflare R2 nuevo conviven automaticamente.
         const optimizarUrl = (url, ancho = 800) => {
-            if (!url || !url.includes('res.cloudinary.com')) return url;
-            return url.replace('/image/upload/', `/image/upload/f_auto,q_auto,w_${ancho}/`);
+            if (!url) return url;
+            if (url.includes('res.cloudinary.com')) {
+                return url.replace('/image/upload/', `/image/upload/f_auto,q_auto,c_limit,w_${ancho}/`);
+            }
+            if (url.startsWith(R2_FOTOS_ORIGIN + '/fotos/')) {
+                return ancho <= 800 ? url.replace('/full.', '/card.') : url.replace('/card.', '/full.');
+            }
+            return url;
         };
 
         const formatMoney = (amount) => '$' + amount.toLocaleString('es-CO');
@@ -2739,31 +2750,36 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             aplicarDiseno();
         }
 
-        const comprimirImagen = (file, maxMB = 8) => new Promise((res, rej) => {
-            const maxBytes = maxMB * 1024 * 1024;
-            if (file.size <= maxBytes) { res(file); return; }
+        const crearVarianteImagen = (file, maxDim, maxBytes) => new Promise((res, rej) => {
             const img = new Image();
             const url = URL.createObjectURL(file);
             img.onload = () => {
                 URL.revokeObjectURL(url);
                 const canvas = document.createElement('canvas');
                 let { width, height } = img;
-                // Reducir dimensiones si son muy grandes
-                const MAX_DIM = 2000;
-                if (width > MAX_DIM || height > MAX_DIM) {
-                    if (width > height) { height = Math.round(height * MAX_DIM / width); width = MAX_DIM; }
-                    else { width = Math.round(width * MAX_DIM / height); height = MAX_DIM; }
+                if (width > maxDim || height > maxDim) {
+                    if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
+                    else { width = Math.round(width * maxDim / height); height = maxDim; }
                 }
                 canvas.width = width; canvas.height = height;
-                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-                // Ajustar calidad hasta que quepa
-                let quality = 0.85;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, width, height);
+                ctx.drawImage(img, 0, 0, width, height);
+                let quality = 0.86;
                 const intentar = () => {
                     canvas.toBlob(blob => {
                         if (!blob) { rej("No se pudo comprimir la imagen"); return; }
-                        if (blob.size <= maxBytes || quality <= 0.3) {
-                            res(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
-                        } else { quality -= 0.1; intentar(); }
+                        if (blob.size <= maxBytes) { res(blob); return; }
+                        if (quality > 0.38) { quality -= 0.08; intentar(); return; }
+                        if (Math.max(width, height) <= 320) { rej('No se pudo reducir la imagen al tamaño permitido'); return; }
+                        width = Math.max(1, Math.round(width * 0.82));
+                        height = Math.max(1, Math.round(height * 0.82));
+                        canvas.width = width; canvas.height = height;
+                        const nuevoCtx = canvas.getContext('2d');
+                        nuevoCtx.fillStyle = '#fff'; nuevoCtx.fillRect(0, 0, width, height);
+                        nuevoCtx.drawImage(img, 0, 0, width, height);
+                        quality = 0.78;
+                        intentar();
                     }, 'image/jpeg', quality);
                 };
                 intentar();
@@ -2772,20 +2788,53 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             img.src = url;
         });
 
-        const subirACloudinary = (file) => new Promise(async (res, rej) => {
+        const comprimirImagen = (file) => crearVarianteImagen(file, 1600, 1.5 * 1024 * 1024);
+
+        function obtenerClaveSubidaR2() {
+            let clave = sessionStorage.getItem(R2_SECRET_KEY);
+            if (!clave) {
+                clave = prompt('Ingrese la contraseña de subida de fotos:');
+                if (!clave) throw new Error('Subida cancelada: falta la contraseña');
+                sessionStorage.setItem(R2_SECRET_KEY, clave);
+            }
+            return clave;
+        }
+
+        async function enviarVarianteR2(blob, imageId, variante, clave) {
+            const req = await fetch(R2_UPLOAD_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'image/jpeg',
+                    'X-Upload-Secret': clave,
+                    'X-Image-Id': imageId,
+                    'X-Image-Variant': variante
+                },
+                body: blob
+            });
+            const data = await req.json().catch(() => ({}));
+            if (req.status === 401) sessionStorage.removeItem(R2_SECRET_KEY);
+            if (!req.ok || !data.url) throw new Error(data.error || `Error de Cloudflare (${req.status})`);
+            return data.url;
+        }
+
+        // Se conserva este nombre para que todas las rutas antiguas suban ahora a R2.
+        const subirACloudinary = async (file) => {
             try {
-                const fileComprimido = await comprimirImagen(file);
-                let formData = new FormData();
-                formData.append("file", fileComprimido);
-                formData.append("upload_preset", MI_UPLOAD_PRESET);
-                let req = await fetch(`https://api.cloudinary.com/v1_1/${MI_CLOUD_NAME}/image/upload`, {
-                    method: 'POST', body: formData
-                });
-                let data = await req.json();
-                if (data.secure_url) { res(data.secure_url); }
-                else { rej("Error de Cloudinary: " + JSON.stringify(data)); }
-            } catch(err) { rej("Fallo en la subida: " + err); }
-        });
+                const clave = obtenerClaveSubidaR2();
+                const imageId = crypto.randomUUID();
+                const [card, full] = await Promise.all([
+                    crearVarianteImagen(file, 600, 500 * 1024),
+                    crearVarianteImagen(file, 1600, 1.5 * 1024 * 1024)
+                ]);
+                const resultados = await Promise.all([
+                    enviarVarianteR2(card, imageId, 'card', clave),
+                    enviarVarianteR2(full, imageId, 'full', clave)
+                ]);
+                return resultados[1];
+            } catch (err) {
+                throw new Error('Fallo en la subida: ' + (err.message || err));
+            }
+        };
 
         async function guardarDatosTienda() {
             if (window.datosQuemados) return alert("Estás en la versión pública.");
