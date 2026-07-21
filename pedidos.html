@@ -6153,7 +6153,7 @@ ${ped.comprobanteUrl ? `
                               return 'Total prendas: ' + formatMoney(ped.tot) + ' &nbsp;·&nbsp; <span style="color:#aaa;font-size:0.88em;">+ envío a calcular</span>';
                           }
                       })() + '</div>' +
-                      (puedeEditarPrendasPedido() ? '<div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:7px;"><span style="font-size:.76em;font-weight:800;color:#7e22ce;">Descuento especial:</span><select onchange="cambiarDescuentoPedido(' + ped.num + ',this.value)" style="padding:6px 8px;border:1.5px solid #d8b4fe;border-radius:8px;background:white;color:#7e22ce;font-weight:900;"><option value="0"'+(!(ped.descuentoPorcentaje>0)?' selected':'')+'>Sin descuento</option><option value="10"'+(Number(ped.descuentoPorcentaje)===10?' selected':'')+'>10%</option><option value="15"'+(Number(ped.descuentoPorcentaje)===15?' selected':'')+'>15%</option></select></div>' : '') +
+                      (puedeEditarPrendasPedido() ? '<div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:7px;"><span style="font-size:.76em;font-weight:800;color:#7e22ce;">Descuento especial:</span><select onchange="cambiarDescuentoPedido(' + ped.num + ',this.value)" style="padding:6px 8px;border:1.5px solid #d8b4fe;border-radius:8px;background:white;color:#7e22ce;font-weight:900;"><option value="0"'+(!(ped.descuentoPorcentaje>0)?' selected':'')+'>Sin descuento</option><option value="5"'+(Number(ped.descuentoPorcentaje)===5?' selected':'')+'>5%</option><option value="10"'+(Number(ped.descuentoPorcentaje)===10?' selected':'')+'>10%</option><option value="15"'+(Number(ped.descuentoPorcentaje)===15?' selected':'')+'>15%</option></select></div>' : '') +
                       htmlComprobante +
                       btnAnular +
                     '</div>' +
@@ -6192,6 +6192,7 @@ ${ped.comprobanteUrl ? `
                 </table>`;
                 const tbodyTodos = cont.querySelector('#tbody-todos-pedidos');
                 filtrados.forEach((ped, idx) => {
+                    recalcularTotalPedidoConEnvio(ped);
                     const estado = normalizarEstadoPedido(ped.estado);
                     const configEstado = ESTADOS_PEDIDO.find(e => e.valor === estado) || ESTADOS_PEDIDO[0];
                     const detId = 'det-todos-' + idx + '-' + String(ped.num || '').replace(/\D/g, '');
@@ -6228,6 +6229,7 @@ ${ped.comprobanteUrl ? `
             if (vistaPedidosActual === 'cancelado') {
                 const filtrados = historialPedidos.filter(p => normalizarEstadoPedido(p.estado) === 'cancelado').sort(compararPedidosRecientes);
                 if (filtrados.length === 0) return cont.innerHTML = `<p style='text-align:center;grid-column:1/-1;color:#888;font-weight:bold;margin-top:20px;'>No hay pedidos anulados.</p>`;
+                filtrados.forEach(recalcularTotalPedidoConEnvio);
                 const totalCancelados = filtrados.reduce((s,p)=>s+(p.tot||0),0);
                 cont.innerHTML = `<div style="background:#fcebeb;border:1.5px solid #f7c1c1;border-radius:12px;padding:10px 14px;margin-bottom:10px;grid-column:1/-1;font-size:0.85em;color:#a32d2d;font-weight:700;">
                     🚫 ${filtrados.length} pedido(s) anulado(s) · Total: ${formatMoney(totalCancelados)}</div>
@@ -6299,6 +6301,10 @@ ${ped.comprobanteUrl ? `
 
             // ── NIVEL 1: Barra resumen arriba + NIVEL 2: Tarjetas abajo ──
             cont.innerHTML = '';
+            granTotalPrendas = filtrados.reduce((s, ped) => {
+                const envio = parseInt((ped.valorEnvio || '0').toString().replace(/[^0-9]/g, '')) || 0;
+                return s + Math.max(0, (ped.tot || 0) - envio);
+            }, 0);
             const layoutDiv = document.createElement('div');
             layoutDiv.className = 'transp-layout-principal';
             layoutDiv.innerHTML = `<div class="transp-barra-resumen">
@@ -6335,6 +6341,10 @@ ${ped.comprobanteUrl ? `
                     subEnvios  += parseInt((p.valorEnvio||'0').toString().replace(/[^0-9]/g,''))||0;
                 });
 
+                subPrendas = pedidosGrupo.reduce((s, p) => {
+                    const envio = parseInt((p.valorEnvio || '0').toString().replace(/[^0-9]/g, '')) || 0;
+                    return s + Math.max(0, (p.tot || 0) - envio);
+                }, 0);
                 const bg = bgMap[tr.key] || {emoji: '🚚', imgUrl: ''};
                 const logoHTML = bg.imgUrl
                     ? ``
@@ -6387,6 +6397,10 @@ ${ped.comprobanteUrl ? `
                     subE += parseInt((p.valorEnvio||'0').toString().replace(/[^0-9]/g,''))||0;
                 });
 
+                subP = pedidos.reduce((s, p) => {
+                    const envio = parseInt((p.valorEnvio || '0').toString().replace(/[^0-9]/g, '')) || 0;
+                    return s + Math.max(0, (p.tot || 0) - envio);
+                }, 0);
                 const colorHead = esSin ? '#b45309' : (color || '#8e44ad');
 
                 n3.innerHTML = `
@@ -6433,7 +6447,7 @@ ${ped.comprobanteUrl ? `
                 pedidos.forEach(ped => {
                     const numDisp = ped.numOrden || ('#SK-' + ped.num);
                     const numPrendas = (ped.items || []).length;
-                    const totalPed = (ped.items||[]).reduce((s,i)=>s+((i.precio||0)*(i.cant||1)),0);
+                    const totalPed = ped.tot || 0;
                     const fechaCorta = (ped.fecha||'').split(',')[0];
 
                     // Fila del pedido
@@ -8021,6 +8035,7 @@ ${ped.comprobanteUrl ? `
             const hasta = (document.getElementById('rv-hasta') || {}).value || '';
             const tipo = (document.getElementById('rv-tipo') || {}).value || '';
             const asesora = (document.getElementById('rv-asesora') || {}).value || '';
+            filtrados.forEach(recalcularTotalPedidoConEnvio);
             const grupos = {};
             (historialPedidos || []).forEach(ped => {
                 const estado = String(ped.estado || '').trim().toLowerCase().replace(/\s+/g,'_');
