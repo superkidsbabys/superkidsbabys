@@ -6064,12 +6064,15 @@ ${ped.comprobanteUrl ? `
 
             // ── Helper: renderizar una tarjeta de pedido individual ──
             function _htmlTarjetaPedido(ped) {
+                // Recalcular desde las prendas: algunos pedidos antiguos guardaron el total
+                // antes de aplicar la promocion de 4 mamelucos por $85.000.
+                recalcularTotalPedidoConEnvio(ped);
                 const estadoActual = normalizarEstadoPedido(ped.estado);
                 const opcionesEstado = ESTADOS_PEDIDO.map(e => `<option value="${e.valor}" ${estadoActual === e.valor ? 'selected' : ''}>${e.label}</option>`).join('');
                 let htmlItems = ped.items.map((i, iIdx) => {
                     let prodImg = productosDB.find(x => x.id === i.id_prod);
                     let imgBase = i.imagen || (prodImg && prodImg.imagenes && prodImg.imagenes[0]);
-                    let thumb = imgBase ? imgBase.replace('/image/upload/', '/image/upload/f_auto,q_auto,w_100/') : '';
+                    let thumb = imgBase ? optimizarUrl(imgBase, 100) : '';
                     let imgTag = thumb
                         ? `<img src="${thumb}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'">`
                         : `<div style="width:44px;height:44px;border-radius:6px;background:#f5e6fb;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2em;">👗</div>`;
