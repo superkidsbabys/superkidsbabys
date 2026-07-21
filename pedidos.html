@@ -1439,7 +1439,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <div class="seccion-admin-sub form-admin">
                     <h3>Añadir Nuevo Producto</h3>
                     <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; border: 1px solid #c3e6cb;">
-                        <p style="margin-top: 0; font-size: 0.9em; color: #155724; font-weight: bold;">☁️ Las fotos se suben a Cloudinary con calidad original</p>
+                        <p style="margin-top: 0; font-size: 0.9em; color: #155724; font-weight: bold;">☁️ Las fotos se optimizan y suben automáticamente a Cloudflare R2</p>
                         <label style="font-weight: bold;">📸 Foto Principal desde tu PC*:</label>
                         <input type="file" id="nueva-foto-princ" accept="image/*" style="width: 100%; margin-bottom: 10px;">
                         <label style="display: block;">📸 Fotos Extra (Opcional, hasta 3):</label>
@@ -1468,7 +1468,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <div style="flex: 1;"><label>Precio Actual*:</label><input type="number" id="nuevo-precio" required="" style="width: 100%;"></div>
                     </div>
 
-                    <label>Etiqueta Especial:</label> <input type="text" id="nueva-etiqueta-badge" placeholder="Ej: Oferta">
+                    <label>Etiqueta Especial:</label> <input type="text" id="nueva-etiqueta-badge" value="¡Nueva Colección!" placeholder="Ej: Oferta">
 
                     <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; margin-top: 10px;">
                         <label>📏 Tallas (Inventario)</label>
@@ -3777,7 +3777,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 localStorage.setItem('productosV36', JSON.stringify(productosDB)); marcarCambio();
                 renderizarFiltroTallas(); renderizarCatalogo();
 
-                ['nuevo-nombre','nuevo-codigo','nuevo-orden','nueva-desc','nuevo-precio','nuevo-precio-ant','nueva-etiqueta-badge'].forEach(id => document.getElementById(id).value = '');
+                ['nuevo-nombre','nuevo-codigo','nuevo-orden','nueva-desc','nuevo-precio','nuevo-precio-ant'].forEach(id => document.getElementById(id).value = '');
+                document.getElementById('nueva-etiqueta-badge').value = '¡Nueva Colección!';
                 document.getElementById('nueva-foto-princ').value = '';
                 document.getElementById('nuevas-fotos-extra').value = '';
                 document.getElementById('contenedor-tallas-stock').innerHTML = `<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"></div>`;
