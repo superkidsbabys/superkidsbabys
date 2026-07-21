@@ -6286,6 +6286,7 @@ ${ped.comprobanteUrl ? `
             const grupos = {};
             const sinAsignar = [];
             filtrados.forEach(ped => {
+                recalcularTotalPedidoConEnvio(ped);
                 const t = normalizarTransportadora(ped.transportadora || '');
                 const cfg = TRANSPORTADORAS_CONFIG.find(x => x.key === t);
                 if (cfg) { if (!grupos[cfg.key]) grupos[cfg.key] = []; grupos[cfg.key].push(ped); }
