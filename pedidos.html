@@ -1588,6 +1588,18 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <div id="inv-resumen-visual" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;"></div>
                     </div>
 
+                    <div id="panel-migracion-r2" style="display:none;margin-top:16px;background:#fff8e8;border:1.5px solid #f0bd59;border-radius:12px;padding:14px;">
+                        <h4 style="margin:0 0 5px;color:#9a5b00;">Migración segura de fotos a Cloudflare R2</h4>
+                        <p style="margin:0 0 10px;color:#76551e;font-size:0.78em;font-weight:700;line-height:1.4;">Copia 5 productos por vez. Primero verifica las fotos nuevas y después actualiza Firebase. Los enlaces de Cloudinary se conservan como respaldo y no se elimina ninguna imagen.</p>
+                        <div id="migracion-r2-resumen" style="background:white;border:1px solid #f4d89c;border-radius:9px;padding:9px 11px;color:#76551e;font-size:0.82em;font-weight:800;margin-bottom:9px;">Calculando...</div>
+                        <div style="height:12px;background:#f5e8c8;border-radius:20px;overflow:hidden;margin-bottom:8px;"><div id="migracion-r2-barra" style="height:100%;width:0;background:linear-gradient(90deg,#f39c12,#27ae60);transition:width .25s;"></div></div>
+                        <div id="migracion-r2-estado" style="min-height:20px;color:#76551e;font-size:0.78em;font-weight:700;margin-bottom:9px;"></div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button id="btn-migrar-r2" type="button" onclick="migrarSiguienteLoteR2()" style="flex:1;min-width:190px;background:#e8890c;color:white;border:none;border-radius:9px;padding:10px 13px;font-weight:900;cursor:pointer;font-family:Nunito,sans-serif;">Migrar siguientes 5 productos</button>
+                            <button id="btn-cancelar-migracion-r2" type="button" onclick="cancelarMigracionR2()" style="display:none;background:white;color:#a35c00;border:1px solid #e6ad4c;border-radius:9px;padding:10px 13px;font-weight:900;cursor:pointer;font-family:Nunito,sans-serif;">Detener</button>
+                        </div>
+                    </div>
+
 <!-- BOTONES EXPORTAR -->
                     <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;">
                         <button onclick="exportarInventarioExcel()" style="flex:1;background:linear-gradient(135deg,#1a7a4a,#27ae60);color:white;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.9em;font-family:Nunito,sans-serif;min-width:140px;">📊 Exportar Excel</button>
@@ -7180,6 +7192,167 @@ ${ped.comprobanteUrl ? `
             }
         }
 
+        let migracionR2EnCurso = false;
+        let migracionR2Cancelar = false;
+        const migracionR2Fallidos = new Set();
+
+        function esFotoCloudinary(url) {
+            return typeof url === 'string' && url.includes('res.cloudinary.com') && url.includes('/image/upload/');
+        }
+
+        function obtenerProductosPendientesMigracionR2() {
+            return (productosDB || []).filter(function(producto) {
+                return Array.isArray(producto.imagenes) && producto.imagenes.some(esFotoCloudinary);
+            });
+        }
+
+        function crearUrlFuenteMigracionR2(url) {
+            const marcador = '/image/upload/';
+            const posicion = url.indexOf(marcador);
+            if (posicion < 0) return url;
+            const inicio = url.slice(0, posicion + marcador.length);
+            const partes = url.slice(posicion + marcador.length).split('/');
+            const indiceVersion = partes.findIndex(function(parte) { return /^v\d+$/.test(parte); });
+            const rutaOriginal = indiceVersion >= 0 ? partes.slice(indiceVersion).join('/') : partes.join('/');
+            return inicio + 'f_jpg,q_82,c_limit,w_1600/' + rutaOriginal;
+        }
+
+        async function descargarFotoCloudinaryParaMigracion(url) {
+            const respuesta = await fetch(crearUrlFuenteMigracionR2(url), { cache: 'force-cache' });
+            if (!respuesta.ok) throw new Error('Cloudinary no entregó la foto (' + respuesta.status + ')');
+            const blob = await respuesta.blob();
+            if (!blob.size || !String(blob.type || '').startsWith('image/')) throw new Error('La foto descargada no es válida');
+            return blob;
+        }
+
+        async function verificarFotoMigradaR2(url) {
+            const urls = [url, url.replace('/full.', '/card.')];
+            for (const destino of urls) {
+                const respuesta = await fetch(destino, { method: 'HEAD', cache: 'no-store' });
+                if (!respuesta.ok) throw new Error('Cloudflare no pudo verificar la copia');
+            }
+        }
+
+        async function migrarProductoAR2(producto, firestoreModule, numero, totalLote) {
+            const estado = document.getElementById('migracion-r2-estado');
+            const imagenesAnteriores = Array.isArray(producto.imagenes) ? producto.imagenes.slice() : [];
+            const imagenesNuevas = imagenesAnteriores.slice();
+            const indices = imagenesAnteriores.map(function(url, index) { return esFotoCloudinary(url) ? index : -1; }).filter(function(index) { return index >= 0; });
+
+            for (let paso = 0; paso < indices.length; paso++) {
+                if (migracionR2Cancelar) throw new Error('Migración detenida por la usuaria');
+                const indice = indices[paso];
+                if (estado) estado.textContent = 'Producto ' + numero + ' de ' + totalLote + ': ' + (producto.nombre || producto.codigo || producto.id) + ' · foto ' + (paso + 1) + ' de ' + indices.length;
+                const blob = await descargarFotoCloudinaryParaMigracion(imagenesAnteriores[indice]);
+                const nuevaUrl = await subirACloudinary(blob);
+                await verificarFotoMigradaR2(nuevaUrl);
+                imagenesNuevas[indice] = nuevaUrl;
+            }
+
+            const respaldo = Array.isArray(producto.imagenesCloudinaryRespaldo) && producto.imagenesCloudinaryRespaldo.length
+                ? producto.imagenesCloudinaryRespaldo
+                : imagenesAnteriores;
+            const datosMigracion = {
+                imagenes: imagenesNuevas,
+                imagenesCloudinaryRespaldo: respaldo,
+                migracionR2: {
+                    completada: true,
+                    fecha: new Date().toISOString(),
+                    cantidad: indices.length
+                },
+                actualizadoEn: new Date().toISOString()
+            };
+            await firestoreModule.setDoc(firestoreModule.doc(db, 'productos', producto.id), datosMigracion, { merge: true });
+            producto.imagenes = imagenesNuevas;
+            producto.imagenesCloudinaryRespaldo = respaldo;
+            producto.migracionR2 = datosMigracion.migracionR2;
+        }
+
+        function actualizarPanelMigracionR2() {
+            const panel = document.getElementById('panel-migracion-r2');
+            if (!panel) return;
+            const autorizado = typeof esYohanaInventario === 'function' && esYohanaInventario();
+            panel.style.display = autorizado ? 'block' : 'none';
+            if (!autorizado) return;
+
+            const productos = productosDB || [];
+            const pendientes = obtenerProductosPendientesMigracionR2();
+            const fotosPendientes = pendientes.reduce(function(total, p) { return total + (p.imagenes || []).filter(esFotoCloudinary).length; }, 0);
+            const fotosR2 = productos.reduce(function(total, p) { return total + (p.imagenes || []).filter(function(url) { return typeof url === 'string' && url.startsWith(R2_FOTOS_ORIGIN + '/fotos/'); }).length; }, 0);
+            const total = fotosPendientes + fotosR2;
+            const porcentaje = total ? Math.round((fotosR2 / total) * 100) : 100;
+            const resumen = document.getElementById('migracion-r2-resumen');
+            const barra = document.getElementById('migracion-r2-barra');
+            const boton = document.getElementById('btn-migrar-r2');
+            if (resumen) resumen.textContent = pendientes.length + ' productos y ' + fotosPendientes + ' fotos antiguas pendientes · ' + fotosR2 + ' fotos ya están en R2';
+            if (barra) barra.style.width = porcentaje + '%';
+            if (boton && !migracionR2EnCurso) {
+                boton.disabled = pendientes.length === 0;
+                boton.textContent = pendientes.length ? 'Migrar siguientes 5 productos' : 'Migración de productos terminada';
+                boton.style.opacity = pendientes.length ? '1' : '0.65';
+            }
+        }
+
+        async function migrarSiguienteLoteR2() {
+            if (migracionR2EnCurso) return;
+            const confirmada = confirm('Se copiarán hasta 5 productos a Cloudflare R2. No cierres esta pantalla durante el proceso. No se borrará nada de Cloudinary. ¿Continuar?');
+            if (!confirmada) return;
+
+            const candidatosTodos = obtenerProductosPendientesMigracionR2();
+            const candidatos = candidatosTodos.filter(function(p) { return !migracionR2Fallidos.has(p.id); }).slice(0, 5);
+            const estado = document.getElementById('migracion-r2-estado');
+            const boton = document.getElementById('btn-migrar-r2');
+            const cancelar = document.getElementById('btn-cancelar-migracion-r2');
+            if (!candidatos.length) {
+                if (estado) estado.textContent = candidatosTodos.length ? 'Los productos restantes presentaron error. Recarga la página para reintentarlos.' : 'Todos los productos están migrados.';
+                actualizarPanelMigracionR2();
+                return;
+            }
+
+            migracionR2EnCurso = true;
+            migracionR2Cancelar = false;
+            if (boton) { boton.disabled = true; boton.textContent = 'Migrando...'; }
+            if (cancelar) cancelar.style.display = 'inline-block';
+            let completados = 0;
+            let errores = 0;
+
+            try {
+                obtenerClaveSubidaR2();
+                const firestoreModule = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                for (let i = 0; i < candidatos.length; i++) {
+                    if (migracionR2Cancelar) break;
+                    const producto = candidatos[i];
+                    try {
+                        await migrarProductoAR2(producto, firestoreModule, i + 1, candidatos.length);
+                        completados++;
+                    } catch (errorProducto) {
+                        if (migracionR2Cancelar) break;
+                        errores++;
+                        migracionR2Fallidos.add(producto.id);
+                        console.error('Migración R2:', producto.id, errorProducto);
+                        if (estado) estado.textContent = 'No se pudo migrar ' + (producto.nombre || producto.codigo || producto.id) + ': ' + errorProducto.message + '. Continuando con el siguiente...';
+                    }
+                }
+                localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                renderizarCatalogo();
+                if (estado) estado.textContent = migracionR2Cancelar
+                    ? 'Proceso detenido de forma segura. Puedes continuarlo después.'
+                    : 'Lote terminado: ' + completados + ' productos migrados' + (errores ? ' y ' + errores + ' con error.' : ' correctamente.');
+            } catch (error) {
+                if (estado) estado.textContent = 'No se pudo iniciar la migración: ' + (error.message || error);
+            } finally {
+                migracionR2EnCurso = false;
+                if (cancelar) cancelar.style.display = 'none';
+                actualizarPanelMigracionR2();
+            }
+        }
+
+        function cancelarMigracionR2() {
+            migracionR2Cancelar = true;
+            const estado = document.getElementById('migracion-r2-estado');
+            if (estado) estado.textContent = 'Deteniendo al terminar la foto actual...';
+        }
+
 
         function actualizarBotonResumenInventario() {
             const desde = document.getElementById('inv-resumen-desde') ? document.getElementById('inv-resumen-desde').value : '';
@@ -8124,6 +8297,7 @@ ${ped.comprobanteUrl ? `
             if (tab === 'inventario') {
                 cargarHistorialInventario();
                 cargarHistorialSalidas();
+                actualizarPanelMigracionR2();
                 const cajaPendientes = document.getElementById('inv-pendientes-catalogo-box');
                 if (cajaPendientes) cajaPendientes.style.display = esYohanaInventario() ? 'block' : 'none';
                 const panelPendientes = document.getElementById('inv-pendientes-panel');
