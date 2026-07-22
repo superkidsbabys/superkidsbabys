@@ -2952,11 +2952,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         const comprimirImagen = (file) => crearVarianteImagen(file, 1600, 1.5 * 1024 * 1024);
 
         function obtenerClaveSubidaR2() {
-            let clave = sessionStorage.getItem(R2_SECRET_KEY);
+            // Se recuerda en este dispositivo para no pedirla en cada producto o recarga.
+            let clave = localStorage.getItem(R2_SECRET_KEY) || sessionStorage.getItem(R2_SECRET_KEY);
             if (!clave) {
                 clave = prompt('Ingrese la contraseña de subida de fotos:');
                 if (!clave) throw new Error('Subida cancelada: falta la contraseña');
-                sessionStorage.setItem(R2_SECRET_KEY, clave);
+                localStorage.setItem(R2_SECRET_KEY, clave);
+            } else if (!localStorage.getItem(R2_SECRET_KEY)) {
+                localStorage.setItem(R2_SECRET_KEY, clave);
             }
             return clave;
         }
@@ -2973,7 +2976,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 body: blob
             });
             const data = await req.json().catch(() => ({}));
-            if (req.status === 401) sessionStorage.removeItem(R2_SECRET_KEY);
+            if (req.status === 401) {
+                localStorage.removeItem(R2_SECRET_KEY);
+                sessionStorage.removeItem(R2_SECRET_KEY);
+            }
             if (!req.ok || !data.url) throw new Error(data.error || `Error de Cloudflare (${req.status})`);
             return data.url;
         }
