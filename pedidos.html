@@ -1594,6 +1594,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <div id="migracion-r2-resumen" style="background:white;border:1px solid #f4d89c;border-radius:9px;padding:9px 11px;color:#76551e;font-size:0.82em;font-weight:800;margin-bottom:9px;">Calculando...</div>
                         <div style="height:12px;background:#f5e8c8;border-radius:20px;overflow:hidden;margin-bottom:8px;"><div id="migracion-r2-barra" style="height:100%;width:0;background:linear-gradient(90deg,#f39c12,#27ae60);transition:width .25s;"></div></div>
                         <div id="migracion-r2-estado" style="min-height:20px;color:#76551e;font-size:0.78em;font-weight:700;margin-bottom:9px;"></div>
+                        <div id="migracion-r2-ultimo-lote" style="display:none;background:#f1fbf4;border:1px solid #a8e6c1;border-radius:9px;padding:9px 11px;color:#236a3e;font-size:0.78em;font-weight:700;line-height:1.5;margin-bottom:9px;"></div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
                             <button id="btn-migrar-r2" type="button" onclick="migrarSiguienteLoteR2()" style="flex:1;min-width:190px;background:#e8890c;color:white;border:none;border-radius:9px;padding:10px 13px;font-weight:900;cursor:pointer;font-family:Nunito,sans-serif;">Migrar siguientes 5 productos</button>
                             <button id="btn-cancelar-migracion-r2" type="button" onclick="cancelarMigracionR2()" style="display:none;background:white;color:#a35c00;border:1px solid #e6ad4c;border-radius:9px;padding:10px 13px;font-weight:900;cursor:pointer;font-family:Nunito,sans-serif;">Detener</button>
@@ -7315,6 +7316,8 @@ ${ped.comprobanteUrl ? `
             if (cancelar) cancelar.style.display = 'inline-block';
             let completados = 0;
             let errores = 0;
+            const nombresMigrados = [];
+            const nombresConError = [];
 
             try {
                 obtenerClaveSubidaR2();
@@ -7325,9 +7328,11 @@ ${ped.comprobanteUrl ? `
                     try {
                         await migrarProductoAR2(producto, firestoreModule, i + 1, candidatos.length);
                         completados++;
+                        nombresMigrados.push(producto.nombre || producto.codigo || producto.id);
                     } catch (errorProducto) {
                         if (migracionR2Cancelar) break;
                         errores++;
+                        nombresConError.push(producto.nombre || producto.codigo || producto.id);
                         migracionR2Fallidos.add(producto.id);
                         console.error('Migración R2:', producto.id, errorProducto);
                         if (estado) estado.textContent = 'No se pudo migrar ' + (producto.nombre || producto.codigo || producto.id) + ': ' + errorProducto.message + '. Continuando con el siguiente...';
@@ -7335,6 +7340,12 @@ ${ped.comprobanteUrl ? `
                 }
                 localStorage.setItem('productosV36', JSON.stringify(productosDB));
                 renderizarCatalogo();
+                const ultimoLote = document.getElementById('migracion-r2-ultimo-lote');
+                if (ultimoLote) {
+                    ultimoLote.style.display = 'block';
+                    ultimoLote.innerHTML = (nombresMigrados.length ? '<strong>Copiados y verificados:</strong><br>' + nombresMigrados.map(function(nombre) { return '✓ ' + nombre; }).join('<br>') : '')
+                        + (nombresConError.length ? (nombresMigrados.length ? '<br><br>' : '') + '<strong style="color:#b34336;">Pendientes por error:</strong><br>' + nombresConError.map(function(nombre) { return '⚠ ' + nombre; }).join('<br>') : '');
+                }
                 if (estado) estado.textContent = migracionR2Cancelar
                     ? 'Proceso detenido de forma segura. Puedes continuarlo después.'
                     : 'Lote terminado: ' + completados + ' productos migrados' + (errores ? ' y ' + errores + ' con error.' : ' correctamente.');
