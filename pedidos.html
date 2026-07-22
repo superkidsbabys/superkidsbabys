@@ -507,6 +507,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         .precio-nuevo { font-size: 1.1em; font-weight: bold; color: var(--color-precio, var(--color-banner)); }
 
         .contenedor-tallas-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+        .fila-tallas-curva { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:10px; }
+        .fila-tallas-curva .contenedor-tallas-chips { flex:1; margin-bottom:0; }
+        .btn-curva { flex:0 0 auto; border:1px solid #e7a9c8; background:#fde7f2; color:#9a416e; border-radius:16px; padding:6px 11px; font-size:0.72em; font-weight:900; cursor:pointer; box-shadow:0 2px 6px rgba(154,65,110,0.12); }
+        .btn-curva:hover { background:#f9d5e7; border-color:#d982ae; }
         .chip-talla { border: 1.8px solid #b8b8b8; padding: 6px 11px; border-radius: 18px; font-size: 0.78em; cursor: pointer; background: #fff; color: #333; transition: 0.2s; font-weight: 900; text-align: center; min-width: 46px; box-shadow: 0 2px 7px rgba(0,0,0,0.08); }
         .chip-talla:hover:not(.agotada) { border-color: var(--color-banner); color: var(--color-banner); transform: translateY(-1px); }
         .chip-talla.seleccionada { background: var(--color-banner); color: var(--color-texto-banner); border-color: var(--color-banner); box-shadow: 0 0 0 2px rgba(255,255,255,0.95), 0 0 0 4px var(--color-banner), 0 5px 14px rgba(0,0,0,0.18); }
@@ -2156,12 +2160,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     ? `<button class="btn-agregar bloqueado-nueva" disabled title="Producto disponible pronto">Proximamente</button>`
                     : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
                 const btnCurva = esSesionCurvaMayorista() && hayStockTotal && !carritoNuevaBloqueado
-                    ? `<button class="btn-agregar" onclick="agregarCurvaAlCarrito('${prod.id}')" style="background:#6f42c1;margin-top:6px;">Curva</button>`
+                    ? `<button class="btn-curva" onclick="agregarCurvaAlCarrito('${prod.id}')">Curva</button>`
                     : '';
                 const botonesAdmin = (modoEdicion || (window.usuarioActual && window.usuarioActual.editarPrecio))
                     ? `<div class="acciones-admin-prod" style="display:flex"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button>${modoEdicion?`<button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button>`:''}</div>`
                     : '';
-                cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgs[0]}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgs[0])}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><span class="etiqueta-categoria">${prod.categoria}</span><h3>${prod.nombre}</h3><p style="font-size:0.78em;color:#aaa;margin:0 0 4px;">Ref: ${prod.codigo}</p><div class="precio-contenedor">${pNew}</div>${tallasChips}${btnAgregar}${btnCurva}${botonesAdmin}</div></div>`;
+                cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgs[0]}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgs[0])}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><span class="etiqueta-categoria">${prod.categoria}</span><h3>${prod.nombre}</h3><p style="font-size:0.78em;color:#aaa;margin:0 0 4px;">Ref: ${prod.codigo}</p><div class="precio-contenedor">${pNew}</div><div class="fila-tallas-curva">${tallasChips}${btnCurva}</div>${btnAgregar}${botonesAdmin}</div></div>`;
             });
         }
 
@@ -3654,10 +3658,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     ? `<button class="btn-agregar bloqueado-nueva" disabled title="Producto disponible pronto">Proximamente</button>`
                     : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
                 let btnCurva = esSesionCurvaMayorista() && hayStockTotal && !carritoNuevaBloqueado
-                    ? `<button class="btn-agregar" onclick="agregarCurvaAlCarrito('${prod.id}')" style="background:#6f42c1;margin-top:6px;">Curva</button>`
+                    ? `<button class="btn-curva" onclick="agregarCurvaAlCarrito('${prod.id}')">Curva</button>`
                     : '';
 
-                cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><span class="etiqueta-categoria">${prod.categoria}</span><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p><div class="precio-contenedor">${pNew}</div>${htmlTallasChips}${btnAgregar}${btnCurva}<div class="acciones-admin-prod" style="display:${(modoEdicion || (window.usuarioActual && window.usuarioActual.editarPrecio)) ? 'flex' : 'none'}"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">${(window.usuarioActual && window.usuarioActual.editarPrecio && window.usuarioActual.rol !== 'admin') ? '✏️ Precio' : '✏️ Editar'}</button>${modoEdicion ? '<button class="btn-eliminar-prod" onclick="eliminarProducto(\''+prod.id+'\')" >🗑️ Eliminar</button>' : ''}</div></div></div>`;
+                cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><span class="etiqueta-categoria">${prod.categoria}</span><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p><div class="precio-contenedor">${pNew}</div><div class="fila-tallas-curva">${htmlTallasChips}${btnCurva}</div>${btnAgregar}<div class="acciones-admin-prod" style="display:${(modoEdicion || (window.usuarioActual && window.usuarioActual.editarPrecio)) ? 'flex' : 'none'}"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">${(window.usuarioActual && window.usuarioActual.editarPrecio && window.usuarioActual.rol !== 'admin') ? '✏️ Precio' : '✏️ Editar'}</button>${modoEdicion ? '<button class="btn-eliminar-prod" onclick="eliminarProducto(\''+prod.id+'\')" >🗑️ Eliminar</button>' : ''}</div></div></div>`;
             });
         }
 
