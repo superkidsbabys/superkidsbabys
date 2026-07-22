@@ -6450,7 +6450,7 @@ ${ped.comprobanteUrl ? `
                     const numDisp = ped.numOrden || ('#SK-' + ped.num);
                     const numPrendas = (ped.items || []).length;
                     const totalPed = ped.tot || 0;
-                    const fechaCorta = (ped.fecha||'').split(',')[0];
+                    const fechaCompleta = ped.fecha || '';
 
                     // Fila del pedido
                     const tr = document.createElement('tr');
@@ -6460,7 +6460,7 @@ ${ped.comprobanteUrl ? `
                         <td class="transp-td-num">${numDisp}</td>
                         <td class="transp-td-cliente">${ped.nom || '—'}</td>
                         <td class="transp-td-fecha" style="color:#555;">${ped.tel || '—'}</td>
-                        <td class="transp-td-fecha">${fechaCorta}</td>
+                        <td class="transp-td-fecha">${fechaCompleta}</td>
                         <td class="transp-td-prendas">${numPrendas} prenda${numPrendas!==1?'s':''}</td>
                         <td class="transp-td-total">${formatMoney(totalPed)}</td>`;
 
@@ -6531,14 +6531,14 @@ ${ped.comprobanteUrl ? `
 
             const filas = pedidosFiltrados.map(p => {
                 const guia        = p.guia || p.numeroGuia || p.numGuia || '';
-                const fechaCorta  = (p.fecha || '').split(',')[0];
+                const fechaCompleta = p.fecha || '';
                 const cliente     = p.nom || '—';
                 const ciudad      = p.ciudad || p.dir || '—';
                 const envio       = parseInt((p.valorEnvio||'0').toString().replace(/[^0-9]/g,''))||0;
                 const totalPed    = (p.items||[]).reduce((s,i)=>s+((i.precio||0)*(i.cant||1)),0);
                 return `<tr>
                     <td>${guia}</td>
-                    <td>${fechaCorta}</td>
+                    <td>${fechaCompleta}</td>
                     <td>${cliente}</td>
                     <td>${ciudad}</td>
                     <td style="text-align:right;">${formatMoney(envio)}</td>
@@ -7141,6 +7141,17 @@ ${ped.comprobanteUrl ? `
                 cont.innerHTML = '';
                 snap.forEach(docSnap => {
                     const e = docSnap.data();
+                    const fechaHoraEntrada = e.timestamp && typeof e.timestamp.toDate === 'function'
+                        ? e.timestamp.toDate()
+                        : new Date(Number(e.timestamp));
+                    const horaEntrada = Number.isNaN(fechaHoraEntrada.getTime())
+                        ? ''
+                        : fechaHoraEntrada.toLocaleTimeString('es-CO', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: true
+                        });
                     const totalUnd = (e.tallas||[]).reduce((sum,t)=>sum+Number(t.cantidad||0),0);
                     const tallasHtml = (e.tallas||[]).map(t=>'<span style="background:#e8f5e9;color:#1a6636;border-radius:12px;padding:2px 8px;font-size:0.78em;font-weight:700;">'+t.talla+': '+t.cantidad+'</span>').join(' ');
                     const fotosEntrada = Array.isArray(e.fotoUrls) && e.fotoUrls.length ? e.fotoUrls : (e.fotoUrl ? [e.fotoUrl] : []);
@@ -7149,7 +7160,7 @@ ${ped.comprobanteUrl ? `
                         : '<div style="width:82px;height:82px;border-radius:10px;border:1.5px dashed #c9efd8;background:#f8fff9;color:#8aaa96;display:flex;align-items:center;justify-content:center;font-size:0.7em;font-weight:800;text-align:center;flex-shrink:0;">Sin foto</div>';
                     const card = document.createElement('div');
                     card.style.cssText = 'background:white;border:1.5px solid #a8e6c1;border-radius:12px;padding:12px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;';
-                    card.innerHTML = fotoHtml + '<div style="min-width:0;flex:1;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;flex-wrap:wrap;"><span style="font-weight:800;color:#27ae60;font-size:0.95em;">REF: '+(e.ref||'-')+'</span><span style="font-size:0.75em;color:#888;">'+(e.fecha||'')+' - '+(e.registradoPor||'')+'</span></div>'
+                    card.innerHTML = fotoHtml + '<div style="min-width:0;flex:1;"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:8px;flex-wrap:wrap;"><span style="font-weight:800;color:#27ae60;font-size:0.95em;">REF: '+(e.ref||'-')+'</span><span style="font-size:0.75em;color:#888;text-align:right;line-height:1.35;">'+(e.fecha||'')+' - '+(e.registradoPor||'')+(horaEntrada ? '<br><span style="font-weight:800;color:#6b8b78;">'+horaEntrada+'</span>' : '')+'</span></div>'
                         +'<div style="font-weight:600;margin-bottom:4px;">'+(e.desc||'')+'</div>'
                         +'<div style="font-size:0.82em;color:#27ae60;font-weight:700;margin-bottom:6px;">$'+Number(e.valor||0).toLocaleString('es-CO')+' - '+totalUnd+' unidades</div>'
                         +'<div style="margin-bottom:6px;display:flex;gap:4px;flex-wrap:wrap;">'+tallasHtml+'</div>'
