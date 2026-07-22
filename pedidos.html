@@ -3571,6 +3571,16 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             });
         }
 
+        function productoDisponibleEnCatalogo(producto) {
+            if (Array.isArray(producto.tallasObj) && producto.tallasObj.length) {
+                return producto.tallasObj.some(function(talla) { return Number(talla.stock || 0) > 0; });
+            }
+            if (producto.stockTotal !== undefined && producto.stockTotal !== null) {
+                return Number(producto.stockTotal || 0) > 0;
+            }
+            return true;
+        }
+
         function renderizarCatalogo() {
             const cont = document.getElementById('contenedor-productos'); cont.innerHTML = "";
 
@@ -3595,6 +3605,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 let esPromo = (p.precioAnterior && p.precioAnterior > p.precio) || (p.etiquetaPersonalizada && !esNuevaColeccion);
                 let pasaGeneroCat = (p.genero === generoActual || p.genero === 'Unisex' || !p.genero) && productoCoincideCategoria(p, filtroActual) && (!soloPromociones || esPromo) && (!soloNuevaColeccion || esNuevaColeccion);
                 if (!pasaGeneroCat) return false;
+                if (!productoDisponibleEnCatalogo(p)) return false;
                 if (tallaFiltroActual === 'Todas') return true;
                 if (p.tallasObj) return p.tallasObj.some(t => t.nombre.toString().trim().toUpperCase() === tallaFiltroActual.toUpperCase() && t.stock > 0);
                 return false;
