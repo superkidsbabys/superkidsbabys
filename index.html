@@ -1996,11 +1996,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 const btnAgregar = carritoNuevaBloqueado
                     ? `<button class="btn-agregar bloqueado-nueva" disabled title="Producto disponible pronto">Proximamente</button>`
                     : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
+                const btnCurva = esSesionCurvaMayorista() && hayStockTotal && !carritoNuevaBloqueado
+                    ? `<button class="btn-agregar" onclick="agregarCurvaAlCarrito('${prod.id}')" style="background:#6f42c1;margin-top:6px;">Curva</button>`
+                    : '';
                 const puedeEditarBusqueda = modoEdicion && window.usuarioActual && window.usuarioActual.rol === 'admin';
                 const botonesAdmin = puedeEditarBusqueda
                     ? `<div style="display:flex;gap:6px;margin-top:6px;"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button><button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button></div>`
                     : '';
-                return `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgs[0]}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgs[0])}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia">REF: ${prod.codigo || 'S/N'}</span></div><h3>${prod.nombre}</h3><div class="precio-contenedor">${pNew}</div>${tallasChips}${btnAgregar}${botonesAdmin}</div></div>`;
+                return `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgs[0]}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgs[0])}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia">REF: ${prod.codigo || 'S/N'}</span></div><h3>${prod.nombre}</h3><div class="precio-contenedor">${pNew}</div>${tallasChips}${btnAgregar}${btnCurva}${botonesAdmin}</div></div>`;
             }).join('');
             cont.innerHTML = `<div style="grid-column:1/-1;background:#f8f4fb;border:1px solid #ead8f3;border-radius:10px;padding:9px 12px;color:#6d4b78;font-weight:900;font-size:0.85em;">🔎 ${resultados.length} resultado${resultados.length === 1 ? '' : 's'} encontrado${resultados.length === 1 ? '' : 's'}</div>` + tarjetasHtml;
         }
@@ -3439,10 +3442,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 let btnAgregar = carritoNuevaBloqueado
                     ? `<button class="btn-agregar bloqueado-nueva" disabled title="Producto disponible pronto">Proximamente</button>`
                     : (hayStockTotal ? `<button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Añadir al Carrito</button>` : `<button class="btn-agregar" disabled style="background:#ccc; cursor:not-allowed;">Agotado</button>`);
+                let btnCurva = esSesionCurvaMayorista() && hayStockTotal && !carritoNuevaBloqueado
+                    ? `<button class="btn-agregar" onclick="agregarCurvaAlCarrito('${prod.id}')" style="background:#6f42c1;margin-top:6px;">Curva</button>`
+                    : '';
 
                 const _esAdmin = modoEdicion && window.usuarioActual && window.usuarioActual.rol === 'admin';
                 const btnEditarEliminar = _esAdmin ? `<div style="display:flex;gap:6px;margin-top:6px;"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button><button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button></div>` : '';
-                cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia">REF: ${prod.codigo || 'S/N'}</span></div><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p><div class="precio-contenedor">${pNew}</div>${htmlTallasChips}${btnAgregar}${btnEditarEliminar}</div></div>`;
+                cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia">REF: ${prod.codigo || 'S/N'}</span></div><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p><div class="precio-contenedor">${pNew}</div>${htmlTallasChips}${btnAgregar}${btnCurva}${btnEditarEliminar}</div></div>`;
             });
         }
 
@@ -4078,6 +4084,44 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 }
             }
             return { ok: true };
+        }
+
+        function esSesionCurvaMayorista() {
+            return !!(window.usuarioActual && window.usuarioActual.uid === UID_YOHANA);
+        }
+
+        function agregarCurvaAlCarrito(id) {
+            if (!esSesionCurvaMayorista()) return alert('Esta función es exclusiva de Yohana.');
+            const producto = productosDB.find(function(p) { return p.id === id; });
+            if (!producto) return alert('No se encontró el producto.');
+            const tallasDisponibles = (producto.tallasObj || []).filter(function(talla) {
+                return Math.max(0, parseInt(talla.stock, 10) || 0) > 0;
+            });
+            if (!tallasDisponibles.length) return alert('Esta prenda no tiene tallas disponibles para formar una curva.');
+
+            const fotoCurva = (producto.imagenes && producto.imagenes[0]) || producto.img || '';
+            const agregadas = [];
+            const completas = [];
+            tallasDisponibles.forEach(function(talla) {
+                const disponible = obtenerStockDisponibleProducto(producto, talla.nombre);
+                const cantidadActual = cantidadEnCarrito(producto.id, talla.nombre);
+                if (cantidadActual >= disponible) {
+                    completas.push(talla.nombre);
+                    return;
+                }
+                carrito.push({
+                    id: producto.id,
+                    codigo: producto.codigo,
+                    nombre: producto.nombre,
+                    precio: producto.precio,
+                    talla: talla.nombre,
+                    imagen: fotoCurva
+                });
+                agregadas.push(talla.nombre);
+            });
+            renderCarrito();
+            if (!agregadas.length) return alert('Todas las tallas disponibles ya alcanzaron el máximo de stock en el carrito.');
+            alert('Curva agregada: ' + agregadas.join(', ') + (completas.length ? '. No se repitieron por falta de más stock: ' + completas.join(', ') : ''));
         }
 
         function agregarAlCarrito(id) {
