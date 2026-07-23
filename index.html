@@ -4294,6 +4294,17 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     body: JSON.stringify({
                         departamento: departamento,
                         ciudad: ciudad,
+                        cliente: {
+                            nombre: n,
+                            documento: cc || '',
+                            direccion: d,
+                            barrio: barrio || '',
+                            departamento: departamento,
+                            ciudad: ciudad,
+                            telefono: tel,
+                            correo: correo || '',
+                            observaciones: obs || ''
+                        },
                         items: carrito.map(function(item) {
                             return { id: item.id, talla: item.talla || '', cantidad: 1 };
                         })
