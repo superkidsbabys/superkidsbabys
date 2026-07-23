@@ -1707,7 +1707,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin-bottom:14px;">
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Desde<input id="rv-desde" type="date" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;"></label>
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Hasta<input id="rv-hasta" type="date" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;"></label>
-                        <label style="font-size:.78em;font-weight:800;color:#475467;">Tipo de venta<select id="rv-tipo" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todos</option><option>Contraentrega</option><option>Contado</option><option>Recaudo</option></select></label>
+                        <label style="font-size:.78em;font-weight:800;color:#475467;">Tipo de venta<select id="rv-tipo" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todos</option><option>Contraentrega</option><option>Contado</option><option>Recaudo</option><option>Pago Wompi</option></select></label>
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Asesora<select id="rv-asesora" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todas</option><option>Yohana</option><option>Gina</option><option>Bibiana</option></select></label>
                     </div>
                     <div id="rv-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px;margin-bottom:14px;"></div>
@@ -5950,7 +5950,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
   </div>
   <div class="bloque">
     <h4>📦 Pedido</h4>
-    <p>N° <strong class="num-editable" contenteditable="true" spellcheck="false" id="fac-num-orden">${ped.numOrden || ('#SK-' + ped.num)}</strong> <span style="background:#f0e6fb;color:#8e44ad;font-size:0.75em;font-weight:800;padding:1px 7px;border-radius:20px;" id="fac-tipo-venta-display">${ped.tipoVenta || 'Contraentrega'}</span><br>${ped.fecha}<br>Estado: <strong>${ped.estado}</strong>${ped.asesora ? ' · Asesora: <strong>' + ped.asesora + '</strong>' : ''}</p>
+    <p>N° <strong class="num-editable" contenteditable="true" spellcheck="false" id="fac-num-orden">${ped.numOrden || ('#SK-' + ped.num)}</strong> <span style="background:#f0e6fb;color:#8e44ad;font-size:0.75em;font-weight:800;padding:1px 7px;border-radius:20px;" id="fac-tipo-venta-display">${(ped.estadoPago === 'APPROVED' || ped.esPruebaWompi || ped.ambientePago === 'sandbox') ? 'Pago Wompi' : (ped.tipoVenta || 'Contraentrega')}</span><br>${ped.fecha}<br>Estado: <strong>${ped.estado}</strong>${ped.asesora ? ' · Asesora: <strong>' + ped.asesora + '</strong>' : ''}</p>
   </div>
 </div>
 <div class="observaciones-amplias">
@@ -6186,8 +6186,9 @@ ${ped.comprobanteUrl ? `
                 ) : '';
 
                 const numOrdenDisplay = ped.numOrden || ('#SK-' + String(ped.num));
-                const tipoVentaOpts = ['Contraentrega','Contado','Recaudo'].map(function(op) {
-                    return '<option value="'+op+'"'+(ped.tipoVenta===op?' selected':'')+'>'+op+'</option>';
+                const tipoVentaActual = (ped.estadoPago === 'APPROVED' || ped.esPruebaWompi || ped.ambientePago === 'sandbox') ? 'Pago Wompi' : (ped.tipoVenta || 'Contraentrega');
+                const tipoVentaOpts = ['Contraentrega','Contado','Recaudo','Pago Wompi'].map(function(op) {
+                    return '<option value="'+op+'"'+(tipoVentaActual===op?' selected':'')+'>'+op+'</option>';
                 }).join('');
                 const transpOpts = ['','Interrapidísimo','Envía','23M&M','Domicilios Gina'].map(function(op) {
                     const sel = normalizarTransportadora(ped.transportadora||'') === op ? ' selected' : '';
