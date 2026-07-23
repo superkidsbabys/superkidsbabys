@@ -4646,10 +4646,25 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         registrarCobertura23mym('BOGOTA|COTA|FUNZA|MOSQUERA|SOACHA|CHIA|MADRID', 'Urbano', 1, 7932, 9000);
         registrarCobertura23mym('CAJICA|SOPO|TABIO|TENJO|TOCANCIPA|FACATATIVA|ZIPAQUIRA', 'Regional', 1, 10003, 11500);
         registrarCobertura23mym('EL ROSAL|GRANADA|UBATE', 'Regional', 2, 10003, 11500);
-        registrarCobertura23mym('CALI|DOSQUEBRADAS|MEDELLIN|PEREIRA|YUMBO|ARMENIA|ENVIGADO|IBAGUE|ITAGUI|MANIZALES|SABANETA', 'Nacional principal', 1, 16520, 18500);
-        registrarCobertura23mym('BARRANQUILLA|BELLO|CALARCA|CARTAGENA|SANTA MARTA|SANTA ROSA DE CABAL|VILLAMARIA|VILLAVICENCIO|CARTAGO|CHINCHINA|GIRARDOTA|LA CALERA|PALMIRA|TUNJA', 'Nacional principal', 2, 16520, 18500);
+        registrarCobertura23mym('CALI|DOSQUEBRADAS|MEDELLIN|PEREIRA|YUMBO|ARMENIA|ENVIGADO|ITAGUI|MANIZALES|SABANETA', 'Nacional principal', 1, 16520, 18500);
+        registrarCobertura23mym('BARRANQUILLA|BELLO|CALARCA|CARTAGENA|SANTA MARTA|SANTA ROSA DE CABAL|VILLAMARIA|CARTAGO|CHINCHINA|GIRARDOTA|LA CALERA|PALMIRA|TUNJA', 'Nacional principal', 2, 16520, 18500);
         registrarCobertura23mym('MALAMBO|LA ESTRELLA|RIONEGRO|SOLEDAD|PIEDECUESTA|TURBACO', 'Nacional secundaria', 1, 18165, 20900);
         registrarCobertura23mym('CANDELARIA|FLORIDA|JAMUNDI|LA CEJA|LA TEBAIDA|MARINILLA|PRADERA|RETIRO|BARANOA|BARBOSA|CALDAS|CALOTO|CIRCASIA|DAGUA|EL CARMEN DE VIBORAL|GACHANCIPA|GALAPA|GINEBRA|GUACARI|LA CUMBRE|LEBRIJA|MONTENEGRO|OBANDO|POLONUEVO|PUERTO COLOMBIA|PUERTO TEJADA', 'Nacional secundaria', 2, 18165, 20900);
+        const PAGOS_API_ORIGIN = 'https://superkids-pagos-api.superkids-babys.workers.dev';
+        let TARIFAS_ENVIO_PERSONALIZADAS = {};
+
+        async function cargarTarifasEnvioPersonalizadas() {
+            try {
+                const respuesta = await fetch(PAGOS_API_ORIGIN + '/tarifas-envio', { cache: 'no-store' });
+                const datos = await respuesta.json();
+                if (respuesta.ok && datos && datos.tarifas && typeof datos.tarifas === 'object') {
+                    TARIFAS_ENVIO_PERSONALIZADAS = datos.tarifas;
+                    actualizarRecomendacionEnvioPrueba();
+                }
+            } catch (error) {
+                console.warn('No fue posible cargar las tarifas personalizadas', error);
+            }
+        }
 
         function normalizarCiudadEnvio(valor) {
             return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -4664,6 +4679,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         function obtenerRecomendacionEnvioPrueba(ciudadIngresada) {
             const ciudad = normalizarCiudadEnvio(ciudadIngresada);
             if (!ciudad) return null;
+            const personalizada = TARIFAS_ENVIO_PERSONALIZADAS[ciudad];
+            if (personalizada && Number.isFinite(Number(personalizada.valor))) {
+                return {
+                    titulo: String(personalizada.transportadora || 'Transportadora') + ' · ' + dineroEnvio(personalizada.valor),
+                    detalle: 'Tarifa personalizada guardada en tu gestión.',
+                    nota: 'Este valor tendrá prioridad y se sumará al pago de Wompi.',
+                    color: '#9d174d', fondo: '#fdf2f8', borde: '#f472b6'
+                };
+            }
             const directa = COBERTURA_23MYM_PRUEBA[ciudad];
             if (directa) {
                 return {
@@ -4673,7 +4697,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     color: '#047857', fondo: '#ecfdf5', borde: '#34d399'
                 };
             }
-            if (ciudad === 'VILLETA' || ciudad === 'FUSAGASUGA' || ciudad === 'GIRARDOT') {
+            if (ciudad === 'VILLETA' || ciudad === 'FUSAGASUGA' || ciudad === 'GIRARDOT' || ciudad === 'VILLAVICENCIO' || ciudad === 'IBAGUE') {
                 return {
                     titulo: 'Envía o Interrapidísimo · desde $11.500',
                     detalle: 'Destino regional: confirmar cobertura y tiempo en la plataforma.',
@@ -4717,6 +4741,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 campo.addEventListener(evento, actualizarRecomendacionEnvioPrueba);
             });
             actualizarRecomendacionEnvioPrueba();
+            cargarTarifasEnvioPersonalizadas();
         }
 
         function llenarDatosClienteFormulario(cliente, soloCamposVacios) {
