@@ -4284,13 +4284,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     asesora: (window.usuarioActual && window.usuarioActual.nombre) || ''
                 };
 
-                guardarClienteLocalNavegador(pedidoPendiente);
-                guardarClienteGestion(pedidoPendiente);
-                historialPedidos.unshift(pedidoPendiente);
-                localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                renderizarPedidosPanel();
-                await persistirPedidoEnFirebase(pedidoPendiente);
-
                 const respuesta = await fetch('https://superkids-pagos-api.superkids-babys.workers.dev/firma', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -4310,10 +4303,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 checkout.open(async function(resultado) {
                     const transaccion = resultado && resultado.transaction ? resultado.transaction : {};
                     if (!transaccion.id) {
-                        pedidoPendiente.estadoPago = 'SIN_CONFIRMAR';
-                        await persistirPedidoEnFirebase(pedidoPendiente);
-                        localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                        return alert('Wompi no entrego un ID para verificar el pago. El pedido quedo pendiente y no se desconto inventario.');
+                        return alert('Wompi no entrego un ID para verificar el pago. No se creo ningun pedido ni se desconto inventario.');
                     }
                     try {
                         const verificacionResponse = await fetch('https://superkids-pagos-api.superkids-babys.workers.dev/verificar', {
@@ -4339,13 +4329,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                             const stockActual = validarCarritoContraStockReal();
                             if (!stockActual.ok) {
                                 pedidoPendiente.incidenciaPago = 'PAGO_APROBADO_SIN_STOCK';
-                                await persistirPedidoEnFirebase(pedidoPendiente);
-                                localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                                renderizarPedidosPanel();
-                                return alert('Pago aprobado, pero el stock cambio durante el pago. No se desconto inventario. Revisa inmediatamente el pedido ' + numOrdenFormato + '.');
+                                return alert('Pago aprobado, pero el stock cambio durante el pago. No se creo el pedido ni se desconto inventario. Revisa inmediatamente la transaccion ' + verificacion.id + '.');
                             }
                             pedidoPendiente.descuentoInventarioSimulado = true;
                             pedidoPendiente.estado = 'cancelado';
+                            guardarClienteLocalNavegador(pedidoPendiente);
+                            guardarClienteGestion(pedidoPendiente);
+                            historialPedidos.unshift(pedidoPendiente);
                             await persistirPedidoEnFirebase(pedidoPendiente);
                             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
                             cerrarModalCheckout();
@@ -4356,29 +4346,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                             setTimeout(function() { imprimirFactura(numOrden); }, 500);
                             alert('Pago APPROVED y verificado.\nPedido de prueba: ' + numOrdenFormato + '\nID: ' + verificacion.id + '\n\nLa ruta de descuento fue validada, pero el inventario real no se modifico porque seguimos en Sandbox.');
                         } else {
-                            await persistirPedidoEnFirebase(pedidoPendiente);
-                            localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                            renderizarPedidosPanel();
-                            alert('El pago termino en estado ' + verificacion.status + '.\nEl pedido quedo registrado y no se desconto inventario.');
+                            alert('El pago termino en estado ' + verificacion.status + '.\nNo se creo ningun pedido ni se desconto inventario.');
                         }
                     } catch (errorVerificacion) {
-                        pedidoPendiente.estadoPago = 'VERIFICACION_FALLIDA';
-                        pedidoPendiente.errorPago = errorVerificacion.message || 'Error de verificacion';
-                        await persistirPedidoEnFirebase(pedidoPendiente);
-                        localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                        renderizarPedidosPanel();
-                        alert('No pudimos verificar el pago directamente con Wompi. El pedido quedo pendiente y no se desconto inventario.\n\n' + pedidoPendiente.errorPago);
+                        const errorPago = errorVerificacion.message || 'Error de verificacion';
+                        alert('No pudimos verificar el pago directamente con Wompi. No se creo ningun pedido ni se desconto inventario.\n\n' + errorPago);
                     }
                 });
             } catch (error) {
                 console.error('Error Wompi Sandbox:', error);
-                if (pedidoPendiente) {
-                    pedidoPendiente.estadoPago = 'ERROR_AL_ABRIR';
-                    pedidoPendiente.errorPago = (error && error.message) || 'No se pudo abrir Wompi';
-                    localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                    await persistirPedidoEnFirebase(pedidoPendiente);
-                    renderizarPedidosPanel();
-                }
                 let detalle = 'Error desconocido';
                 if (error && error.message) detalle = error.message;
                 else if (error && error.error) detalle = error.error;
