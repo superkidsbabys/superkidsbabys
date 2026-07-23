@@ -2168,6 +2168,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         function pedidoDebeDescontarStock(pedido) {
             if (!pedido || pedido.stockDescontado) return false;
+            if (pedido.esPruebaWompi || pedido.ambientePago === 'sandbox' || pedido.tipoVenta === 'Wompi Sandbox') return false;
             if (normalizarEstadoPedido(pedido.estado || 'nuevo') !== 'nuevo') return false;
             const ts = timestampPedido(pedido);
             if (!ts) return true;
@@ -4233,15 +4234,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
             let pedidoPendiente = null;
             try {
-                let numOrden;
-                try {
-                    numOrden = await obtenerSiguienteNumeroPedido();
-                    numOrden = await asegurarNumeroPedidoActual(numOrden);
-                } catch (_) {
-                    numOrden = maximoNumeroPedidoCorrelativoLocal() + 1;
-                }
-                const numOrdenFormato = formatoNumeroPedido(numOrden);
-                const reference = (numOrdenFormato + 'W' + Date.now().toString(36)).toUpperCase();
+                let numOrden = null;
+                let numOrdenFormato = '';
+                const reference = ('SKWTEST' + Date.now().toString(36)).toUpperCase();
                 const ahoraPedido = Date.now();
                 const itemsParaPanel = carrito.map(function(i) {
                     const prodItem = productosDB.find(p => String(p.id) === String(i.id));
@@ -4253,8 +4248,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     };
                 });
                 pedidoPendiente = {
-                    num: numOrden,
-                    numOrden: numOrdenFormato,
+                    num: null,
+                    numOrden: '',
                     nom: n,
                     cc: cc || '',
                     dir: d,
@@ -4331,6 +4326,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                                 pedidoPendiente.incidenciaPago = 'PAGO_APROBADO_SIN_STOCK';
                                 return alert('Pago aprobado, pero el stock cambio durante el pago. No se creo el pedido ni se desconto inventario. Revisa inmediatamente la transaccion ' + verificacion.id + '.');
                             }
+                            try {
+                                numOrden = await obtenerSiguienteNumeroPedido();
+                                numOrden = await asegurarNumeroPedidoActual(numOrden);
+                            } catch (_) {
+                                numOrden = maximoNumeroPedidoCorrelativoLocal() + 1;
+                            }
+                            numOrdenFormato = formatoNumeroPedido(numOrden);
+                            pedidoPendiente.num = numOrden;
+                            pedidoPendiente.numOrden = numOrdenFormato;
                             pedidoPendiente.descuentoInventarioSimulado = true;
                             pedidoPendiente.estado = 'cancelado';
                             guardarClienteLocalNavegador(pedidoPendiente);
@@ -4421,6 +4425,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         async function descontarStockPedido(pedido) {
             if (!pedido || pedido.stockDescontado) return;
+            if (pedido.esPruebaWompi || pedido.ambientePago === 'sandbox' || pedido.tipoVenta === 'Wompi Sandbox') {
+                console.log('Pedido Sandbox: inventario real protegido.');
+                return;
+            }
             // PASO 1: Descontar en memoria (siempre, sin necesitar Firebase)
             const porProducto = {};
             (pedido.items || []).forEach(item => {
