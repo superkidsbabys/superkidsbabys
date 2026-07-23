@@ -1639,7 +1639,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 <div id="recomendacion-envio-prueba" style="display:none; margin:-1px 0 10px; padding:12px 14px; border:1px dashed #8b5cf6; border-radius:12px; background:#f7f3ff; color:#4c1d95; text-align:left; line-height:1.35;">
                     <div style="font-weight:900; margin-bottom:4px;">🧪 Recomendación de envío (prueba)</div>
                     <div id="recomendacion-envio-contenido"></div>
-                    <div style="font-size:.78em; color:#6b7280; margin-top:5px;">Solo informa: todavía no suma el envío, no crea pedidos y no modifica inventario.</div>
+                    <div style="font-size:.78em; color:#6b7280; margin-top:5px;">La tarifa se suma al pago de Wompi. En modo de pruebas no modifica el inventario real.</div>
                 </div>
                 <input type="tel" id="cart-telefono" placeholder="📱 WhatsApp / Teléfono" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <input type="email" id="cart-correo" placeholder="✉️ Correo electrónico" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
@@ -4262,7 +4262,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     ciudad: ciudad,
                     tel: tel,
                     correo: correo || '',
-                    tipoVenta: 'Wompi Sandbox',
+                    tipoVenta: 'Pago Wompi',
+                    canalPago: 'Wompi Sandbox',
                     tot: promo.total,
                     subtotalBruto: promo.bruto,
                     cantidadPromoMamelucos: promo.cantidadPromo,
@@ -5507,7 +5508,7 @@ table{width:100%;border-collapse:collapse}
   </div>
   <div class="bloque-datos">
     <h4>📦 Pedido</h4>
-    <p>N° <strong class="num-editable" contenteditable="true" spellcheck="false" id="fac-num-orden">${ped.numOrden || ('#SK-' + ped.num)}</strong>&nbsp;&nbsp;<span style="background:#f0e6fb;color:#8e44ad;font-size:0.8em;font-weight:800;padding:2px 8px;border-radius:20px;" id="fac-tipo-venta-display">${ped.tipoVenta || 'Contraentrega'}</span><br>${ped.fecha}<br>Estado: <strong>${ped.estado}</strong>${ped.asesora ? '<br>Asesora: <strong>' + ped.asesora + '</strong>' : ""}</p>
+    <p>N° <strong class="num-editable" contenteditable="true" spellcheck="false" id="fac-num-orden">${ped.numOrden || ('#SK-' + ped.num)}</strong>&nbsp;&nbsp;<span style="background:#f0e6fb;color:#8e44ad;font-size:0.8em;font-weight:800;padding:2px 8px;border-radius:20px;" id="fac-tipo-venta-display">${(ped.estadoPago === 'APPROVED' || ped.esPruebaWompi || ped.ambientePago === 'sandbox') ? 'Pago Wompi' : (ped.tipoVenta || 'Contraentrega')}</span><br>${ped.fecha}<br>Estado: <strong>${ped.estado}</strong>${ped.asesora ? '<br>Asesora: <strong>' + ped.asesora + '</strong>' : ""}</p>
   </div>
 </div>
 <div class="tabla-wrap">
@@ -5743,8 +5744,9 @@ table{width:100%;border-collapse:collapse}
                     </div>` : (ped.facturaAnulada ? `<div style="margin-top:6px;font-size:0.75em;color:#a32d2d;font-weight:700;">🚫 Factura anulada</div>` : '');
 
                 const numOrdenDisplay = ped.numOrden || ('#SK-' + String(ped.num));
-                const tipoVentaOpts = ['Contraentrega','Contado','Recaudo'].map(function(op) {
-                    return '<option value="'+op+'"'+(ped.tipoVenta===op?' selected':'')+'>'+op+'</option>';
+                const tipoVentaActual = (ped.estadoPago === 'APPROVED' || ped.esPruebaWompi || ped.ambientePago === 'sandbox') ? 'Pago Wompi' : (ped.tipoVenta || 'Contraentrega');
+                const tipoVentaOpts = ['Contraentrega','Contado','Recaudo','Pago Wompi'].map(function(op) {
+                    return '<option value="'+op+'"'+(tipoVentaActual===op?' selected':'')+'>'+op+'</option>';
                 }).join('');
                 const transpOpts = ['','Interrapidísimo','Envía','23M&M','Domicilios Gina'].map(function(op) {
                     const sel = normalizarTransportadora(ped.transportadora||'') === op ? ' selected' : '';
