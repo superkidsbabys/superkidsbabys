@@ -197,6 +197,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
       document.querySelectorAll('.btn-tab-inventario').forEach(b => {
         b.style.display = 'inline-block';
       });
+      document.querySelectorAll('.btn-tab-tarifas').forEach(b => {
+        b.style.display = (window.usuarioActual && window.usuarioActual.uid === UID_YOHANA) ? 'inline-block' : 'none';
+      });
 
       if (rol === 'asesora') {
         // Ocultar tab de Diseño, Publicar y botones de agregar/exportar
@@ -1239,6 +1242,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <button class="btn-tab" onclick="cambiarTab('pedidos')">Pedidos</button>
                 <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('inventario')" style="display:none;">Inventario</button>
                 <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('clientes')" style="display:none;">Clientes</button>
+                <button class="btn-tab btn-tab-tarifas" onclick="cambiarTab('tarifas-envio')" style="display:none;">Tarifas de envío</button>
                 <button class="btn-tab" onclick="window.open('https://superkidsbabys.com','_blank')">Ver tienda</button>
                 <button class="btn-tab" onclick="cambiarTab('papelera')">Papelera</button>
                 <button class="btn-tab" onclick="cambiarTab('reporte-ventas')">Reporte ventas</button>
@@ -1694,6 +1698,43 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                             <p style="color:#98a2b3;font-weight:800;text-align:center;margin:80px 0;">Selecciona un cliente para ver su historial.</p>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- TAB TARIFAS DE ENVÍO (SOLO YOHANA) -->
+            <div id="tab-tarifas-envio" class="seccion-tab">
+                <div class="seccion-admin-sub" style="background:#fffafd;border:1.5px solid #f1b8d2;border-radius:14px;padding:18px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+                        <div>
+                            <h3 style="margin:0;color:#9d174d;">🚚 Tarifas de envío personalizadas</h3>
+                            <p style="margin:5px 0 0;color:#667085;font-size:.86em;max-width:720px;">Agrega una ciudad después de cotizarla. La próxima compra usará automáticamente este valor y tendrá prioridad sobre las tarifas generales.</p>
+                        </div>
+                        <button onclick="olvidarClaveTarifasEnvio()" style="border:1px solid #f1b8d2;background:white;color:#9d174d;border-radius:9px;padding:8px 12px;font-weight:800;cursor:pointer;">Olvidar clave en este equipo</button>
+                    </div>
+                    <div style="display:grid;grid-template-columns:minmax(180px,1.4fr) minmax(170px,1fr) minmax(130px,.7fr) auto;gap:9px;align-items:end;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:12px;padding:14px;margin-bottom:15px;">
+                        <label style="font-size:.79em;font-weight:800;color:#831843;">Ciudad
+                            <input id="tarifa-envio-ciudad" type="text" placeholder="Ej: Puerto Carreño" style="display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:10px;border:1.5px solid #f1b8d2;border-radius:9px;font-family:Nunito,sans-serif;">
+                        </label>
+                        <label style="font-size:.79em;font-weight:800;color:#831843;">Transportadora
+                            <select id="tarifa-envio-transportadora" style="display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:10px;border:1.5px solid #f1b8d2;border-radius:9px;background:white;font-family:Nunito,sans-serif;">
+                                <option>Envía</option>
+                                <option>Interrapidísimo</option>
+                                <option>23M&amp;M</option>
+                            </select>
+                        </label>
+                        <label style="font-size:.79em;font-weight:800;color:#831843;">Valor
+                            <input id="tarifa-envio-valor" type="number" min="0" max="100000" step="100" placeholder="18500" style="display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:10px;border:1.5px solid #f1b8d2;border-radius:9px;font-family:Nunito,sans-serif;">
+                        </label>
+                        <button id="btn-guardar-tarifa-envio" onclick="guardarTarifaEnvioGestion()" style="border:0;background:#db2777;color:white;border-radius:9px;padding:11px 17px;font-weight:900;cursor:pointer;white-space:nowrap;">Guardar tarifa</button>
+                    </div>
+                    <div id="tarifas-envio-mensaje" style="display:none;margin-bottom:12px;padding:10px 12px;border-radius:9px;font-weight:800;font-size:.84em;"></div>
+                    <div style="overflow:auto;border:1.5px solid #f3d2e1;border-radius:11px;background:white;">
+                        <table style="width:100%;border-collapse:collapse;font-size:.84em;min-width:620px;">
+                            <thead style="background:#fdf2f8;color:#9d174d;"><tr><th style="padding:11px;text-align:left;">Ciudad</th><th style="text-align:left;">Transportadora</th><th style="text-align:right;">Valor</th><th style="text-align:center;">Acciones</th></tr></thead>
+                            <tbody id="tarifas-envio-tbody"></tbody>
+                        </table>
+                    </div>
+                    <p id="tarifas-envio-vacio" style="display:none;text-align:center;color:#98a2b3;font-weight:800;padding:24px;">Todavía no has agregado tarifas personalizadas.</p>
                 </div>
             </div>
 
@@ -8367,6 +8408,142 @@ ${ped.comprobanteUrl ? `
             vent.document.close();
         }
 
+        const TARIFAS_ENVIO_API = 'https://superkids-pagos-api.superkids-babys.workers.dev/tarifas-envio';
+        const TARIFAS_ENVIO_CLAVE_LOCAL = 'superkidsTarifasAdminSecret';
+        let tarifasEnvioGestionCache = {};
+
+        function escaparTarifaHtml(valor) {
+            return String(valor == null ? '' : valor)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function mostrarMensajeTarifasEnvio(texto, esError) {
+            const caja = document.getElementById('tarifas-envio-mensaje');
+            if (!caja) return;
+            caja.style.display = 'block';
+            caja.style.background = esError ? '#fef2f2' : '#ecfdf5';
+            caja.style.color = esError ? '#b91c1c' : '#047857';
+            caja.style.border = '1px solid ' + (esError ? '#fecaca' : '#a7f3d0');
+            caja.textContent = texto;
+        }
+
+        function obtenerClaveTarifasEnvio() {
+            let clave = localStorage.getItem(TARIFAS_ENVIO_CLAVE_LOCAL) || '';
+            if (!clave) {
+                clave = prompt('Ingresa la clave administrativa de tarifas de envío:') || '';
+                if (clave) localStorage.setItem(TARIFAS_ENVIO_CLAVE_LOCAL, clave);
+            }
+            return clave;
+        }
+
+        function olvidarClaveTarifasEnvio() {
+            localStorage.removeItem(TARIFAS_ENVIO_CLAVE_LOCAL);
+            mostrarMensajeTarifasEnvio('Clave olvidada en este computador. Se solicitará al guardar nuevamente.', false);
+        }
+
+        function renderizarTarifasEnvioGestion() {
+            const tbody = document.getElementById('tarifas-envio-tbody');
+            const vacio = document.getElementById('tarifas-envio-vacio');
+            if (!tbody || !vacio) return;
+            const filas = Object.entries(tarifasEnvioGestionCache || {}).sort(function(a, b) {
+                return String(a[0]).localeCompare(String(b[0]), 'es');
+            });
+            vacio.style.display = filas.length ? 'none' : 'block';
+            tbody.innerHTML = filas.map(function(entrada) {
+                const clave = entrada[0];
+                const tarifa = entrada[1] || {};
+                const claveUrl = encodeURIComponent(clave);
+                return '<tr style="border-bottom:1px solid #f7dce8;">' +
+                    '<td style="padding:11px;font-weight:900;color:#344054;">' + escaparTarifaHtml(tarifa.ciudad || clave) + '</td>' +
+                    '<td style="padding:11px;">' + escaparTarifaHtml(tarifa.transportadora || '') + '</td>' +
+                    '<td style="padding:11px;text-align:right;font-weight:900;color:#9d174d;">$' + Number(tarifa.valor || 0).toLocaleString('es-CO') + '</td>' +
+                    '<td style="padding:8px;text-align:center;white-space:nowrap;">' +
+                    '<button onclick="editarTarifaEnvioGestion(\'' + claveUrl + '\')" style="border:1px solid #f1b8d2;background:white;color:#9d174d;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer;margin-right:5px;">Editar</button>' +
+                    '<button onclick="eliminarTarifaEnvioGestion(\'' + claveUrl + '\')" style="border:1px solid #fecaca;background:#fff5f5;color:#b91c1c;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer;">Eliminar</button>' +
+                    '</td></tr>';
+            }).join('');
+        }
+
+        async function cargarTarifasEnvioGestion() {
+            if (!esYohanaInventario()) return;
+            try {
+                const respuesta = await fetch(TARIFAS_ENVIO_API, { cache: 'no-store' });
+                const datos = await respuesta.json();
+                if (!respuesta.ok) throw new Error(datos.error || 'No fue posible cargar las tarifas');
+                tarifasEnvioGestionCache = datos.tarifas || {};
+                renderizarTarifasEnvioGestion();
+            } catch (error) {
+                mostrarMensajeTarifasEnvio(error.message || 'Error cargando las tarifas', true);
+            }
+        }
+
+        function editarTarifaEnvioGestion(claveUrl) {
+            const clave = decodeURIComponent(claveUrl);
+            const tarifa = tarifasEnvioGestionCache[clave];
+            if (!tarifa) return;
+            document.getElementById('tarifa-envio-ciudad').value = tarifa.ciudad || clave;
+            document.getElementById('tarifa-envio-transportadora').value = tarifa.transportadora || 'Envía';
+            document.getElementById('tarifa-envio-valor').value = tarifa.valor || '';
+            document.getElementById('tarifa-envio-ciudad').focus();
+        }
+
+        async function enviarCambioTarifaEnvio(datosCambio) {
+            const clave = obtenerClaveTarifasEnvio();
+            if (!clave) throw new Error('Necesitas ingresar la clave administrativa');
+            const respuesta = await fetch(TARIFAS_ENVIO_API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Secret': clave },
+                body: JSON.stringify(datosCambio)
+            });
+            const datos = await respuesta.json().catch(function() { return {}; });
+            if (!respuesta.ok) {
+                if (respuesta.status === 401) localStorage.removeItem(TARIFAS_ENVIO_CLAVE_LOCAL);
+                throw new Error(datos.error || 'No fue posible guardar la tarifa');
+            }
+            tarifasEnvioGestionCache = datos.tarifas || {};
+            renderizarTarifasEnvioGestion();
+        }
+
+        async function guardarTarifaEnvioGestion() {
+            if (!esYohanaInventario()) return alert('Esta función es exclusiva de Yohana.');
+            const ciudad = document.getElementById('tarifa-envio-ciudad').value.trim();
+            const transportadora = document.getElementById('tarifa-envio-transportadora').value;
+            const valor = Number(document.getElementById('tarifa-envio-valor').value);
+            if (!ciudad) return mostrarMensajeTarifasEnvio('Escribe la ciudad.', true);
+            if (!Number.isSafeInteger(valor) || valor < 0 || valor > 100000) {
+                return mostrarMensajeTarifasEnvio('Escribe un valor válido entre $0 y $100.000.', true);
+            }
+            const boton = document.getElementById('btn-guardar-tarifa-envio');
+            boton.disabled = true;
+            boton.textContent = 'Guardando...';
+            try {
+                await enviarCambioTarifaEnvio({ accion: 'guardar', ciudad, transportadora, valor });
+                document.getElementById('tarifa-envio-ciudad').value = '';
+                document.getElementById('tarifa-envio-valor').value = '';
+                mostrarMensajeTarifasEnvio('Tarifa guardada. La tienda y Wompi ya usarán este valor.', false);
+            } catch (error) {
+                mostrarMensajeTarifasEnvio(error.message || 'Error guardando la tarifa', true);
+            } finally {
+                boton.disabled = false;
+                boton.textContent = 'Guardar tarifa';
+            }
+        }
+
+        async function eliminarTarifaEnvioGestion(claveUrl) {
+            if (!esYohanaInventario()) return;
+            const clave = decodeURIComponent(claveUrl);
+            const tarifa = tarifasEnvioGestionCache[clave] || {};
+            if (!confirm('¿Eliminar la tarifa personalizada de ' + (tarifa.ciudad || clave) + '?')) return;
+            try {
+                await enviarCambioTarifaEnvio({ accion: 'eliminar', ciudad: clave });
+                mostrarMensajeTarifasEnvio('Tarifa eliminada. La ciudad volverá a usar la regla general.', false);
+            } catch (error) {
+                mostrarMensajeTarifasEnvio(error.message || 'Error eliminando la tarifa', true);
+            }
+        }
+
         function cambiarTab(tab) {
             document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('activo'));
             document.querySelectorAll('.seccion-tab').forEach(s => s.classList.remove('activo'));
@@ -8406,6 +8583,9 @@ ${ped.comprobanteUrl ? `
             }
             if (tab === 'papelera') {
                 cargarPapeleraPedidos();
+            }
+            if (tab === 'tarifas-envio') {
+                cargarTarifasEnvioGestion();
             }
         }
 
@@ -8503,6 +8683,7 @@ ${ped.comprobanteUrl ? `
             'guardarEdicionProducto','guardarEntradaInventario','imprimirFactura','moverCategoria','sugerirReferenciaInventario','marcarReferenciaInventarioManual',
             'moverCategoriaVisual','seleccionarGeneroOrdenVisual','procesarOrdenWA','procesarYAgregarProducto','renderizarClientesGestion',
             'cerrarDetalleClienteGestion','enviarWhatsAppCliente','mostrarDetalleClienteGestion','renombrarCategoria',
+            'cargarTarifasEnvioGestion','guardarTarifaEnvioGestion','editarTarifaEnvioGestion','eliminarTarifaEnvioGestion','olvidarClaveTarifasEnvio',
             'renombrarCategoriaVisual','resetearOrdenEnFirebase','seleccionarTallaChip','seleccionarTema',
             'seleccionarTextura','subirFotosNuevasEdit','toggleAcordeon','toggleAdmin','togglePromociones'
         ].forEach(nombre => {
