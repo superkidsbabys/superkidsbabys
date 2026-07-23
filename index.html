@@ -1636,6 +1636,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 <input type="text" id="cart-direccion" placeholder="📍 Dirección de envío" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <input type="text" id="cart-barrio" placeholder="🏘️ Barrio / Sector" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <input type="text" id="cart-ciudad" placeholder="🏙️ Ciudad" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
+                <div id="recomendacion-envio-prueba" style="display:none; margin:-1px 0 10px; padding:12px 14px; border:1px dashed #8b5cf6; border-radius:12px; background:#f7f3ff; color:#4c1d95; text-align:left; line-height:1.35;">
+                    <div style="font-weight:900; margin-bottom:4px;">🧪 Recomendación de envío (prueba)</div>
+                    <div id="recomendacion-envio-contenido"></div>
+                    <div style="font-size:.78em; color:#6b7280; margin-top:5px;">Solo informa: todavía no suma el envío, no crea pedidos y no modifica inventario.</div>
+                </div>
                 <input type="tel" id="cart-telefono" placeholder="📱 WhatsApp / Teléfono" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <input type="email" id="cart-correo" placeholder="✉️ Correo electrónico" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <textarea id="cart-observaciones" placeholder="📝 Observaciones (opcional)" rows="2" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 16px; outline: none; box-sizing: border-box; resize: none; font-family: inherit;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'"></textarea>
@@ -4226,8 +4231,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             const obs = (document.getElementById('cart-observaciones') || {value:''}).value.trim();
             if (!n || !d || !ciudad || !tel) return alert('Completa nombre, direccion, ciudad y telefono antes de pagar.');
 
-            const promo = calcularPromocionMamelucos25(carrito);
-            const amountInCents = Math.round(Number(promo.total || 0) * 100);
+            let promo = calcularPromocionMamelucos25(carrito);
+            let amountInCents = Math.round(Number(promo.total || 0) * 100);
             const boton = document.getElementById('btn-wompi-sandbox');
             const textoOriginal = boton ? boton.innerHTML : '';
             if (boton) { boton.disabled = true; boton.style.opacity = '.7'; boton.innerHTML = 'Preparando pago seguro...'; }
@@ -4236,7 +4241,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             try {
                 let numOrden = null;
                 let numOrdenFormato = '';
-                const reference = ('SKWTEST' + Date.now().toString(36)).toUpperCase();
+                let reference = ('SKWTEST' + Date.now().toString(36)).toUpperCase();
                 const ahoraPedido = Date.now();
                 const itemsParaPanel = carrito.map(function(i) {
                     const prodItem = productosDB.find(p => String(p.id) === String(i.id));
@@ -4279,19 +4284,48 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     asesora: (window.usuarioActual && window.usuarioActual.nombre) || ''
                 };
 
-                const respuesta = await fetch('https://superkids-pagos-api.superkids-babys.workers.dev/firma', {
+                const respuesta = await fetch('https://superkids-pagos-api.superkids-babys.workers.dev/preparar-pago', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reference, amountInCents })
+                    body: JSON.stringify({
+                        items: carrito.map(function(item) {
+                            return { id: item.id, talla: item.talla || '', cantidad: 1 };
+                        })
+                    })
                 });
                 const firma = await respuesta.json();
                 if (!respuesta.ok || !firma.integrity) throw new Error(firma.error || 'No fue posible generar la firma de prueba');
+                reference = firma.reference;
+                amountInCents = firma.amountInCents;
+                promo = {
+                    bruto: Number(firma.totales && firma.totales.bruto || 0),
+                    cantidadPromo: Number(firma.totales && firma.totales.cantidadPromo || 0),
+                    descuentoPromocion: Number(firma.totales && firma.totales.descuento || 0),
+                    total: Number(firma.totales && firma.totales.total || 0)
+                };
+                pedidoPendiente.referenciaPago = reference;
+                pedidoPendiente.tot = promo.total;
+                pedidoPendiente.subtotalBruto = promo.bruto;
+                pedidoPendiente.cantidadPromoMamelucos = promo.cantidadPromo;
+                pedidoPendiente.descuentoPromocion = promo.descuentoPromocion;
+                pedidoPendiente.items = (firma.items || []).map(function(item) {
+                    return {
+                        id_prod: item.id,
+                        cant: item.cantidad,
+                        talla: item.talla,
+                        nom: item.nombre,
+                        cod: item.codigo,
+                        precio: item.precio,
+                        categoria: item.categoria,
+                        imagen: item.imagen || ''
+                    };
+                });
 
                 const checkout = new WidgetCheckout({
                     currency: 'COP',
                     amountInCents,
                     reference,
-                    publicKey: 'pub_test_IOwvTNIDN3nF3dw6exTVb89AhkVfdspO',
+                    publicKey: firma.publicKey,
                     signature: { integrity: firma.integrity }
                 });
 
@@ -4593,6 +4627,90 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             };
         }
 
+        const COBERTURA_23MYM_PRUEBA = {};
+
+        function registrarCobertura23mym(ciudades, trayecto, dias, costoContrato, tarifaCliente) {
+            ciudades.split('|').forEach(function(ciudad) {
+                COBERTURA_23MYM_PRUEBA[ciudad] = { trayecto, dias, costoContrato, tarifaCliente };
+            });
+        }
+
+        registrarCobertura23mym('BOGOTA|COTA|FUNZA|MOSQUERA|SOACHA|CHIA|MADRID', 'Urbano', 1, 7932, 9000);
+        registrarCobertura23mym('CAJICA|SOPO|TABIO|TENJO|TOCANCIPA|FACATATIVA|ZIPAQUIRA', 'Regional', 1, 10003, 11500);
+        registrarCobertura23mym('EL ROSAL|GRANADA|UBATE', 'Regional', 2, 10003, 11500);
+        registrarCobertura23mym('CALI|DOSQUEBRADAS|MEDELLIN|PEREIRA|YUMBO|ARMENIA|ENVIGADO|IBAGUE|ITAGUI|MANIZALES|SABANETA', 'Nacional principal', 1, 16520, 18500);
+        registrarCobertura23mym('BARRANQUILLA|BELLO|CALARCA|CARTAGENA|SANTA MARTA|SANTA ROSA DE CABAL|VILLAMARIA|VILLAVICENCIO|CARTAGO|CHINCHINA|GIRARDOTA|LA CALERA|PALMIRA|TUNJA', 'Nacional principal', 2, 16520, 18500);
+        registrarCobertura23mym('MALAMBO|LA ESTRELLA|RIONEGRO|SOLEDAD|PIEDECUESTA|TURBACO', 'Nacional secundaria', 1, 18165, 20900);
+        registrarCobertura23mym('CANDELARIA|FLORIDA|JAMUNDI|LA CEJA|LA TEBAIDA|MARINILLA|PRADERA|RETIRO|BARANOA|BARBOSA|CALDAS|CALOTO|CIRCASIA|DAGUA|EL CARMEN DE VIBORAL|GACHANCIPA|GALAPA|GINEBRA|GUACARI|LA CUMBRE|LEBRIJA|MONTENEGRO|OBANDO|POLONUEVO|PUERTO COLOMBIA|PUERTO TEJADA', 'Nacional secundaria', 2, 18165, 20900);
+
+        function normalizarCiudadEnvio(valor) {
+            return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .toUpperCase().replace(/[^A-Z0-9]+/g, ' ')
+                .replace(/\b(DISTRITO CAPITAL|D C|DC)\b/g, '').replace(/\s+/g, ' ').trim();
+        }
+
+        function dineroEnvio(valor) {
+            return '$' + Number(valor || 0).toLocaleString('es-CO');
+        }
+
+        function obtenerRecomendacionEnvioPrueba(ciudadIngresada) {
+            const ciudad = normalizarCiudadEnvio(ciudadIngresada);
+            if (!ciudad) return null;
+            const directa = COBERTURA_23MYM_PRUEBA[ciudad];
+            if (directa) {
+                return {
+                    titulo: '23M&M · ' + dineroEnvio(directa.tarifaCliente),
+                    detalle: directa.trayecto + ' · entrega estimada: ' + directa.dias + (directa.dias === 1 ? ' día hábil' : ' días hábiles'),
+                    nota: 'Costo de contrato aprox.: ' + dineroEnvio(directa.costoContrato) + '. Cobertura directa, sin reexpedición.',
+                    color: '#047857', fondo: '#ecfdf5', borde: '#34d399'
+                };
+            }
+            if (ciudad === 'VILLETA' || ciudad === 'FUSAGASUGA' || ciudad === 'GIRARDOT') {
+                return {
+                    titulo: 'Envía o Interrapidísimo · desde $11.500',
+                    detalle: 'Destino regional: confirmar cobertura y tiempo en la plataforma.',
+                    nota: '23M&M no se recomienda aquí hasta verificar que no haya reexpedición.',
+                    color: '#92400e', fondo: '#fffbeb', borde: '#f59e0b'
+                };
+            }
+            return {
+                titulo: 'Interrapidísimo · tarifa base $18.500',
+                detalle: 'Destino nacional fuera de la matriz rápida de 23M&M.',
+                nota: 'Confirmar en plataforma: algunas ciudades pueden quedar en $20.900. Si marca reexpedición o 3 días o más, usar Envía o Inter.',
+                color: '#5b21b6', fondo: '#f5f3ff', borde: '#8b5cf6'
+            };
+        }
+
+        function actualizarRecomendacionEnvioPrueba() {
+            const campo = document.getElementById('cart-ciudad');
+            const caja = document.getElementById('recomendacion-envio-prueba');
+            const contenido = document.getElementById('recomendacion-envio-contenido');
+            if (!campo || !caja || !contenido) return;
+            const r = obtenerRecomendacionEnvioPrueba(campo.value);
+            if (!r) {
+                caja.style.display = 'none';
+                contenido.innerHTML = '';
+                return;
+            }
+            caja.style.display = 'block';
+            caja.style.color = r.color;
+            caja.style.background = r.fondo;
+            caja.style.borderColor = r.borde;
+            contenido.innerHTML = '<div style="font-weight:900;font-size:1.02em;">' + r.titulo + '</div>' +
+                '<div style="font-weight:700;">' + r.detalle + '</div>' +
+                '<div style="font-size:.84em;margin-top:3px;">' + r.nota + '</div>';
+        }
+
+        function inicializarRecomendadorEnvioPrueba() {
+            const campo = document.getElementById('cart-ciudad');
+            if (!campo || campo.dataset.recomendadorEnvioListo === '1') return;
+            campo.dataset.recomendadorEnvioListo = '1';
+            ['input', 'change', 'blur'].forEach(function(evento) {
+                campo.addEventListener(evento, actualizarRecomendacionEnvioPrueba);
+            });
+            actualizarRecomendacionEnvioPrueba();
+        }
+
         function llenarDatosClienteFormulario(cliente, soloCamposVacios) {
             if (!cliente) return;
             const mapa = {
@@ -4609,6 +4727,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (!el || !mapa[id]) return;
                 if (!soloCamposVacios || !String(el.value || '').trim()) el.value = mapa[id];
             });
+            actualizarRecomendacionEnvioPrueba();
         }
 
         function guardarClienteLocalNavegador(cliente) {
@@ -4630,6 +4749,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
+            actualizarRecomendacionEnvioPrueba();
             const elObs = document.getElementById('cart-observaciones');
             if (elObs) elObs.value = '';
             const elTr = document.getElementById('cart-transportadora');
@@ -4732,6 +4852,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (!el) return;
                 el.addEventListener('blur', function() { guardarClienteLocalNavegador(leerDatosClienteFormulario()); });
             });
+            inicializarRecomendadorEnvioPrueba();
             cargarClienteLocalNavegador();
             cargarClientesGestion();
             setTimeout(cargarClientesGestion, 1500);
