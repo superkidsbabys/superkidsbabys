@@ -1393,6 +1393,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         .tp-btn-del-prod { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 0.95em; padding: 2px 4px; border-radius: 4px; opacity: 0.6; flex-shrink: 0; }
         .tp-btn-del-prod:hover { opacity: 1; background: #fde8e8; }
     </style>
+    <script src="https://checkout.wompi.co/widget.js"></script>
 </head>
 <body style="visibility: hidden; background: #f7f7f8;">
 <!-- ====================================================
@@ -1666,6 +1667,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"></path></svg>
                     Enviar pedido por WhatsApp
                 </button>
+                <div id="wompi-sandbox-panel" style="display:none; margin-top:12px; padding:12px; border:2px dashed #44b749; border-radius:14px; background:#f1fff2;">
+                    <div style="font-size:.78em; color:#25752b; font-weight:900; margin-bottom:8px; text-align:center;">PRUEBA SEGURA · WOMPI SANDBOX</div>
+                    <button id="btn-wompi-sandbox" type="button" onclick="procesarPagoWompiSandbox()" style="width:100%; background:#2f9e44; color:white; border:none; padding:14px; border-radius:12px; font-size:.98em; font-weight:900; cursor:pointer;">
+                        💳 Probar pago dentro de la app
+                    </button>
+                    <div style="font-size:.72em; color:#48734b; margin-top:7px; text-align:center;">No cobra dinero, no crea pedidos y no descuenta inventario.</div>
+                </div>
             </div>
         </div>
     </div>
@@ -4194,8 +4202,62 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         function abrirModalCheckout() {
             document.getElementById('modal-checkout').style.display = 'block';
             document.body.style.overflow = 'hidden';
+            const panelWompiSandbox = document.getElementById('wompi-sandbox-panel');
+            if (panelWompiSandbox) panelWompiSandbox.style.display = esSesionCurvaMayorista() ? 'block' : 'none';
             cargarClienteLocalNavegador();
             cargarClientesGestion();
+        }
+
+        async function procesarPagoWompiSandbox() {
+            if (!esSesionCurvaMayorista()) return alert('Esta prueba esta disponible solo para Yohana.');
+            if (!carrito.length) return alert('Agrega al menos una prenda al carrito.');
+            const validacionStock = validarCarritoContraStockReal();
+            if (!validacionStock.ok) return alert(validacionStock.msg);
+            if (typeof WidgetCheckout !== 'function') return alert('No se pudo cargar la ventana segura de Wompi. Revisa tu conexion e intenta de nuevo.');
+
+            const promo = calcularPromocionMamelucos25(carrito);
+            const amountInCents = Math.round(Number(promo.total || 0) * 100);
+            const reference = 'SKTEST' + Date.now().toString(36).toUpperCase();
+            const boton = document.getElementById('btn-wompi-sandbox');
+            const textoOriginal = boton ? boton.innerHTML : '';
+            if (boton) { boton.disabled = true; boton.style.opacity = '.7'; boton.innerHTML = 'Preparando pago seguro...'; }
+
+            try {
+                const respuesta = await fetch('https://superkids-pagos-api.superkids-babys.workers.dev/firma', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reference, amountInCents })
+                });
+                const firma = await respuesta.json();
+                if (!respuesta.ok || !firma.integrity) throw new Error(firma.error || 'No fue posible generar la firma de prueba');
+
+                const nombre = (document.getElementById('cart-nombre') || { value: '' }).value.trim();
+                const correo = (document.getElementById('cart-correo') || { value: '' }).value.trim();
+                const telefono = (document.getElementById('cart-telefono') || { value: '' }).value.trim();
+                const checkout = new WidgetCheckout({
+                    currency: 'COP',
+                    amountInCents,
+                    reference,
+                    publicKey: 'pub_test_IOwvTNIDN3nF3dw6exTVb89AhkVfdspO',
+                    signature: { integrity: firma.integrity },
+                    customerData: {
+                        email: correo || undefined,
+                        fullName: nombre || undefined,
+                        phoneNumber: telefono || undefined,
+                        phoneNumberPrefix: '+57'
+                    }
+                });
+
+                checkout.open(function(resultado) {
+                    const transaccion = resultado && resultado.transaction ? resultado.transaction : {};
+                    alert('Prueba Wompi finalizada. Estado: ' + (transaccion.status || 'sin confirmar') + (transaccion.id ? '\nID: ' + transaccion.id : '') + '\n\nNo se creo ningun pedido ni se desconto inventario.');
+                });
+            } catch (error) {
+                console.error('Error Wompi Sandbox:', error);
+                alert('No se pudo abrir la prueba de Wompi: ' + error.message);
+            } finally {
+                if (boton) { boton.disabled = false; boton.style.opacity = ''; boton.innerHTML = textoOriginal; }
+            }
         }
 
         function cerrarModalCheckout() {
@@ -6429,7 +6491,7 @@ table{width:100%;border-collapse:collapse}
             'exportarInventarioExcel','exportarInventarioPDF','exportarParaInternet','filtrarCatalogo',
             'filtrarPorTalla','filtrarVistaPedidos','guardarDatosTienda','guardarEdicionEntrada',
             'guardarEdicionProducto','guardarEntradaInventario','imprimirFactura','moverCategoria',
-            'moverCategoriaVisual','seleccionarGeneroOrdenVisual','procesarOrdenWA','procesarYAgregarProducto','renombrarCategoria',
+            'moverCategoriaVisual','seleccionarGeneroOrdenVisual','procesarOrdenWA','procesarPagoWompiSandbox','procesarYAgregarProducto','renombrarCategoria',
             'renombrarCategoriaVisual','resetearOrdenEnFirebase','seleccionarTallaChip','seleccionarTema',
             'seleccionarTextura','subirFotosNuevasEdit','toggleAcordeon','toggleAdmin','togglePromociones'
         ].forEach(nombre => {
