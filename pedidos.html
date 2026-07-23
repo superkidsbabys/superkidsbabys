@@ -1711,7 +1711,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         </div>
                         <button onclick="olvidarClaveTarifasEnvio()" style="border:1px solid #f1b8d2;background:white;color:#9d174d;border-radius:9px;padding:8px 12px;font-weight:800;cursor:pointer;">Olvidar clave en este equipo</button>
                     </div>
-                    <div style="display:grid;grid-template-columns:minmax(180px,1.4fr) minmax(170px,1fr) minmax(130px,.7fr) auto;gap:9px;align-items:end;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:12px;padding:14px;margin-bottom:15px;">
+                    <div style="display:grid;grid-template-columns:minmax(160px,1fr) minmax(160px,1fr) minmax(150px,1fr) minmax(120px,.65fr) auto;gap:9px;align-items:end;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:12px;padding:14px;margin-bottom:15px;">
+                        <label style="font-size:.79em;font-weight:800;color:#831843;">Departamento
+                            <input id="tarifa-envio-departamento" type="text" placeholder="Ej: Cesar" style="display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:10px;border:1.5px solid #f1b8d2;border-radius:9px;font-family:Nunito,sans-serif;">
+                        </label>
                         <label style="font-size:.79em;font-weight:800;color:#831843;">Ciudad
                             <input id="tarifa-envio-ciudad" type="text" placeholder="Ej: Puerto Carreño" style="display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:10px;border:1.5px solid #f1b8d2;border-radius:9px;font-family:Nunito,sans-serif;">
                         </label>
@@ -1730,7 +1733,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <div id="tarifas-envio-mensaje" style="display:none;margin-bottom:12px;padding:10px 12px;border-radius:9px;font-weight:800;font-size:.84em;"></div>
                     <div style="overflow:auto;border:1.5px solid #f3d2e1;border-radius:11px;background:white;">
                         <table style="width:100%;border-collapse:collapse;font-size:.84em;min-width:620px;">
-                            <thead style="background:#fdf2f8;color:#9d174d;"><tr><th style="padding:11px;text-align:left;">Ciudad</th><th style="text-align:left;">Transportadora</th><th style="text-align:right;">Valor</th><th style="text-align:center;">Acciones</th></tr></thead>
+                            <thead style="background:#fdf2f8;color:#9d174d;"><tr><th style="padding:11px;text-align:left;">Departamento</th><th style="text-align:left;">Ciudad</th><th style="text-align:left;">Transportadora</th><th style="text-align:right;">Valor</th><th style="text-align:center;">Acciones</th></tr></thead>
                             <tbody id="tarifas-envio-tbody"></tbody>
                         </table>
                     </div>
@@ -8456,6 +8459,7 @@ ${ped.comprobanteUrl ? `
                 const tarifa = entrada[1] || {};
                 const claveUrl = encodeURIComponent(clave);
                 return '<tr style="border-bottom:1px solid #f7dce8;">' +
+                    '<td style="padding:11px;font-weight:800;color:#475467;">' + escaparTarifaHtml(tarifa.departamento || 'Registro anterior') + '</td>' +
                     '<td style="padding:11px;font-weight:900;color:#344054;">' + escaparTarifaHtml(tarifa.ciudad || clave) + '</td>' +
                     '<td style="padding:11px;">' + escaparTarifaHtml(tarifa.transportadora || '') + '</td>' +
                     '<td style="padding:11px;text-align:right;font-weight:900;color:#9d174d;">$' + Number(tarifa.valor || 0).toLocaleString('es-CO') + '</td>' +
@@ -8483,6 +8487,7 @@ ${ped.comprobanteUrl ? `
             const clave = decodeURIComponent(claveUrl);
             const tarifa = tarifasEnvioGestionCache[clave];
             if (!tarifa) return;
+            document.getElementById('tarifa-envio-departamento').value = tarifa.departamento || '';
             document.getElementById('tarifa-envio-ciudad').value = tarifa.ciudad || clave;
             document.getElementById('tarifa-envio-transportadora').value = tarifa.transportadora || 'Envía';
             document.getElementById('tarifa-envio-valor').value = tarifa.valor || '';
@@ -8508,9 +8513,11 @@ ${ped.comprobanteUrl ? `
 
         async function guardarTarifaEnvioGestion() {
             if (!esYohanaInventario()) return alert('Esta función es exclusiva de Yohana.');
+            const departamento = document.getElementById('tarifa-envio-departamento').value.trim();
             const ciudad = document.getElementById('tarifa-envio-ciudad').value.trim();
             const transportadora = document.getElementById('tarifa-envio-transportadora').value;
             const valor = Number(document.getElementById('tarifa-envio-valor').value);
+            if (!departamento) return mostrarMensajeTarifasEnvio('Escribe el departamento.', true);
             if (!ciudad) return mostrarMensajeTarifasEnvio('Escribe la ciudad.', true);
             if (!Number.isSafeInteger(valor) || valor < 0 || valor > 100000) {
                 return mostrarMensajeTarifasEnvio('Escribe un valor válido entre $0 y $100.000.', true);
@@ -8519,7 +8526,8 @@ ${ped.comprobanteUrl ? `
             boton.disabled = true;
             boton.textContent = 'Guardando...';
             try {
-                await enviarCambioTarifaEnvio({ accion: 'guardar', ciudad, transportadora, valor });
+                await enviarCambioTarifaEnvio({ accion: 'guardar', departamento, ciudad, transportadora, valor });
+                document.getElementById('tarifa-envio-departamento').value = '';
                 document.getElementById('tarifa-envio-ciudad').value = '';
                 document.getElementById('tarifa-envio-valor').value = '';
                 mostrarMensajeTarifasEnvio('Tarifa guardada. La tienda y Wompi ya usarán este valor.', false);
@@ -8537,7 +8545,11 @@ ${ped.comprobanteUrl ? `
             const tarifa = tarifasEnvioGestionCache[clave] || {};
             if (!confirm('¿Eliminar la tarifa personalizada de ' + (tarifa.ciudad || clave) + '?')) return;
             try {
-                await enviarCambioTarifaEnvio({ accion: 'eliminar', ciudad: clave });
+                if (!tarifa.departamento) {
+                    await enviarCambioTarifaEnvio({ accion: 'eliminar-anterior', claveAnterior: clave });
+                } else {
+                    await enviarCambioTarifaEnvio({ accion: 'eliminar', departamento: tarifa.departamento, ciudad: tarifa.ciudad });
+                }
                 mostrarMensajeTarifasEnvio('Tarifa eliminada. La ciudad volverá a usar la regla general.', false);
             } catch (error) {
                 mostrarMensajeTarifasEnvio(error.message || 'Error eliminando la tarifa', true);

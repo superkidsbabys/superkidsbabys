@@ -1635,6 +1635,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 <input type="number" id="cart-cc" placeholder="🪪 Número de cédula" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <input type="text" id="cart-direccion" placeholder="📍 Dirección de envío" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <input type="text" id="cart-barrio" placeholder="🏘️ Barrio / Sector" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
+                <input type="text" id="cart-departamento" placeholder="🗺️ Departamento" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <input type="text" id="cart-ciudad" placeholder="🏙️ Ciudad" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <div id="recomendacion-envio-prueba" style="display:none; margin:-1px 0 10px; padding:12px 14px; border:1px dashed #8b5cf6; border-radius:12px; background:#f7f3ff; color:#4c1d95; text-align:left; line-height:1.35;">
                     <div style="font-weight:900; margin-bottom:4px;">🧪 Recomendación de envío (prueba)</div>
@@ -4225,11 +4226,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             const cc = (document.getElementById('cart-cc') || {value:''}).value.trim();
             const d = document.getElementById('cart-direccion').value.trim();
             const barrio = (document.getElementById('cart-barrio') || {value:''}).value.trim();
+            const departamento = (document.getElementById('cart-departamento') || {value:''}).value.trim();
             const ciudad = (document.getElementById('cart-ciudad') || {value:''}).value.trim();
             const tel = document.getElementById('cart-telefono').value.trim();
             const correo = (document.getElementById('cart-correo') || {value:''}).value.trim();
             const obs = (document.getElementById('cart-observaciones') || {value:''}).value.trim();
-            if (!n || !d || !ciudad || !tel) return alert('Completa nombre, direccion, ciudad y telefono antes de pagar.');
+            if (!n || !d || !departamento || !ciudad || !tel) return alert('Completa nombre, direccion, departamento, ciudad y telefono antes de pagar.');
 
             let promo = calcularPromocionMamelucos25(carrito);
             let amountInCents = Math.round(Number(promo.total || 0) * 100);
@@ -4259,6 +4261,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     cc: cc || '',
                     dir: d,
                     barrio: barrio || '',
+                    departamento: departamento,
                     ciudad: ciudad,
                     tel: tel,
                     correo: correo || '',
@@ -4289,6 +4292,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        departamento: departamento,
                         ciudad: ciudad,
                         items: carrito.map(function(item) {
                             return { id: item.id, talla: item.talla || '', cantidad: 1 };
@@ -4629,6 +4633,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 cc: val('cart-cc'),
                 dir: val('cart-direccion'),
                 barrio: val('cart-barrio'),
+                departamento: val('cart-departamento'),
                 ciudad: val('cart-ciudad'),
                 tel: val('cart-telefono'),
                 correo: val('cart-correo')
@@ -4672,14 +4677,24 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 .replace(/\b(DISTRITO CAPITAL|D C|DC)\b/g, '').replace(/\s+/g, ' ').trim();
         }
 
+        function normalizarDepartamentoEnvio(valor) {
+            return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .toUpperCase().replace(/[^A-Z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+        }
+
+        function claveTarifaEnvio(departamento, ciudad) {
+            return normalizarDepartamentoEnvio(departamento) + '::' + normalizarCiudadEnvio(ciudad);
+        }
+
         function dineroEnvio(valor) {
             return '$' + Number(valor || 0).toLocaleString('es-CO');
         }
 
-        function obtenerRecomendacionEnvioPrueba(ciudadIngresada) {
+        function obtenerRecomendacionEnvioPrueba(ciudadIngresada, departamentoIngresado) {
             const ciudad = normalizarCiudadEnvio(ciudadIngresada);
+            const departamento = normalizarDepartamentoEnvio(departamentoIngresado);
             if (!ciudad) return null;
-            const personalizada = TARIFAS_ENVIO_PERSONALIZADAS[ciudad];
+            const personalizada = departamento ? TARIFAS_ENVIO_PERSONALIZADAS[claveTarifaEnvio(departamento, ciudad)] : null;
             if (personalizada && Number.isFinite(Number(personalizada.valor))) {
                 return {
                     titulo: String(personalizada.transportadora || 'Transportadora') + ' · ' + dineroEnvio(personalizada.valor),
@@ -4715,10 +4730,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         function actualizarRecomendacionEnvioPrueba() {
             const campo = document.getElementById('cart-ciudad');
+            const campoDepartamento = document.getElementById('cart-departamento');
             const caja = document.getElementById('recomendacion-envio-prueba');
             const contenido = document.getElementById('recomendacion-envio-contenido');
             if (!campo || !caja || !contenido) return;
-            const r = obtenerRecomendacionEnvioPrueba(campo.value);
+            const r = obtenerRecomendacionEnvioPrueba(campo.value, campoDepartamento ? campoDepartamento.value : '');
             if (!r) {
                 caja.style.display = 'none';
                 contenido.innerHTML = '';
@@ -4735,10 +4751,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         function inicializarRecomendadorEnvioPrueba() {
             const campo = document.getElementById('cart-ciudad');
+            const campoDepartamento = document.getElementById('cart-departamento');
             if (!campo || campo.dataset.recomendadorEnvioListo === '1') return;
             campo.dataset.recomendadorEnvioListo = '1';
             ['input', 'change', 'blur'].forEach(function(evento) {
                 campo.addEventListener(evento, actualizarRecomendacionEnvioPrueba);
+                if (campoDepartamento) campoDepartamento.addEventListener(evento, actualizarRecomendacionEnvioPrueba);
             });
             actualizarRecomendacionEnvioPrueba();
             cargarTarifasEnvioPersonalizadas();
@@ -4751,6 +4769,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 'cart-cc': cliente.cc || '',
                 'cart-direccion': cliente.dir || cliente.direccion || '',
                 'cart-barrio': cliente.barrio || '',
+                'cart-departamento': cliente.departamento || '',
                 'cart-ciudad': cliente.ciudad || '',
                 'cart-telefono': cliente.tel || cliente.telefono || '',
                 'cart-correo': cliente.correo || ''
@@ -4778,7 +4797,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             // Limpiar únicamente la copia guardada en este navegador. El pedido y la
             // ficha del cliente permanecen intactos en Firebase y en Gestión.
             try { localStorage.removeItem(CLIENTE_LOCAL_KEY); } catch(e) {}
-            ['cart-nombre','cart-cc','cart-direccion','cart-barrio','cart-ciudad','cart-telefono','cart-correo'].forEach(function(id) {
+            ['cart-nombre','cart-cc','cart-direccion','cart-barrio','cart-departamento','cart-ciudad','cart-telefono','cart-correo'].forEach(function(id) {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
@@ -4797,6 +4816,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 dir: cliente.dir || cliente.direccion || '',
                 direccion: cliente.dir || cliente.direccion || '',
                 barrio: cliente.barrio || '',
+                departamento: cliente.departamento || '',
                 ciudad: cliente.ciudad || '',
                 tel: soloDigitosCliente(cliente.tel || cliente.telefono),
                 telefono: soloDigitosCliente(cliente.tel || cliente.telefono),
@@ -4880,7 +4900,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 el.addEventListener('change', intentarAutocompletarClienteGestion);
                 el.addEventListener('blur', intentarAutocompletarClienteGestion);
             });
-            ['cart-nombre','cart-cc','cart-direccion','cart-barrio','cart-ciudad','cart-telefono','cart-correo'].forEach(function(id) {
+            ['cart-nombre','cart-cc','cart-direccion','cart-barrio','cart-departamento','cart-ciudad','cart-telefono','cart-correo'].forEach(function(id) {
                 const el = document.getElementById(id);
                 if (!el) return;
                 el.addEventListener('blur', function() { guardarClienteLocalNavegador(leerDatosClienteFormulario()); });
@@ -4910,12 +4930,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             let cc = (document.getElementById('cart-cc') || {value:''}).value.trim();
             let d = document.getElementById('cart-direccion').value.trim();
             let barrio = (document.getElementById('cart-barrio') || {value:''}).value.trim();
+            let departamento = (document.getElementById('cart-departamento') || {value:''}).value.trim();
             let ciudad = (document.getElementById('cart-ciudad') || {value:''}).value.trim();
             let tel = document.getElementById('cart-telefono').value.trim();
             let correo = (document.getElementById('cart-correo') || {value:''}).value.trim();
             let obs = (document.getElementById('cart-observaciones') || {value:''}).value.trim();
             let transp = (document.getElementById('cart-transportadora') || {value:''}).value.trim();
-            if (!n || !d || !ciudad || !tel || carrito.length === 0) return alert("Faltan datos en el formulario.");
+            if (!n || !d || !departamento || !ciudad || !tel || carrito.length === 0) return alert("Faltan datos en el formulario.");
             const validacionStock = validarCarritoContraStockReal();
             if (!validacionStock.ok) return alert(validacionStock.msg);
             window._procesandoOrdenWA = true;
@@ -4972,7 +4993,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     console.warn('Contador Firebase no disponible, usando fallback local:', numOrdenFormato, e.message);
                 }
 
-                let txtWA = `NUEVO PEDIDO\n-----------------------------\n🔢 Orden: ${numOrdenFormato}\n👤 Cliente: ${n}${cc ? '\n🪪 CC: ' + cc : ''}\n📍 Dirección: ${d}${barrio ? `\n🏘️ Barrio/Sector: ${barrio}` : ''}\n🏙️ Ciudad: ${ciudad}\n📞 Cel: ${tel}${correo ? '\n✉️ Correo: ' + correo : ''}`;
+                let txtWA = `NUEVO PEDIDO\n-----------------------------\n🔢 Orden: ${numOrdenFormato}\n👤 Cliente: ${n}${cc ? '\n🪪 CC: ' + cc : ''}\n📍 Dirección: ${d}${barrio ? `\n🏘️ Barrio/Sector: ${barrio}` : ''}\n🗺️ Departamento: ${departamento}\n🏙️ Ciudad: ${ciudad}\n📞 Cel: ${tel}${correo ? '\n✉️ Correo: ' + correo : ''}`;
                 if (transp) txtWA += `\n🚚 Transportadora: ${transp}`;
                 if (obs) txtWA += `\n📝 Obs: ${obs}`;
                 txtWA += `\n\nPRODUCTOS:\n` + txtProductos;
@@ -4980,7 +5001,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 txtWA += `\n💰 TOTAL: ${formatMoney(t)}`;
 
                 let objetoOrden = {
-                    num: numOrden, numOrden: numOrdenFormato, nom: n, cc: cc || '', dir: d, barrio: barrio || '', ciudad: ciudad || '', tel, correo: correo || '', tipoVenta: 'Contraentrega', tot: t,
+                    num: numOrden, numOrden: numOrdenFormato, nom: n, cc: cc || '', dir: d, barrio: barrio || '', departamento: departamento || '', ciudad: ciudad || '', tel, correo: correo || '', tipoVenta: 'Contraentrega', tot: t,
                     subtotalBruto: promoPedido.bruto, cantidadPromoMamelucos: promoPedido.cantidadPromo, descuentoPromocion: promoPedido.descuentoPromocion, descuentoPorcentaje: 0, descuentoPorcentajeValor: 0,
                     items: itemsParaPanel, fecha: fechaHoy, estado: 'nuevo',
                     valorEnvio: '',
@@ -5529,7 +5550,7 @@ table{width:100%;border-collapse:collapse}
 <div class="datos-pedido">
   <div class="bloque-datos">
     <h4>👤 Cliente</h4>
-    <p><strong>${ped.nom}</strong>${ped.cc ? '<br><span style="font-size:0.9em;color:#888;">CC: ' + ped.cc + '</span>' : ''}<br>📍 ${ped.dir}${ped.barrio ? ', ' + ped.barrio : ''}<br>🏙️ ${ped.ciudad || ''}<br>📞 ${ped.tel}${ped.correo ? '<br>✉️ ' + ped.correo : ''}</p>
+    <p><strong>${ped.nom}</strong>${ped.cc ? '<br><span style="font-size:0.9em;color:#888;">CC: ' + ped.cc + '</span>' : ''}<br>📍 ${ped.dir}${ped.barrio ? ', ' + ped.barrio : ''}${ped.departamento ? '<br>🗺️ ' + ped.departamento : ''}<br>🏙️ ${ped.ciudad || ''}<br>📞 ${ped.tel}${ped.correo ? '<br>✉️ ' + ped.correo : ''}</p>
   </div>
   <div class="bloque-datos">
     <h4>📦 Pedido</h4>
