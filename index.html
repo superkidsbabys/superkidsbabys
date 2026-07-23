@@ -4231,21 +4231,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 const firma = await respuesta.json();
                 if (!respuesta.ok || !firma.integrity) throw new Error(firma.error || 'No fue posible generar la firma de prueba');
 
-                const nombre = (document.getElementById('cart-nombre') || { value: '' }).value.trim();
-                const correo = (document.getElementById('cart-correo') || { value: '' }).value.trim();
-                const telefono = (document.getElementById('cart-telefono') || { value: '' }).value.trim();
                 const checkout = new WidgetCheckout({
                     currency: 'COP',
                     amountInCents,
                     reference,
                     publicKey: 'pub_test_IOwvTNIDN3nF3dw6exTVb89AhkVfdspO',
-                    signature: { integrity: firma.integrity },
-                    customerData: {
-                        email: correo || undefined,
-                        fullName: nombre || undefined,
-                        phoneNumber: telefono || undefined,
-                        phoneNumberPrefix: '+57'
-                    }
+                    signature: { integrity: firma.integrity }
                 });
 
                 checkout.open(function(resultado) {
@@ -4254,7 +4245,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 });
             } catch (error) {
                 console.error('Error Wompi Sandbox:', error);
-                alert('No se pudo abrir la prueba de Wompi: ' + error.message);
+                let detalle = 'Error desconocido';
+                if (error && error.message) detalle = error.message;
+                else if (error && error.error) detalle = error.error;
+                else if (typeof error === 'string') detalle = error;
+                else {
+                    try { detalle = JSON.stringify(error); } catch (_) {}
+                }
+                alert('No se pudo abrir la prueba de Wompi: ' + detalle);
             } finally {
                 if (boton) { boton.disabled = false; boton.style.opacity = ''; boton.innerHTML = textoOriginal; }
             }
