@@ -3190,7 +3190,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             const menuTallas = document.getElementById('menu-tallas');
             let tallasDisponibles = new Set();
             productosDB.forEach(p => {
-                if ((p.genero === generoActual || p.genero === 'Unisex' || !p.genero) && productoCoincideCategoria(p, filtroActual)) {
+                if ((p.genero === generoActual || p.genero === 'Unisex') && productoCoincideCategoria(p, filtroActual)) {
                     if (p.tallasObj) p.tallasObj.forEach(t => { if (t.stock > 0 && esTallaValida(t.nombre)) tallasDisponibles.add(t.nombre.toString().trim()); });
                 }
             });
@@ -3399,7 +3399,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             const filtrados = productosDB.filter(p => {
                 let esNuevaColeccion = esProductoNuevaColeccion(p);
                 let esPromo = (p.precioAnterior && p.precioAnterior > p.precio) || (p.etiquetaPersonalizada && !esNuevaColeccion);
-                let pasaGeneroCat = (p.genero === generoActual || p.genero === 'Unisex' || !p.genero) && productoCoincideCategoria(p, filtroActual) && (!soloPromociones || esPromo) && (!soloNuevaColeccion || esNuevaColeccion);
+                // Los registros incompletos sin genero no deben aparecer repetidos en todos los catalogos.
+                let pasaGeneroCat = (p.genero === generoActual || p.genero === 'Unisex') && productoCoincideCategoria(p, filtroActual) && (!soloPromociones || esPromo) && (!soloNuevaColeccion || esNuevaColeccion);
                 if (!pasaGeneroCat) return false;
                 if (!productoDisponibleEnCatalogo(p)) return false;
                 if (tallaFiltroActual === 'Todas') return true;
