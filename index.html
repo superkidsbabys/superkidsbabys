@@ -4288,6 +4288,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        ciudad: ciudad,
                         items: carrito.map(function(item) {
                             return { id: item.id, talla: item.talla || '', cantidad: 1 };
                         })
@@ -4301,10 +4302,16 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     bruto: Number(firma.totales && firma.totales.bruto || 0),
                     cantidadPromo: Number(firma.totales && firma.totales.cantidadPromo || 0),
                     descuentoPromocion: Number(firma.totales && firma.totales.descuento || 0),
-                    total: Number(firma.totales && firma.totales.total || 0)
+                    total: Number(firma.totales && (firma.totales.totalPrendas ?? firma.totales.total) || 0)
                 };
+                const valorEnvioSeguro = Number(firma.totales && firma.totales.valorEnvio || 0);
+                const totalConEnvioSeguro = Number(firma.totales && firma.totales.total || (promo.total + valorEnvioSeguro));
                 pedidoPendiente.referenciaPago = reference;
-                pedidoPendiente.tot = promo.total;
+                pedidoPendiente.tot = totalConEnvioSeguro;
+                pedidoPendiente.totalPrendas = promo.total;
+                pedidoPendiente.valorEnvio = valorEnvioSeguro;
+                pedidoPendiente.transportadora = String(firma.envio && firma.envio.transportadora || '');
+                pedidoPendiente.trayectoEnvio = String(firma.envio && firma.envio.trayecto || '');
                 pedidoPendiente.subtotalBruto = promo.bruto;
                 pedidoPendiente.cantidadPromoMamelucos = promo.cantidadPromo;
                 pedidoPendiente.descuentoPromocion = promo.descuentoPromocion;
