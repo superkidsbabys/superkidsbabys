@@ -4601,6 +4601,25 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 if (!porProducto[clave]) porProducto[clave] = [];
                 porProducto[clave].push(item);
             });
+            try {
+                const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                await Promise.all(Object.keys(porProducto).map(async idProd => {
+                    const snapshot = await getDoc(doc(db, 'productos', idProd));
+                    if (!snapshot.exists()) return;
+                    const actual = snapshot.data();
+                    const existente = productosDB.find(producto =>
+                        String(producto.id) === String(idProd) ||
+                        String(producto._firebaseId || '') === String(idProd)
+                    );
+                    if (existente) {
+                        Object.assign(existente, actual, { _firebaseId: idProd });
+                    } else {
+                        productosDB.push({ ...actual, id: idProd, _firebaseId: idProd });
+                    }
+                }));
+            } catch (error) {
+                throw new Error('No se pudo consultar el stock actual: ' + (error.message || error));
+            }
             let huboDevolucion = false;
             const cambiosAplicados = [];
             const productosModificados = new Map();
