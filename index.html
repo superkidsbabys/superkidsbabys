@@ -5650,6 +5650,32 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             renderizarPedidosPanel();
         }
 
+        const ANULAR_PEDIDO_API = PAGOS_API_ORIGIN + '/anular-pedido';
+        const CLAVE_ANULAR_PEDIDO_LOCAL = 'superkidsAnulacionAdminSecret';
+
+        async function anularPedidoEnServidor(pedido) {
+            let clave = localStorage.getItem(CLAVE_ANULAR_PEDIDO_LOCAL) || localStorage.getItem('superkidsTarifasAdminSecret') || '';
+            if (!clave) {
+                clave = prompt('Ingresa la clave administrativa para anular el pedido y devolver el stock:') || '';
+                if (clave) localStorage.setItem(CLAVE_ANULAR_PEDIDO_LOCAL, clave);
+            }
+            if (!clave) throw new Error('Necesitas la clave administrativa para anular el pedido.');
+            const respuesta = await fetch(ANULAR_PEDIDO_API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Secret': clave },
+                body: JSON.stringify({ num: pedido.num })
+            });
+            const datos = await respuesta.json().catch(function() { return {}; });
+            if (!respuesta.ok) {
+                if (respuesta.status === 401) {
+                    localStorage.removeItem(CLAVE_ANULAR_PEDIDO_LOCAL);
+                    localStorage.removeItem('superkidsTarifasAdminSecret');
+                }
+                throw new Error(datos.error || 'No se pudo devolver el inventario.');
+            }
+            return datos.pedido || pedido;
+        }
+
         async function cambiarEstadoPedido(idPed, nuevoEstado) {
             let pedIndex = historialPedidos.findIndex(
                 p => String(p.num) === String(idPed)
@@ -5665,8 +5691,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     // ningún listener puede volver a tratarlo como pedido nuevo
                     // mientras se está devolviendo su inventario.
                     localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                    await persistirPedidoEnFirebase(pedido);
-                    await devolverStockPedido(pedido);
+                    Object.assign(pedido, await anularPedidoEnServidor(pedido));
                 } catch (error) {
                     pedido.estado = estadoAnterior;
                     pedido.stockDevuelto = false;
@@ -6290,7 +6315,7 @@ table{width:100%;border-collapse:collapse}
             const pedido = historialPedidos[pedIndex];
 
             try {
-                await devolverStockPedido(pedido);
+                Object.assign(pedido, await anularPedidoEnServidor(pedido));
             } catch (error) {
                 alert(error.message || 'No se pudo devolver el stock. La factura no fue anulada.');
                 return;
