@@ -4495,7 +4495,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             let huboAlgunDescuento = false;
             for (const idProd of Object.keys(porProducto)) {
                 const items = porProducto[idProd];
-                let prod = productosDB.find(p => p.id === idProd);
+                let prod = productosDB.find(p => String(p.id) === String(idProd));
                 if (!prod) continue;
                 items.forEach(item => {
                     const tallaItem = normalizarTallaValor(item.talla);
@@ -4520,7 +4520,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             try {
                 const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 for (const idProd of Object.keys(porProducto)) {
-                    let prod = productosDB.find(p => p.id === idProd);
+                    let prod = productosDB.find(p => String(p.id) === String(idProd));
                     if (!prod) continue;
                     await setDoc(doc(db, 'productos', idProd), Object.assign({}, prod, {
                         stockTotal: (prod.tallasObj||[]).reduce((s,t)=>s+(t.stock||0),0),
@@ -4536,7 +4536,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         async function devolverStockPedido(pedido) {
             if (!pedido || pedido.stockDevuelto) return;
-            if (pedido.esPruebaWompi || pedido.wompiSandbox || pedido.modoPrueba || pedido.stockDescontado === false) return;
+            // Los pedidos contraentrega también descuentan inventario y deben
+            // devolverlo al anularse. Solo omitimos pedidos Wompi de prueba.
+            if (pedido.esPruebaWompi || pedido.wompiSandbox || pedido.modoPrueba) return;
             const porProducto = {};
             (pedido.items || []).forEach(item => {
                 if (!porProducto[item.id_prod]) porProducto[item.id_prod] = [];
