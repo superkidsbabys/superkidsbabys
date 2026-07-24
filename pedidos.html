@@ -4581,7 +4581,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (!pedido || pedido.stockDevuelto) return;
             // Los pedidos contraentrega también descuentan inventario y deben
             // devolverlo al anularse. Solo omitimos pedidos Wompi de prueba.
-            if (pedido.esPruebaWompi || pedido.wompiSandbox || pedido.modoPrueba) return;
+            // Debe usar exactamente la misma regla que descontarStockPedido:
+            // estar navegando con Wompi en Sandbox no convierte un pedido
+            // contraentrega en una prueba. Solo se omiten pagos Wompi Sandbox.
+            if (pedido.esPruebaWompi || pedido.ambientePago === 'sandbox' || pedido.tipoVenta === 'Wompi Sandbox') return;
             const porProducto = {};
             (pedido.items || []).forEach(item => {
                 if (!porProducto[item.id_prod]) porProducto[item.id_prod] = [];
