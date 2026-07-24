@@ -2125,7 +2125,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         // Regla: localStorage/Firebase mandan. pedidosQ quemado solo como semilla inicial.
         let historialPedidos = (pedGuardados && pedGuardados.length > 0) ? pedGuardados : (window.pedidosQ || []);
         // Sanear estados legacy al cargar (convierte "Nuevo"→"nuevo", etc.)
-        historialPedidos.forEach(p => { if (p.estado) p.estado = (({'Nuevo':'nuevo','Pendiente pago':'pendiente_pago','Pendiente Pago':'pendiente_pago','Enviado':'enviado','Entregado':'entregado','Cancelado':'cancelado'})[p.estado] || p.estado.toLowerCase().replace(/\s+/g,'_') || 'nuevo'); });
+        historialPedidos.forEach(p => { if (p.estado) p.estado = (({'Nuevo':'nuevo','Pendiente pago':'pendiente_pago','Pendiente Pago':'pendiente_pago','Enviado':'enviado','Entregado':'entregado','Cancelado':'cancelado','Anulado':'cancelado','Anulada':'cancelado'})[p.estado] || p.estado.toLowerCase().replace(/\s+/g,'_') || 'nuevo'); });
 
         let carrito = [], modoEdicion = false, filtroActual = 'Todos', generoActual = 'Niñas', modoCollage = true;
         window._setModoEdicion = function(val) { modoEdicion = val; if(typeof renderizarCatalogo === 'function') renderizarCatalogo(); };
@@ -2150,7 +2150,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             'Entregado': 'entregado', 'entregado': 'entregado',
             'Pagado': 'pagado', 'pagado': 'pagado',
             'Cancelado': 'cancelado', 'cancelado': 'cancelado',
-            'Anulado': 'cancelado', 'anulado': 'cancelado'
+            'Anulado': 'cancelado', 'anulado': 'cancelado',
+            'Anulada': 'cancelado', 'anulada': 'cancelado'
         };
 
         // ── BUSCADOR POR REFERENCIA (solo admin y Gina) ───────────────────────
@@ -5786,7 +5787,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         async function cambiarEstadoPedido(idPed, nuevoEstado) {
-            let pedIndex = historialPedidos.findIndex(p => p.num === idPed); if (pedIndex === -1) return;
+            let pedIndex = historialPedidos.findIndex(
+                p => String(p.num) === String(idPed)
+            );
+            if (pedIndex === -1) return;
             const pedido = historialPedidos[pedIndex];
             const estadoAnterior = normalizarEstadoPedido(pedido.estado);
             nuevoEstado = normalizarEstadoPedido(nuevoEstado);
