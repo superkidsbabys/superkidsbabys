@@ -4587,7 +4587,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         async function devolverStockPedido(pedido) {
-            if (!pedido) return;
+            if (!pedido || pedido.stockDevuelto) return;
             // Los pedidos contraentrega también descuentan inventario y deben
             // devolverlo al anularse. Solo omitimos pedidos Wompi de prueba.
             // Debe usar exactamente la misma regla que descontarStockPedido:
@@ -6856,8 +6856,12 @@ ${ped.comprobanteUrl ? `
             if (pedIndex === -1) return;
             const pedido = historialPedidos[pedIndex];
 
-            // Devolver stock
-            await devolverStockPedido(pedido);
+            try {
+                await devolverStockPedido(pedido);
+            } catch (error) {
+                alert(error.message || 'No se pudo devolver el stock. La factura no fue anulada.');
+                return;
+            }
 
             // Marcar anulada
             const ahora = new Date().toLocaleString('es-CO');
