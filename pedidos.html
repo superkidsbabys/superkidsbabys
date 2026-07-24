@@ -4587,7 +4587,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         async function devolverStockPedido(pedido) {
-            if (!pedido || pedido.stockDevuelto) return;
+            if (!pedido) return;
             // Los pedidos contraentrega también descuentan inventario y deben
             // devolverlo al anularse. Solo omitimos pedidos Wompi de prueba.
             // Debe usar exactamente la misma regla que descontarStockPedido:
@@ -4623,6 +4623,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             let huboDevolucion = false;
             const cambiosAplicados = [];
             const productosModificados = new Map();
+            const itemsPorDocumento = new Map();
             for (const idProd of Object.keys(porProducto)) {
                 const items = porProducto[idProd];
                 const itemBase = items[0] || {};
@@ -4640,7 +4641,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         const stockAnterior = parseInt(tallaObj.stock, 10) || 0;
                         tallaObj.stock = stockAnterior + Math.max(1, parseInt(item.cant, 10) || 1);
                         cambiosAplicados.push({ tallaObj, stockAnterior });
-                        productosModificados.set(String(prod._firebaseId || prod.id), prod);
+                        const idDocumento = String(prod._firebaseId || prod.id);
+                        productosModificados.set(idDocumento, prod);
+                        if (!itemsPorDocumento.has(idDocumento)) itemsPorDocumento.set(idDocumento, []);
+                        itemsPorDocumento.get(idDocumento).push(item);
                         huboDevolucion = true;
                     }
                 });
@@ -4649,15 +4653,31 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 throw new Error('No se encontró el producto o la talla para devolver el stock del pedido #' + pedido.num);
             }
             try {
-                const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                for (const [idDocumento, prod] of productosModificados) {
-                    const datosProducto = Object.assign({}, prod, {
-                        stockTotal: (prod.tallasObj||[]).reduce((s,t)=>s+(t.stock||0),0),
-                        actualizadoEn: new Date().toISOString()
-                    });
-                    delete datosProducto._firebaseId;
-                    await setDoc(doc(db, 'productos', idDocumento), datosProducto, { merge: true });
-                }
+                const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                await runTransaction(db, async transaction => {
+                    for (const [idDocumento, prod] of productosModificados) {
+                        const refProducto = doc(db, 'productos', idDocumento);
+                        const snapshot = await transaction.get(refProducto);
+                        if (!snapshot.exists()) throw new Error('No se encontró el producto para devolver el stock');
+                        const actual = snapshot.data();
+                        const tallas = Array.isArray(actual.tallasObj)
+                            ? actual.tallasObj.map(talla => ({ ...talla }))
+                            : [];
+                        for (const item of (itemsPorDocumento.get(idDocumento) || [])) {
+                            const talla = tallas.find(t =>
+                                normalizarTallaValor(t.nombre) === normalizarTallaValor(item.talla)
+                            );
+                            if (!talla) throw new Error('No se encontró la talla para devolver el stock');
+                            talla.stock = (parseInt(talla.stock, 10) || 0) + Math.max(1, parseInt(item.cant, 10) || 1);
+                        }
+                        transaction.update(refProducto, {
+                            tallasObj: tallas,
+                            stockTotal: tallas.reduce((suma, talla) => suma + (parseInt(talla.stock, 10) || 0), 0),
+                            actualizadoEn: new Date().toISOString()
+                        });
+                        Object.assign(prod, actual, { tallasObj: tallas, _firebaseId: idDocumento });
+                    }
+                });
             } catch(e) {
                 cambiosAplicados.forEach(c => { c.tallaObj.stock = c.stockAnterior; });
                 localStorage.setItem('productosV36', JSON.stringify(productosDB));
