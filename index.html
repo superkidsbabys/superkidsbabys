@@ -2174,7 +2174,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         function pedidoDebeDescontarStock(pedido) {
             if (!pedido || pedido.stockDescontado) return false;
-            if (pedido.esPruebaWompi || pedido.ambientePago === 'sandbox' || pedido.tipoVenta === 'Wompi Sandbox') return false;
+            if (pedido.esPruebaWompi || pedido.tipoVenta === 'Wompi Sandbox') return false;
             if (normalizarEstadoPedido(pedido.estado || 'nuevo') !== 'nuevo') return false;
             const ts = timestampPedido(pedido);
             if (!ts) return true;
@@ -2449,7 +2449,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     onSnapshot(collection(dbPublica, 'productos'), (snap) => {
                         if (snap.empty) return;
                         const productosFirebase = [];
-                        snap.forEach(d => productosFirebase.push(d.data()));
+                        snap.forEach(d => productosFirebase.push(Object.assign({}, d.data(), {
+                            _firebaseId: d.id
+                        })));
                         // Mezclar: Firebase gana sobre quemados (datos más actualizados)
                         const quemados = filtrarProductosEliminados(window.productosQ || []);
                         const productosFirebaseActivos = filtrarProductosEliminados(productosFirebase);
@@ -4482,7 +4484,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         async function descontarStockPedido(pedido) {
             if (!pedido || pedido.stockDescontado) return;
-            if (pedido.esPruebaWompi || pedido.ambientePago === 'sandbox' || pedido.tipoVenta === 'Wompi Sandbox') {
+            if (pedido.esPruebaWompi || pedido.tipoVenta === 'Wompi Sandbox') {
                 console.log('Pedido Sandbox: inventario real protegido.');
                 return;
             }
@@ -4522,10 +4524,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 for (const idProd of Object.keys(porProducto)) {
                     let prod = productosDB.find(p => String(p.id) === String(idProd));
                     if (!prod) continue;
-                    await setDoc(doc(db, 'productos', idProd), Object.assign({}, prod, {
+                    const idDocumento = String(prod._firebaseId || idProd);
+                    const datosProducto = Object.assign({}, prod, {
                         stockTotal: (prod.tallasObj||[]).reduce((s,t)=>s+(t.stock||0),0),
                         actualizadoEn: new Date().toISOString()
-                    }), { merge: true });
+                    });
+                    delete datosProducto._firebaseId;
+                    await setDoc(doc(db, 'productos', idDocumento), datosProducto, { merge: true });
                 }
                 await persistirPedidoEnFirebase(pedido);
                 console.log('✅ Stock también guardado en Firebase para pedido #' + pedido.num);
@@ -4541,7 +4546,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             // Debe usar exactamente la misma regla que descontarStockPedido:
             // estar navegando con Wompi en Sandbox no convierte un pedido
             // contraentrega en una prueba. Solo se omiten pagos Wompi Sandbox.
-            if (pedido.esPruebaWompi || pedido.ambientePago === 'sandbox' || pedido.tipoVenta === 'Wompi Sandbox') return;
+            if (pedido.esPruebaWompi || pedido.tipoVenta === 'Wompi Sandbox') return;
             const porProducto = {};
             (pedido.items || []).forEach(item => {
                 if (!porProducto[item.id_prod]) porProducto[item.id_prod] = [];
@@ -4575,10 +4580,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 for (const idProd of Object.keys(porProducto)) {
                     let prod = productosDB.find(p => String(p.id) === String(idProd));
                     if (!prod) continue;
-                    await setDoc(doc(db, 'productos', idProd), Object.assign({}, prod, {
+                    const idDocumento = String(prod._firebaseId || idProd);
+                    const datosProducto = Object.assign({}, prod, {
                         stockTotal: (prod.tallasObj||[]).reduce((s,t)=>s+(t.stock||0),0),
                         actualizadoEn: new Date().toISOString()
-                    }), { merge: true });
+                    });
+                    delete datosProducto._firebaseId;
+                    await setDoc(doc(db, 'productos', idDocumento), datosProducto, { merge: true });
                 }
                 console.log('✅ Stock devuelto para pedido #' + pedido.num);
             } catch(e) {
