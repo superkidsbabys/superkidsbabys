@@ -4535,7 +4535,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         async function devolverStockPedido(pedido) {
-            if (!pedido || !pedido.stockDescontado || pedido.stockDevuelto) return;
+            if (!pedido || pedido.stockDevuelto) return;
+            if (pedido.esPruebaWompi || pedido.wompiSandbox || pedido.modoPrueba || pedido.stockDescontado === false) return;
             const porProducto = {};
             (pedido.items || []).forEach(item => {
                 if (!porProducto[item.id_prod]) porProducto[item.id_prod] = [];
@@ -4544,25 +4545,30 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             let huboDevolucion = false;
             for (const idProd of Object.keys(porProducto)) {
                 const items = porProducto[idProd];
-                let prod = productosDB.find(p => p.id === idProd);
+                let prod = productosDB.find(p => String(p.id) === String(idProd));
                 if (!prod) continue;
                 items.forEach(item => {
                     const tallaItem = normalizarTallaValor(item.talla);
                     const tallaObj = (prod.tallasObj || []).find(t => normalizarTallaValor(t.nombre) === tallaItem);
                     if (tallaObj) {
-                        tallaObj.stock = (parseInt(tallaObj.stock) || 0) + (item.cant || 1);
+                        tallaObj.stock = (parseInt(tallaObj.stock, 10) || 0) + Math.max(1, parseInt(item.cant, 10) || 1);
                         huboDevolucion = true;
                     }
                 });
             }
+            if (!huboDevolucion) {
+                throw new Error('No se encontró el producto o la talla para devolver el stock del pedido #' + pedido.num);
+            }
+            pedido.stockDescontado = true;
             pedido.stockDevuelto = true;
+            pedido.stockDevueltoEn = new Date().toISOString();
             localStorage.setItem('productosV36', JSON.stringify(productosDB));
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
             if (huboDevolucion) renderizarCatalogo();
             try {
                 const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 for (const idProd of Object.keys(porProducto)) {
-                    let prod = productosDB.find(p => p.id === idProd);
+                    let prod = productosDB.find(p => String(p.id) === String(idProd));
                     if (!prod) continue;
                     await setDoc(doc(db, 'productos', idProd), Object.assign({}, prod, {
                         stockTotal: (prod.tallasObj||[]).reduce((s,t)=>s+(t.stock||0),0),
@@ -5573,7 +5579,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             nuevoEstado = normalizarEstadoPedido(nuevoEstado);
             pedido.estado = nuevoEstado;
             if (nuevoEstado === 'cancelado' && estadoAnterior !== 'cancelado') {
-                await devolverStockPedido(pedido);
+                try {
+                    await devolverStockPedido(pedido);
+                } catch (error) {
+                    pedido.estado = estadoAnterior;
+                    renderizarPedidosPanel();
+                    alert(error.message || 'No se pudo devolver el stock. El pedido no fue anulado.');
+                    return;
+                }
             }
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
             await persistirPedidoEnFirebase(pedido);
