@@ -3905,9 +3905,25 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (wrapEd) wrapEd.style.display = genero === 'Unisex' ? 'flex' : 'none';
         }
 
-        function abrirModalEditar(id) {
+        async function abrirModalEditar(id) {
             if (window.datosQuemados) return;
             let p = productosDB.find(x => x.id === id); if (!p) return;
+            // Antes de mostrar el formulario, traemos la versión más reciente
+            // del producto directamente desde Firebase. Esto evita pisar cambios
+            // de stock hechos por otras acciones (p.ej. una anulación de pedido)
+            // que hayan ocurrido después de que se cargó la copia local en memoria.
+            try {
+                const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const idDocumento = String(p._firebaseId || p.id);
+                const snapshotActual = await getDoc(doc(db, 'productos', idDocumento));
+                if (snapshotActual.exists()) {
+                    const datosFrescos = snapshotActual.data();
+                    Object.assign(p, datosFrescos, { _firebaseId: idDocumento });
+                    localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                }
+            } catch (e) {
+                console.log('No se pudo refrescar el producto antes de editar, se usa la copia local:', e.message);
+            }
             document.getElementById('edit-prod-id').value = p.id;
             document.getElementById('edit-prod-foto-file').value = '';
             // Inicializar gestor de fotos
