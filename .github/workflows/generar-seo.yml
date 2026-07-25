@@ -1,0 +1,70 @@
+
+Generar seo · YML
+name: Generar páginas SEO
+ 
+# Corre automáticamente todas las noches y también se puede lanzar a mano
+# desde la pestaña "Actions" de GitHub cuando quieras forzar una actualización
+# (por ejemplo, justo después de publicar productos nuevos).
+on:
+  schedule:
+    - cron: '0 8 * * *'   # 8:00 UTC = 3:00 a.m. hora Colombia
+  workflow_dispatch:
+    inputs:
+      modo_prueba:
+        description: '¿Solo probar? (sí = no publica nada, solo te da un ZIP para revisar)'
+        type: boolean
+        default: true
+ 
+permissions:
+  contents: write
+ 
+jobs:
+  generar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+ 
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+ 
+      - name: Generar páginas de producto, categoría, sitemap y robots.txt
+        run: node scripts/generar-seo.js
+ 
+      - name: 📦 Modo prueba — guardar resultado como ZIP para revisar
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.modo_prueba == true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: vista-previa-seo
+          path: |
+            producto/
+            categoria/
+            sitemap.xml
+            robots.txt
+          retention-days: 7
+ 
+      - name: Publicar cambios (solo si NO es modo prueba)
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.modo_prueba == true) }}
+        run: |
+          git config user.name "SEO Bot SuperKids"
+          git config user.email "seo-bot@superkidsbabys.com"
+          git add producto categoria sitemap.xml robots.txt
+          if git diff --cached --quiet; then
+            echo "No hay cambios en el catálogo, no se sube nada."
+          else
+            git commit -m "🤖 Actualizar páginas SEO del catálogo"
+            git push
+          fi
+ 
+
+
+
+
+
+
+
+
+
+
