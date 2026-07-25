@@ -2461,20 +2461,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                         const productosFirebaseActivos = filtrarProductosEliminados(productosFirebase);
                         const soloQuemadosNoEnFirebase = quemados.filter(q => !productosFirebaseActivos.find(f => f.id === q.id));
                         const nuevosProds = aplicarOrdenGuardadoLocal([...productosFirebaseActivos, ...soloQuemadosNoEnFirebase]);
-                        // Preservar stock descontado en memoria: si el producto ya tiene stock menor en memoria, no pisarlo
-                        nuevosProds.forEach(p => {
-                            const enMem = productosDB.find(m => m.id === p.id);
-                            if (enMem && enMem.tallasObj && p.tallasObj) {
-                                p.tallasObj = p.tallasObj.map(t => {
-                                    const tMem = enMem.tallasObj.find(tm => tm.nombre === t.nombre);
-                                    // Si el stock en memoria es menor, respetar el descuento ya aplicado
-                                    if (tMem && typeof tMem.stock === 'number' && tMem.stock < t.stock) {
-                                        return Object.assign({}, t, { stock: tMem.stock });
-                                    }
-                                    return t;
-                                });
-                            }
-                        });
                         productosDB = nuevosProds;
                         ordenarProductosPorOrdenVisual(productosDB, generoActual);
                         localStorage.setItem('productosV36', JSON.stringify(productosDB));
