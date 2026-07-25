@@ -11,7 +11,7 @@ on:
       modo_prueba:
         description: '¿Solo probar? (sí = no publica nada, solo te da un ZIP para revisar)'
         type: boolean
-        default: true
+        default: false
  
 permissions:
   contents: write
