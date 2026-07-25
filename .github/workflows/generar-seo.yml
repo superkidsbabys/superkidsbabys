@@ -1,7 +1,5 @@
-
-Generar seo · YML
 name: Generar páginas SEO
- 
+   
 # Corre automáticamente todas las noches y también se puede lanzar a mano
 # desde la pestaña "Actions" de GitHub cuando quieras forzar una actualización
 # (por ejemplo, justo después de publicar productos nuevos).
