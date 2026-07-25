@@ -60,6 +60,35 @@ function formatearPrecio(valor) {
   return num.toLocaleString('es-CO');
 }
  
+// ---------------------- Descripcion natural ----------------------
+// Antes esta funcion pegaba siempre el mismo texto robotico:
+// "Nombre - Categoria. Ropa importada... Precio: $X COP."
+// Ahora arma la frase usando la descripcion real del producto (si la
+// tiene cargada en el inventario) y varia la estructura de la frase
+// entre varias plantillas, para que no se repita igualita en las 427
+// paginas. Cada producto siempre cae en la misma plantilla (se elige
+// segun su id), asi el texto no cambia cada vez que se regenera.
+function generarDescripcion(producto, nombre, categoria, precio) {
+  const detalle = limpiarTexto(producto.desc).replace(/\.+$/, '');
+  const generoTexto = limpiarTexto(producto.genero || '').toLowerCase();
+  const publico = generoTexto.includes('niñ') ? generoTexto : 'bebés y niños';
+  const categoriaTexto = categoria ? categoria.toLowerCase() : 'ropa infantil importada';
+ 
+  const plantillas = [
+    () => `${nombre}.${detalle ? ' ' + detalle + '.' : ''} Disponible para ${publico}, con envío a toda Colombia y pago contra entrega.`,
+    () => `Descubre ${nombre.toLowerCase()}, parte de nuestra colección de ${categoriaTexto}.${detalle ? ' ' + detalle + '.' : ''} Precio: $${precio} COP, envíos a todo el país.`,
+    () => `${detalle ? detalle + '. ' : ''}${nombre}, ideal para ${publico}. Hace parte de nuestra línea de ${categoriaTexto}, disponible por $${precio} COP.`,
+    () => `${nombre} — ${categoriaTexto} para ${publico}.${detalle ? ' ' + detalle + '.' : ''} Compra segura y pago contra entrega en toda Colombia.`
+  ];
+ 
+  const idTexto = String(producto.id || nombre || '');
+  let suma = 0;
+  for (let i = 0; i < idTexto.length; i++) suma += idTexto.charCodeAt(i);
+  const plantilla = plantillas[suma % plantillas.length];
+ 
+  return limpiarTexto(plantilla());
+}
+ 
 // ---------------------- Lectura de Firestore ----------------------
 // Las colecciones 'productos' y 'categorias' ya se leen sin login
 // desde index.html (el catalogo publico), asi que este script lee
@@ -142,7 +171,7 @@ function paginaProducto(producto, slug) {
   const disponible = stock > 0;
   const url = `${SITE_URL}/producto/${slug}/`;
   const titulo = `${nombre} | ${MARCA}`;
-  const descripcion = `${nombre}${categoria ? ' - ' + categoria : ''}. Ropa importada para bebés y niños, envíos a toda Colombia. Precio: $${precio} COP.`;
+  const descripcion = generarDescripcion(producto, nombre, categoria, precio);
   const tallasDisponibles = Array.isArray(producto.tallasObj)
     ? producto.tallasObj.filter(t => (Number(t.stock) || 0) > 0).map(t => escaparHTML(t.nombre))
     : [];
@@ -414,13 +443,3 @@ main().catch(err => {
   process.exit(1);
 });
  
-
-
-
-
-
-
-
-
-
-
