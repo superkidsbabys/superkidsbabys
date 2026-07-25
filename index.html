@@ -3460,8 +3460,29 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
                 const _esAdmin = modoEdicion && window.usuarioActual && window.usuarioActual.rol === 'admin';
                 const btnEditarEliminar = _esAdmin ? `<div style="display:flex;gap:6px;margin-top:6px;"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button><button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button></div>` : '';
-                cont.innerHTML += `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia">REF: ${prod.codigo || 'S/N'}</span></div><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p><div class="precio-contenedor">${pNew}</div><div class="fila-tallas-curva">${htmlTallasChips}${btnCurva}</div>${btnAgregar}${btnEditarEliminar}</div></div>`;
+                cont.innerHTML += `<div class="producto" id="producto-card-${prod.id}"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia">REF: ${prod.codigo || 'S/N'}</span></div><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p><div class="precio-contenedor">${pNew}</div><div class="fila-tallas-curva">${htmlTallasChips}${btnCurva}</div>${btnAgregar}${btnEditarEliminar}</div></div>`;
             });
+
+            // Si alguien llega desde una página de producto de Google (o de
+            // WhatsApp) con "?producto=ID" en el link, lo llevamos derechito
+            // a esa prenda dentro del catálogo, con un resalte visual, en vez
+            // de dejarlo perdido buscando entre todas las demás.
+            resaltarProductoDesdeURL();
+        }
+
+        function resaltarProductoDesdeURL() {
+            if (window.__seoDeepLinkProcesado) return;
+            const idBuscado = new URLSearchParams(location.search).get('producto');
+            if (!idBuscado) return;
+            const tarjeta = document.getElementById('producto-card-' + idBuscado);
+            if (!tarjeta) return; // puede que aún no esté en el DOM (filtro/categoría distinta); se reintentará en el próximo render
+            window.__seoDeepLinkProcesado = true;
+            setTimeout(function() {
+                tarjeta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                tarjeta.style.transition = 'box-shadow 0.3s ease';
+                tarjeta.style.boxShadow = '0 0 0 4px #ff6bc4, 0 8px 24px rgba(255,77,184,0.35)';
+                setTimeout(function() { tarjeta.style.boxShadow = ''; }, 2600);
+            }, 300);
         }
 
         function obtenerTallaObjProducto(prod, talla) {
