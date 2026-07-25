@@ -1,5 +1,3 @@
-
-Generar seo · JS
 #!/usr/bin/env node
 /**
  * generar-seo.js
