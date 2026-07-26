@@ -72,7 +72,11 @@ function generarDescripcion(producto, nombre, categoria, precio) {
   const detalle = limpiarTexto(producto.desc).replace(/\.+$/, '');
   const generoTexto = limpiarTexto(producto.genero || '').toLowerCase();
   const publico = generoTexto.includes('niñ') ? generoTexto : 'bebés y niños';
-  const categoriaTexto = categoria ? categoria.toLowerCase() : 'ropa infantil importada';
+  // Algunas categorias en el inventario traen el precio pegado al final
+  // (ej: "Mamelucos/Enterizos $25.000"). Lo quitamos para no repetir el
+  // precio dos veces en la misma frase.
+  const categoriaLimpia = categoria.replace(/\s*\$[\d.,]+\s*$/, '').trim();
+  const categoriaTexto = categoriaLimpia ? categoriaLimpia.toLowerCase() : 'ropa infantil importada';
  
   const plantillas = [
     () => `${nombre}.${detalle ? ' ' + detalle + '.' : ''} Disponible para ${publico}, con envío a toda Colombia y pago contra entrega.`,
@@ -442,4 +446,3 @@ main().catch(err => {
   console.error('❌ Error generando el SEO:', err.message);
   process.exit(1);
 });
- 
