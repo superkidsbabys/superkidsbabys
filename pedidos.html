@@ -2155,8 +2155,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         };
 
         // ── BUSCADOR POR REFERENCIA (solo admin y Gina) ───────────────────────
-        const UID_GINA   = 'yI067cx29zbmiBOd9wyKcwp0HpF2';
-        const UID_YOHANA = 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3';
+        const UID_GINA    = 'yI067cx29zbmiBOd9wyKcwp0HpF2';
+        const UID_YOHANA  = 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3';
+        const UID_BIBIANA = 'MtQpryHLGYab5v3UjhRZw88CAD63';
 
         function mostrarBuscadorRef() {
             const u = window.usuarioActual;
@@ -5138,7 +5139,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
             var buscar = (document.getElementById('stock-buscar') || {value:''}).value.trim().toLowerCase();
             var filtroCat = (document.getElementById('stock-filtro-cat') || {value:''}).value;
-            var puedeEditarStock = !!(window.usuarioActual && (window.usuarioActual.uid === UID_GINA || window.usuarioActual.rol === 'admin'));
+            var puedeEditarStock = !!(window.usuarioActual && (window.usuarioActual.uid === UID_GINA || window.usuarioActual.uid === UID_BIBIANA || window.usuarioActual.rol === 'admin'));
 
             // Poblar select de categorías (solo la primera vez o si cambió)
             var selCat = document.getElementById('stock-filtro-cat');
@@ -5258,7 +5259,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         function usuarioPuedeEditarStockRestringido() {
-            return !!(window.usuarioActual && (window.usuarioActual.uid === UID_GINA || window.usuarioActual.rol === 'admin'));
+            return !!(window.usuarioActual && (window.usuarioActual.uid === UID_GINA || window.usuarioActual.uid === UID_BIBIANA || window.usuarioActual.rol === 'admin'));
         }
 
         function abrirEditarStockGina(idProducto) {
