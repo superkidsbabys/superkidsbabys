@@ -137,10 +137,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         if (usuarioActual.rol === 'admin') {
           setTimeout(() => { if (window._setModoEdicion) window._setModoEdicion(true); }, 900);
         }
-        // Cargar historial de inventario si la pestaña ya está activa
-        if (usuarioActual.rol === 'asesora') {
-          setTimeout(() => { if (typeof cargarHistorialInventario === 'function') cargarHistorialInventario(); if (typeof cargarHistorialSalidas === 'function') cargarHistorialSalidas(); }, 1000);
-        }
+        // Los historiales se cargan solo al abrir Inventario para evitar lecturas
+        // duplicadas durante el inicio de sesión.
         // Cargar orden manual desde Firebase al autenticarse
         // Solo cargar orden desde Firebase si ya fue guardado correctamente con el botón naranja
         if (localStorage.getItem('ordenFirebaseActivo') === '1') {
@@ -4918,15 +4916,27 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         async function cargarClientesGestion() {
             if (!window.usuarioActual) return;
+            const ahora = Date.now();
+            if (window._clientesGestionCargadosEn && ahora - window._clientesGestionCargadosEn < 600000) {
+                actualizarDatalistClientesGestion();
+                return;
+            }
+            if (window._cargaClientesGestion) return window._cargaClientesGestion;
+            window._cargaClientesGestion = (async function() {
             try {
                 const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const snap = await getDocs(collection(db, 'clientes'));
                 window.clientesGestionCache = [];
                 snap.forEach(d => window.clientesGestionCache.push(d.data()));
+                window._clientesGestionCargadosEn = Date.now();
                 actualizarDatalistClientesGestion();
             } catch(e) {
                 console.log('No se pudieron cargar clientes de gestion:', e.message);
+            } finally {
+                window._cargaClientesGestion = null;
             }
+            })();
+            return window._cargaClientesGestion;
         }
 
         function actualizarDatalistClientesGestion() {
@@ -7242,21 +7252,18 @@ ${ped.comprobanteUrl ? `
             return m ? parseInt(m[0], 10) : 0;
         }
 
-        async function obtenerReferenciasInventarioMercancia() {
-            const refs = [];
-            try {
-                const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const snap = await getDocs(collection(db, 'inventario_mercancia'));
-                snap.forEach(d => refs.push(String((d.data() || {}).ref || '').trim()));
-            } catch(e) {}
-            return refs.filter(Boolean);
-        }
-
         async function referenciaInventarioExiste(ref) {
             const buscada = String(ref || '').trim();
             if (!buscada) return false;
-            const refs = await obtenerReferenciasInventarioMercancia();
-            return refs.some(r => r === buscada);
+            try {
+                const { collection, getDocs, limit, query, where } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const q = query(collection(db, 'inventario_mercancia'), where('ref', '==', buscada), limit(1));
+                const snap = await getDocs(q);
+                return !snap.empty;
+            } catch(e) {
+                console.log('No se pudo comprobar la referencia:', e);
+                return false;
+            }
         }
 
         async function obtenerUltimaReferenciaInventarioMercancia() {
@@ -7274,7 +7281,6 @@ ${ped.comprobanteUrl ? `
         }
 
         async function calcularSiguienteReferenciaInventario() {
-            const refs = await obtenerReferenciasInventarioMercancia();
             const guardadaLocal = parseInt(localStorage.getItem(CLAVE_SIGUIENTE_REF_INVENTARIO) || '0', 10) || 0;
             const ultimaRef = await obtenerUltimaReferenciaInventarioMercancia();
             const ultimoNumero = obtenerNumeroReferenciaInventario(ultimaRef);
@@ -7284,8 +7290,7 @@ ${ped.comprobanteUrl ? `
             let siguiente = ultimoNumero > 0
                 ? ultimoNumero + 1
                 : (guardadaLocal > 0 ? guardadaLocal : REF_INVENTARIO_BASE);
-            const usadas = new Set(refs.map(ref => obtenerNumeroReferenciaInventario(ref)).filter(Boolean));
-            while (usadas.has(siguiente)) siguiente++;
+            while (await referenciaInventarioExiste(String(siguiente))) siguiente++;
             localStorage.setItem(CLAVE_SIGUIENTE_REF_INVENTARIO, String(siguiente));
             return siguiente;
         }
@@ -7449,8 +7454,8 @@ ${ped.comprobanteUrl ? `
             const cont = document.getElementById('inv-historial');
             if (!cont) return;
             try {
-                const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const q = query(collection(db, 'inventario_mercancia'), orderBy('timestamp', 'desc'));
+                const { collection, getDocs, limit, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const q = query(collection(db, 'inventario_mercancia'), orderBy('timestamp', 'desc'), limit(200));
                 const snap = await getDocs(q);
                 if (snap.empty) { const contador = document.getElementById('inv-historial-contador'); if (contador) contador.textContent = '(0)'; cont.innerHTML = '<p style="color:#888;text-align:center;font-size:0.85em;">Sin entradas registradas aun</p>'; return; }
                 const contador = document.getElementById('inv-historial-contador');
@@ -7682,8 +7687,12 @@ ${ped.comprobanteUrl ? `
             if (!desde && !hasta) { cont.innerHTML = ''; actualizarBotonResumenInventario(); return; }
             cont.innerHTML = '<p style="color:#6b8b78;font-weight:800;margin:0;">Cargando resumen...</p>';
             try {
-                const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const q = query(collection(db, 'inventario_mercancia'), orderBy('timestamp', 'desc'));
+                const { collection, getDocs, orderBy, query, where } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const filtrosFecha = [];
+                if (desde) filtrosFecha.push(where('fecha', '>=', desde));
+                if (hasta) filtrosFecha.push(where('fecha', '<=', hasta));
+                filtrosFecha.push(orderBy('fecha', 'desc'));
+                const q = query(collection(db, 'inventario_mercancia'), ...filtrosFecha);
                 const snap = await getDocs(q);
                 let entradas = [];
                 snap.forEach(d => entradas.push(Object.assign({ id: d.id }, d.data())));
@@ -7938,8 +7947,8 @@ ${ped.comprobanteUrl ? `
             const cont = document.getElementById('sal-historial');
             if (!cont) return;
             try {
-                const { collection, getDocs, orderBy, query, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const q = query(collection(db, 'inventario_salidas'), orderBy('timestamp', 'desc'));
+                const { collection, getDocs, limit, orderBy, query, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const q = query(collection(db, 'inventario_salidas'), orderBy('timestamp', 'desc'), limit(200));
                 const snap = await getDocs(q);
                 if (snap.empty) { cont.innerHTML = '<p style="color:#888;text-align:center;font-size:0.85em;">Sin salidas registradas aún</p>'; return; }
                 cont.innerHTML = '';
