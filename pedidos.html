@@ -1596,7 +1596,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <div id="inv-resumen-visual" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;"></div>
                     </div>
 
-                    <div id="panel-migracion-r2" style="display:none;margin-top:16px;background:#fff8e8;border:1.5px solid #f0bd59;border-radius:12px;padding:14px;">
+                    <div id="panel-migracion-r2" style="display:none !important;margin-top:16px;background:#fff8e8;border:1.5px solid #f0bd59;border-radius:12px;padding:14px;">
                         <h4 style="margin:0 0 5px;color:#9a5b00;">Migración segura de fotos a Cloudflare R2</h4>
                         <p style="margin:0 0 10px;color:#76551e;font-size:0.78em;font-weight:700;line-height:1.4;">Copia 5 productos por vez. Primero verifica las fotos nuevas y después actualiza Firebase. Los enlaces de Cloudinary se conservan como respaldo y no se elimina ninguna imagen.</p>
                         <div id="migracion-r2-resumen" style="background:white;border:1px solid #f4d89c;border-radius:9px;padding:9px 11px;color:#76551e;font-size:0.82em;font-weight:800;margin-bottom:9px;">Calculando...</div>
