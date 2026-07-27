@@ -7129,16 +7129,13 @@ ${ped.comprobanteUrl ? `
             const pendientes = window._pendientesCatalogoDatos || [];
             if (!lista) return;
             if (reiniciar) { lista.innerHTML = ''; _pendientesRenderizados = 0; }
-            const fin = Math.min(_pendientesRenderizados + PENDIENTES_POR_PAGINA, pendientes.length);
+            const fin = pendientes.length;
             let tarjetas = '';
             for (let i = _pendientesRenderizados; i < fin; i++) tarjetas += tarjetaPendienteHtml(pendientes[i], i);
             const botonAnterior = document.getElementById('btn-mas-pendientes');
             if (botonAnterior) botonAnterior.remove();
             lista.insertAdjacentHTML('beforeend', tarjetas);
             _pendientesRenderizados = fin;
-            if (fin < pendientes.length) {
-                lista.insertAdjacentHTML('beforeend', '<button id="btn-mas-pendientes" type="button" onclick="mostrarMasPendientesCatalogo()" style="grid-column:1/-1;border:1.5px solid #e8a6cb;background:#fff0f8;color:#a52f73;border-radius:10px;padding:10px;font-weight:900;cursor:pointer;">Mostrar 12 más · '+fin+' de '+pendientes.length+'</button>');
-            }
         }
 
         function mostrarMasPendientesCatalogo() {
@@ -7450,17 +7447,29 @@ ${ped.comprobanteUrl ? `
             }
         }
 
-        async function cargarHistorialInventario() {
+        async function cargarHistorialInventario(cargarMas) {
             const cont = document.getElementById('inv-historial');
             if (!cont) return;
-            try {
-                const { collection, getDocs, limit, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const q = query(collection(db, 'inventario_mercancia'), orderBy('timestamp', 'desc'), limit(200));
-                const snap = await getDocs(q);
-                if (snap.empty) { const contador = document.getElementById('inv-historial-contador'); if (contador) contador.textContent = '(0)'; cont.innerHTML = '<p style="color:#888;text-align:center;font-size:0.85em;">Sin entradas registradas aun</p>'; return; }
-                const contador = document.getElementById('inv-historial-contador');
-                if (contador) contador.textContent = '(' + snap.size + ')';
+            const botonAnterior = document.getElementById('btn-mas-entradas-inventario');
+            if (botonAnterior) botonAnterior.remove();
+            if (!cargarMas) {
+                window._ultimoDocEntradasInventario = null;
+                window._entradasInventarioCargadas = 0;
                 cont.innerHTML = '';
+            }
+            try {
+                const { collection, getDocs, limit, orderBy, query, startAfter } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const restricciones = [orderBy('timestamp', 'desc')];
+                if (cargarMas && window._ultimoDocEntradasInventario) restricciones.push(startAfter(window._ultimoDocEntradasInventario));
+                restricciones.push(limit(200));
+                const q = query(collection(db, 'inventario_mercancia'), ...restricciones);
+                const snap = await getDocs(q);
+                if (snap.empty && !cargarMas) { const contador = document.getElementById('inv-historial-contador'); if (contador) contador.textContent = '(0)'; cont.innerHTML = '<p style="color:#888;text-align:center;font-size:0.85em;">Sin entradas registradas aun</p>'; return; }
+                if (snap.empty) return;
+                window._ultimoDocEntradasInventario = snap.docs[snap.docs.length - 1];
+                window._entradasInventarioCargadas = Number(window._entradasInventarioCargadas || 0) + snap.size;
+                const contador = document.getElementById('inv-historial-contador');
+                if (contador) contador.textContent = '(' + window._entradasInventarioCargadas + ' mostradas)';
                 snap.forEach(docSnap => {
                     const e = docSnap.data();
                     const fechaHoraEntrada = e.timestamp && typeof e.timestamp.toDate === 'function'
@@ -7491,6 +7500,15 @@ ${ped.comprobanteUrl ? `
                         +(window.usuarioActual && (window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' || window.usuarioActual.uid === 'MtQpryHLGYab5v3UjhRZw88CAD63') ? '<button data-id="'+docSnap.id+'" data-ref="'+(e.ref||'')+'" data-desc="'+encodeURIComponent(e.desc||'')+'" data-valor="'+Number(e.valor||0)+'" data-tallas="'+encodeURIComponent(JSON.stringify(e.tallas||[]))+'" data-fotos="'+encodeURIComponent(JSON.stringify(fotosEntrada))+'" onclick="abrirEditarEntradaBtn(this)" style="background:#e8f5e9;color:#1a7a4a;border:1px solid #a8e6c1;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;margin-left:6px;">Editar</button>' : '') + '</div>';
                     cont.appendChild(card);
                 });
+                if (snap.size === 200) {
+                    const btnMas = document.createElement('button');
+                    btnMas.id = 'btn-mas-entradas-inventario';
+                    btnMas.type = 'button';
+                    btnMas.textContent = 'Mostrar 200 entradas anteriores';
+                    btnMas.onclick = function() { cargarHistorialInventario(true); };
+                    btnMas.style.cssText = 'width:100%;margin-top:8px;background:#eefaf2;color:#1a7a4a;border:1.5px solid #a8e6c1;border-radius:10px;padding:11px;font-family:Nunito,sans-serif;font-weight:900;cursor:pointer;';
+                    cont.appendChild(btnMas);
+                }
             } catch(e) {
                 cont.innerHTML = '<p style="color:#e74c3c;font-size:0.85em;">Error cargando historial</p>';
             }
