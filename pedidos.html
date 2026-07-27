@@ -7483,7 +7483,7 @@ ${ped.comprobanteUrl ? `
                         +'<div style="margin-bottom:6px;display:flex;gap:4px;flex-wrap:wrap;">'+tallasHtml+'</div>'
                         +(e.obs ? '<div style="font-size:0.78em;color:#666;background:#f8f8f8;padding:6px 10px;border-radius:8px;margin-bottom:6px;">'+e.obs+'</div>' : '')
                         +'<button onclick="eliminarEntradaInventario(\'' + docSnap.id + '\')" style="background:#fde8e8;color:#e74c3c;border:1px solid #f5c6c6;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;">Eliminar</button>'
-                        +(window.usuarioActual && window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' ? '<button data-id="'+docSnap.id+'" data-ref="'+(e.ref||'')+'" data-desc="'+encodeURIComponent(e.desc||'')+'" data-tallas="'+encodeURIComponent(JSON.stringify(e.tallas||[]))+'" data-fotos="'+encodeURIComponent(JSON.stringify(fotosEntrada))+'" onclick="abrirEditarEntradaBtn(this)" style="background:#e8f5e9;color:#1a7a4a;border:1px solid #a8e6c1;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;margin-left:6px;">Editar</button>' : '') + '</div>';
+                        +(window.usuarioActual && (window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' || window.usuarioActual.uid === 'MtQpryHLGYab5v3UjhRZw88CAD63') ? '<button data-id="'+docSnap.id+'" data-ref="'+(e.ref||'')+'" data-desc="'+encodeURIComponent(e.desc||'')+'" data-valor="'+Number(e.valor||0)+'" data-tallas="'+encodeURIComponent(JSON.stringify(e.tallas||[]))+'" data-fotos="'+encodeURIComponent(JSON.stringify(fotosEntrada))+'" onclick="abrirEditarEntradaBtn(this)" style="background:#e8f5e9;color:#1a7a4a;border:1px solid #a8e6c1;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;margin-left:6px;">Editar</button>' : '') + '</div>';
                     cont.appendChild(card);
                 });
             } catch(e) {
@@ -7724,15 +7724,17 @@ ${ped.comprobanteUrl ? `
             var id = btn.getAttribute('data-id');
             var ref = btn.getAttribute('data-ref');
             var descEncoded = btn.getAttribute('data-desc');
+            var valor = Number(btn.getAttribute('data-valor') || 0);
             var tallasJson = JSON.parse(decodeURIComponent(btn.getAttribute('data-tallas')));
             var fotosJson = JSON.parse(decodeURIComponent(btn.getAttribute('data-fotos') || '%5B%5D'));
-            abrirEditarEntrada(id, ref, descEncoded, tallasJson, fotosJson);
+            abrirEditarEntrada(id, ref, descEncoded, valor, tallasJson, fotosJson);
         }
 
-        function abrirEditarEntrada(id, ref, descEncoded, tallasJson, fotosJson) {
+        function abrirEditarEntrada(id, ref, descEncoded, valor, tallasJson, fotosJson) {
             document.getElementById('edit-entrada-id').value = id;
             document.getElementById('edit-entrada-ref').value = ref;
             document.getElementById('edit-entrada-desc').value = decodeURIComponent(descEncoded);
+            document.getElementById('edit-entrada-valor').value = Number(valor || 0);
             var cont = document.getElementById('edit-entrada-tallas-cont');
             cont.innerHTML = '';
             var tallas = typeof tallasJson === 'string' ? JSON.parse(tallasJson) : tallasJson;
@@ -7806,10 +7808,11 @@ ${ped.comprobanteUrl ? `
             var id = document.getElementById('edit-entrada-id').value;
             var ref = document.getElementById('edit-entrada-ref').value.trim();
             var desc = document.getElementById('edit-entrada-desc').value.trim();
+            var valor = Math.max(0, Number(document.getElementById('edit-entrada-valor').value) || 0);
             var msg = document.getElementById('edit-entrada-msg');
-            if (!ref || !desc) {
+            if (!ref || !desc || valor <= 0) {
                 msg.style.color = '#e74c3c';
-                msg.textContent = '⚠️ Completa referencia y descripción';
+                msg.textContent = '⚠️ Completa referencia, nombre y precio de llegada';
                 msg.style.display = 'block';
                 return;
             }
@@ -7833,7 +7836,7 @@ ${ped.comprobanteUrl ? `
                     fotosFinales = fotosFinales.concat(nuevasUrls);
                 }
                 await updateDoc(doc(db, 'inventario_mercancia', id), {
-                    ref: ref, desc: desc, tallas: tallas,
+                    ref: ref, desc: desc, valor: valor, tallas: tallas,
                     fotoUrls: fotosFinales,
                     fotoUrl: fotosFinales[0] || ''
                 });
@@ -8938,6 +8941,10 @@ ${ped.comprobanteUrl ? `
     <div style="margin-bottom:10px;">
       <label style="font-size:0.8em;color:#555;font-weight:700;">👗 Descripción</label>
       <input type="text" id="edit-entrada-desc" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:0.8em;color:#555;font-weight:700;">💰 Precio de llegada por unidad</label>
+      <input type="number" id="edit-entrada-valor" min="1" step="1" inputmode="numeric" placeholder="Ej: 25000" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;box-sizing:border-box;">
     </div>
     <div style="margin-bottom:10px;">
       <label style="font-size:0.8em;color:#555;font-weight:700;">📏 Tallas y Cantidades</label>
