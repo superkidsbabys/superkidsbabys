@@ -1049,6 +1049,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         .fila-talla { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
         .fila-talla input[type="text"] { flex: 2; }
         .fila-talla input[type="number"] { flex: 1; }
+        .opciones-venta-selector { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 10px; }
+        .opcion-venta-btn { flex:1; min-width:82px; border:1.5px solid #ead1e3; background:#fff; color:#71445f; border-radius:9px; padding:7px 5px; font-family:Nunito,sans-serif; font-size:.78em; font-weight:900; cursor:pointer; line-height:1.2; }
+        .opcion-venta-btn.seleccionada { background:#ff4db8; border-color:#ff4db8; color:#fff; box-shadow:0 3px 9px rgba(255,77,184,.25); }
+        .opcion-venta-precio { display:block; font-size:.88em; margin-top:2px; }
+        .opciones-venta-admin { background:#fff7fc; border:1px solid #f1c7df; border-radius:10px; padding:12px; margin-top:10px; }
+        .opcion-venta-fila { display:grid; grid-template-columns:1.1fr 1fr .85fr .85fr .55fr; gap:6px; margin-top:7px; }
+        .opcion-venta-fila input { min-width:0; padding:8px!important; font-size:.82em; }
+        @media(max-width:600px) { .opcion-venta-fila { grid-template-columns:1fr 1fr; } .opcion-venta-fila .opv-foto { grid-column:span 2; } }
         .btn-remover-fila { background: #e74c3c; color: white; border: none; border-radius: 4px; padding: 8px; cursor: pointer; font-weight: bold;}
 
         .lista-tags { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;}
@@ -1752,6 +1760,17 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             <div style="display: flex; gap: 10px;">
                 <div style="flex: 1;"><label>Precio Anterior:</label><input type="number" id="edit-prod-precio-ant" style="width: 100%;"></div>
                 <div style="flex: 1;"><label>Precio Actual*:</label><input type="number" id="edit-prod-precio" required="" style="width: 100%;"></div>
+            </div>
+            <div class="opciones-venta-admin">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;">
+                    <input type="checkbox" id="edit-opciones-venta-activo" onchange="toggleOpcionesVentaEdit()" style="width:18px;height:18px;accent-color:#ff4db8;">
+                    <strong>Vender el set completo o por separado</strong>
+                </label>
+                <p style="font-size:.76em;color:#76566a;margin:5px 0 0;">Cada opción tiene su propia referencia, precio y foto. Las tallas y cantidades se conservan abajo.</p>
+                <div id="edit-opciones-venta-contenido" style="display:none;">
+                    <div class="opcion-venta-fila" style="font-size:.68em;font-weight:900;color:#876276;text-align:center;"><span>Opción</span><span>Referencia</span><span>Precio</span><span>Anterior</span><span>Foto #</span></div>
+                    <div id="edit-opciones-venta-filas"></div>
+                </div>
             </div>
             <label>Etiqueta Especial:</label> <input type="text" id="edit-prod-etiqueta" placeholder="Ej: Oferta, Nuevo">
             <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; margin-top: 10px;">
@@ -3262,6 +3281,56 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             document.getElementById('contenedor-tallas-stock').appendChild(div);
         }
 
+        function opcionesVentaActivas(prod) {
+            return !!(prod && prod.ventaSeparada && Array.isArray(prod.opcionesVenta) && prod.opcionesVenta.length);
+        }
+
+        function opcionVentaInicial(prod) {
+            return opcionesVentaActivas(prod) ? prod.opcionesVenta[0] : null;
+        }
+
+        function escaparAtributo(valor) {
+            return String(valor == null ? '' : valor).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        function htmlPrecioOpcion(opcion, prod) {
+            const precio = Number(opcion ? opcion.precio : prod.precio) || 0;
+            const anterior = Number(opcion ? opcion.precioAnterior : prod.precioAnterior) || 0;
+            return anterior > precio
+                ? `<span class="precio-tachado">${formatMoney(anterior)}</span><span class="precio-nuevo">${formatMoney(precio)}</span>`
+                : `<div class="precio-nuevo">${formatMoney(precio)}</div>`;
+        }
+
+        function seleccionarOpcionVenta(prodId, opcionId, boton) {
+            const prod = productosDB.find(p => String(p.id) === String(prodId));
+            if (!prod || !opcionesVentaActivas(prod)) return;
+            const opcion = prod.opcionesVenta.find(o => String(o.id) === String(opcionId));
+            if (!opcion) return;
+            const cont = document.getElementById(`opciones-venta-${prodId}`);
+            if (cont) {
+                cont.dataset.seleccion = opcion.id;
+                cont.querySelectorAll('.opcion-venta-btn').forEach(b => b.classList.remove('seleccionada'));
+            }
+            if (boton) boton.classList.add('seleccionada');
+            const ref = document.getElementById(`ref-producto-${prodId}`);
+            const precio = document.getElementById(`precio-producto-${prodId}`);
+            if (ref) ref.textContent = 'REF: ' + (opcion.codigo || prod.codigo || 'S/N');
+            if (precio) precio.innerHTML = htmlPrecioOpcion(opcion, prod);
+            const foto = (prod.imagenes || [])[Math.max(1, parseInt(opcion.imgIndex, 10) || 1) - 1];
+            if (foto) {
+                const img = document.getElementById(`img-pr-${prodId}`);
+                if (img) img.src = optimizarUrl(foto);
+                document.querySelectorAll(`#producto-card-${prodId} .thumb`).forEach(t => t.classList.toggle('activo', t.dataset.url === foto));
+            }
+        }
+
+        function htmlSelectorOpcionesVenta(prod) {
+            if (!opcionesVentaActivas(prod)) return '';
+            return `<div class="opciones-venta-selector" id="opciones-venta-${prod.id}" data-seleccion="${escaparAtributo(prod.opcionesVenta[0].id)}">${prod.opcionesVenta.map((o,i) =>
+                `<button type="button" class="opcion-venta-btn${i===0?' seleccionada':''}" onclick="seleccionarOpcionVenta('${prod.id}','${escaparAtributo(o.id)}',this)">${o.nombre}<span class="opcion-venta-precio">${formatMoney(o.precio)}</span></button>`
+            ).join('')}</div>`;
+        }
+
         let subcategoriasCatalogoAbiertas = {};
 
         function obtenerSubcategoriaCatalogo(prod) {
@@ -3440,10 +3509,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     htmlTallasChips = `<div class="contenedor-tallas-chips" id="contenedor-tallas-${prod.id}">${chips}</div>`;
                 } else { hayStockTotal = true; }
 
-                let descH = "", customH = "", pNew = `<div class="precio-nuevo">${formatMoney(prod.precio)}</div>`;
-                if (prod.precioAnterior > prod.precio) {
-                    descH = `<div class="etiqueta-descuento">-${Math.round((1 - prod.precio / prod.precioAnterior) * 100)}%</div>`;
-                    pNew = `<span class="precio-tachado">${formatMoney(prod.precioAnterior)}</span><span class="precio-nuevo">${formatMoney(prod.precio)}</span>`;
+                let opcionInicial = opcionVentaInicial(prod);
+                let precioVisible = opcionInicial ? Number(opcionInicial.precio || 0) : Number(prod.precio || 0);
+                let anteriorVisible = opcionInicial ? Number(opcionInicial.precioAnterior || 0) : Number(prod.precioAnterior || 0);
+                let descH = "", customH = "", pNew = htmlPrecioOpcion(opcionInicial, prod);
+                if (anteriorVisible > precioVisible) {
+                    descH = `<div class="etiqueta-descuento">-${Math.round((1 - precioVisible / anteriorVisible) * 100)}%</div>`;
                 }
                 if (prod.etiquetaPersonalizada) customH = `<div class="etiqueta-custom">${prod.etiquetaPersonalizada}</div>`;
                 let imgs = prod.imagenes || [prod.img || "https://via.placeholder.com/600?text=Sin+Imagen"];
@@ -3460,7 +3531,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
                 const _esAdmin = modoEdicion && window.usuarioActual && window.usuarioActual.rol === 'admin';
                 const btnEditarEliminar = _esAdmin ? `<div style="display:flex;gap:6px;margin-top:6px;"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button><button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button></div>` : '';
-                cont.innerHTML += `<div class="producto" id="producto-card-${prod.id}"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia">REF: ${prod.codigo || 'S/N'}</span></div><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p><div class="precio-contenedor">${pNew}</div><div class="fila-tallas-curva">${htmlTallasChips}${btnCurva}</div>${btnAgregar}${btnEditarEliminar}</div></div>`;
+                const refVisible = opcionInicial ? (opcionInicial.codigo || prod.codigo) : prod.codigo;
+                cont.innerHTML += `<div class="producto" id="producto-card-${prod.id}"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia" id="ref-producto-${prod.id}">REF: ${refVisible || 'S/N'}</span></div><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p>${htmlSelectorOpcionesVenta(prod)}<div class="precio-contenedor" id="precio-producto-${prod.id}">${pNew}</div><div class="fila-tallas-curva">${htmlTallasChips}${btnCurva}</div>${btnAgregar}${btnEditarEliminar}</div></div>`;
             });
 
             // Si alguien llega desde una página de producto de Google (o de
@@ -3669,6 +3741,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             document.getElementById('edit-prod-desc').value = p.desc || '';
             document.getElementById('edit-prod-precio').value = p.precio || '';
             document.getElementById('edit-prod-precio-ant').value = p.precioAnterior || '';
+            document.getElementById('edit-opciones-venta-activo').checked = opcionesVentaActivas(p);
+            renderOpcionesVentaEdit(p.opcionesVenta);
             document.getElementById('edit-prod-etiqueta').value = p.etiquetaPersonalizada || '';
             let contTallas = document.getElementById('contenedor-edit-tallas-stock'); contTallas.innerHTML = '';
             if (p.tallasObj && p.tallasObj.length > 0) p.tallasObj.forEach(t => agregarFilaTallaEdit(t.nombre, t.stock, t.imgIndex || ''));
@@ -3706,6 +3780,48 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 var tit = form.querySelector('h3');
                 if (tit) tit.textContent = '✏️ Editar Producto';
             }
+        }
+
+        function opcionesVentaPredeterminadas() {
+            return [
+                { id:'set', nombre:'Set completo', codigo:'', precio:'', precioAnterior:'', imgIndex:1 },
+                { id:'blusa', nombre:'Solo blusa', codigo:'', precio:'', precioAnterior:'', imgIndex:2 },
+                { id:'jean', nombre:'Solo jean', codigo:'', precio:'', precioAnterior:'', imgIndex:3 }
+            ];
+        }
+
+        function toggleOpcionesVentaEdit() {
+            const activo = document.getElementById('edit-opciones-venta-activo').checked;
+            document.getElementById('edit-opciones-venta-contenido').style.display = activo ? 'block' : 'none';
+        }
+
+        function renderOpcionesVentaEdit(opciones) {
+            const lista = Array.isArray(opciones) && opciones.length ? opciones : opcionesVentaPredeterminadas();
+            const cont = document.getElementById('edit-opciones-venta-filas');
+            cont.innerHTML = lista.map(o => `<div class="opcion-venta-fila" data-id="${escaparAtributo(o.id)}">
+                <input class="opv-nombre" type="text" placeholder="Nombre" value="${escaparAtributo(o.nombre)}">
+                <input class="opv-codigo" type="text" placeholder="REF" value="${escaparAtributo(o.codigo)}">
+                <input class="opv-precio" type="number" min="0" placeholder="Precio" value="${escaparAtributo(o.precio)}">
+                <input class="opv-anterior" type="number" min="0" placeholder="Anterior" value="${escaparAtributo(o.precioAnterior)}">
+                <input class="opv-foto" type="number" min="1" placeholder="Foto #" value="${escaparAtributo(o.imgIndex || 1)}">
+            </div>`).join('');
+            toggleOpcionesVentaEdit();
+        }
+
+        function leerOpcionesVentaEdit() {
+            const opciones = [];
+            document.querySelectorAll('#edit-opciones-venta-filas .opcion-venta-fila').forEach((fila, index) => {
+                const nombre = fila.querySelector('.opv-nombre').value.trim();
+                const codigo = fila.querySelector('.opv-codigo').value.trim();
+                const precio = parseInt(fila.querySelector('.opv-precio').value, 10);
+                if (nombre && codigo && !isNaN(precio) && precio > 0) opciones.push({
+                    id: fila.dataset.id || ('opcion-' + index),
+                    nombre, codigo, precio,
+                    precioAnterior: parseInt(fila.querySelector('.opv-anterior').value, 10) || null,
+                    imgIndex: parseInt(fila.querySelector('.opv-foto').value, 10) || 1
+                });
+            });
+            return opciones;
         }
 
         function agregarFilaTallaEdit(nom = '', stk = '', imgIndex = '') {
@@ -3892,6 +4008,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 p.desc = document.getElementById('edit-prod-desc').value;
                 p.precio = parseInt(document.getElementById('edit-prod-precio').value) || 0;
                 p.precioAnterior = parseInt(document.getElementById('edit-prod-precio-ant').value) || null;
+                p.ventaSeparada = document.getElementById('edit-opciones-venta-activo').checked;
+                p.opcionesVenta = p.ventaSeparada ? leerOpcionesVentaEdit() : [];
+                if (p.ventaSeparada && p.opcionesVenta.length < 2) throw new Error('Completa al menos dos opciones de venta con nombre, referencia y precio.');
                 p.etiquetaPersonalizada = document.getElementById('edit-prod-etiqueta').value;
                 let tallasObjArr = [];
                 document.querySelectorAll('#contenedor-edit-tallas-stock .fila-talla').forEach(fila => {
@@ -4159,6 +4278,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         function agregarAlCarrito(id) {
             let p = productosDB.find(x => x.id === id);
+            let opcion = null;
+            if (opcionesVentaActivas(p)) {
+                const selector = document.getElementById(`opciones-venta-${id}`);
+                const opcionId = selector ? selector.dataset.seleccion : p.opcionesVenta[0].id;
+                opcion = p.opcionesVenta.find(o => String(o.id) === String(opcionId)) || p.opcionesVenta[0];
+            }
             let tallaSeleccionada = null;
             if (p.tallasObj && p.tallasObj.length > 0) {
                 let chipSeleccionado = document.getElementById(`contenedor-tallas-${id}`).querySelector('.chip-talla.seleccionada');
@@ -4171,7 +4296,17 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             if (yaEnCarrito >= stockDisponible) {
                 return alert('Solo hay ' + stockDisponible + ' unidad(es) disponible(s) en talla ' + (tallaSeleccionada || 'Única') + '.');
             }
-            carrito.push({ id: p.id, codigo: p.codigo, nombre: p.nombre, precio: p.precio, talla: tallaSeleccionada, imagen: obtenerImagenProducto(p, tallaSeleccionada) });
+            const fotoOpcion = opcion && (p.imagenes || [])[Math.max(1, parseInt(opcion.imgIndex,10)||1)-1];
+            carrito.push({
+                id: p.id,
+                codigo: opcion ? opcion.codigo : p.codigo,
+                nombre: p.nombre + (opcion ? ' — ' + opcion.nombre : ''),
+                precio: opcion ? opcion.precio : p.precio,
+                talla: tallaSeleccionada,
+                opcionVenta: opcion ? opcion.nombre : '',
+                opcionVentaId: opcion ? opcion.id : '',
+                imagen: fotoOpcion || obtenerImagenProducto(p, tallaSeleccionada)
+            });
             renderCarrito();
         }
 
