@@ -7177,6 +7177,7 @@ ${ped.comprobanteUrl ? `
                 + '<div style="display:flex;gap:10px;align-items:flex-start;">'+fotos+'<div style="min-width:0;flex:1;">'
                 + '<div style="color:#c1287e;font-weight:900;font-size:.9em;">REF: '+escapeHtml(p.ref)+'</div>'
                 + '<div style="color:#27313a;font-weight:900;font-size:.86em;margin-top:2px;">'+escapeHtml(p.desc || 'Sin descripción')+'</div>'
+                + '<div style="color:#1a7a4a;font-weight:900;font-size:.82em;margin-top:4px;">💰 Precio registrado: '+(Number(p.valor || 0) > 0 ? formatMoney(p.valor) : 'Sin precio')+'</div>'
                 + '<div style="color:#8a7782;font-size:.72em;margin-top:5px;">'+escapeHtml(p.fecha || 'Sin fecha')+(p.registradoPor ? ' · '+escapeHtml(p.registradoPor) : '')+(p.entradas > 1 ? ' · '+p.entradas+' entradas' : '')+'</div>'
                 + '</div></div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;">'+(tallas || '<span style="color:#999;font-size:.74em;">Sin cantidades</span>')+'</div>'
                 + '<button type="button" onclick="publicarPendienteCatalogo('+indicePendiente+')" style="width:100%;margin-top:10px;background:#c1287e;color:white;border:0;border-radius:8px;padding:8px;font-weight:900;cursor:pointer;">✨ Publicar producto</button>'
@@ -7196,11 +7197,13 @@ ${ped.comprobanteUrl ? `
             const codigo = document.getElementById('nuevo-codigo');
             const nombre = document.getElementById('nuevo-nombre');
             const descripcion = document.getElementById('nueva-desc');
+            const precio = document.getElementById('nuevo-precio');
             const tallasContenedor = document.getElementById('contenedor-tallas-stock');
 
             if (codigo) codigo.value = pendiente.ref || '';
             if (nombre) nombre.value = pendiente.desc || '';
             if (descripcion) descripcion.value = '';
+            if (precio && Number(pendiente.valor || 0) > 0) precio.value = Number(pendiente.valor);
             if (tallasContenedor) {
                 const tallas = Object.entries(pendiente.tallas || {});
                 tallasContenedor.innerHTML = tallas.length
@@ -7272,7 +7275,7 @@ ${ped.comprobanteUrl ? `
                     if (!clave || referenciasCatalogo.has(clave)) return;
                     let grupo = agrupadas.get(clave);
                     if (!grupo) {
-                        grupo = { ref: String(entrada.ref || '').trim(), desc: entrada.desc || '', fecha: entrada.fecha || '', timestamp: 0, registradoPor: entrada.registradoPor || '', fotos: [], tallas: {}, entradas: 0 };
+                        grupo = { ref: String(entrada.ref || '').trim(), desc: entrada.desc || '', fecha: entrada.fecha || '', timestamp: 0, registradoPor: entrada.registradoPor || '', fotos: [], tallas: {}, entradas: 0, valor: Number(entrada.valor || 0) };
                         agrupadas.set(clave, grupo);
                     }
                     grupo.entradas++;
@@ -7286,6 +7289,7 @@ ${ped.comprobanteUrl ? `
                         grupo.desc = entrada.desc || grupo.desc;
                         grupo.fecha = entrada.fecha || grupo.fecha;
                         grupo.registradoPor = entrada.registradoPor || grupo.registradoPor;
+                        grupo.valor = Number(entrada.valor || 0) || grupo.valor || 0;
                         const fotos = (entrada.fotoUrls && entrada.fotoUrls.length) ? entrada.fotoUrls : (entrada.fotoUrl ? [entrada.fotoUrl] : []);
                         if (fotos.length) grupo.fotos = fotos.slice(0, 3);
                     }
@@ -7411,8 +7415,27 @@ ${ped.comprobanteUrl ? `
             const buscada = String(ref || '').trim().toUpperCase();
             if (!buscada) return null;
             return (productosDB || []).find(function(p) {
-                return String(p.codigo || '').trim().toUpperCase() === buscada;
+                return referenciasProductoCatalogo(p).includes(buscada);
             }) || null;
+        }
+
+        function sincronizarPrecioEntradaEnProducto(producto, ref, valor) {
+            const referencia = String(ref || '').trim().toUpperCase();
+            const precio = Math.max(0, Number(valor) || 0);
+            if (!referencia || !precio) return false;
+            let actualizado = false;
+            if (String(producto.codigo || '').trim().toUpperCase() === referencia) {
+                producto.precio = precio;
+                actualizado = true;
+            }
+            (producto.opcionesVenta || []).forEach(function(opcion) {
+                if (String(opcion.codigo || '').trim().toUpperCase() === referencia) {
+                    opcion.precio = precio;
+                    actualizado = true;
+                }
+            });
+            if (actualizado) producto.actualizadoEn = new Date().toISOString();
+            return actualizado;
         }
 
         function sumarEntradaAStockProducto(producto, tallasEntrada) {
@@ -7501,6 +7524,7 @@ ${ped.comprobanteUrl ? `
                             ? Object.assign({}, productoExistente, productoSnap.data(), { id: productoExistente.id })
                             : productoExistente;
                         productoActualizado = sumarEntradaAStockProducto(baseProducto, tallasArr);
+                        sincronizarPrecioEntradaEnProducto(productoActualizado, ref, entrada.valor);
                         transaction.set(productoRef, productoActualizado, { merge: true });
                         transaction.set(entradaRef, entrada);
                     });
@@ -7881,13 +7905,13 @@ ${ped.comprobanteUrl ? `
             cont.appendChild(div);
         }
 
-        async function sincronizarCorreccionEntradaConCatalogo(refOriginal, refNueva, tallasOriginales, tallasNuevas) {
+        async function sincronizarCorreccionEntradaConCatalogo(refOriginal, refNueva, tallasOriginales, tallasNuevas, valor) {
             const normalizarRef = valor => String(valor || '').trim().toUpperCase();
             const refAntes = normalizarRef(refOriginal);
             const refDespues = normalizarRef(refNueva);
             const publicados = (productosDB || []).filter(function(p) {
-                const codigo = normalizarRef(p.codigo);
-                return codigo && (codigo === refAntes || codigo === refDespues);
+                const referencias = referenciasProductoCatalogo(p);
+                return referencias.includes(refAntes) || referencias.includes(refDespues);
             });
             if (!publicados.length) return 0;
 
@@ -7905,6 +7929,7 @@ ${ped.comprobanteUrl ? `
             const tallasAfectadas = new Set(Object.keys(antes).concat(Object.keys(despues)));
 
             for (const producto of publicados) {
+                sincronizarPrecioEntradaEnProducto(producto, refAntes || refDespues, valor);
                 producto.tallasObj = Array.isArray(producto.tallasObj) ? producto.tallasObj : [];
                 tallasAfectadas.forEach(function(nombreTalla) {
                     const diferencia = (despues[nombreTalla] || 0) - (antes[nombreTalla] || 0);
@@ -7966,11 +7991,12 @@ ${ped.comprobanteUrl ? `
                     window._editEntradaRefOriginal || ref,
                     ref,
                     window._editEntradaTallasOriginales || [],
-                    tallas
+                    tallas,
+                    valor
                 );
                 msg.style.color = '#27ae60';
                 msg.textContent = productosSincronizados
-                    ? '✅ Entrada y stock del catálogo actualizados'
+                    ? '✅ Entrada, precio y stock del catálogo actualizados'
                     : '✅ Entrada actualizada (esta referencia aún no está publicada)';
                 msg.style.display = 'block';
                 setTimeout(function() {
