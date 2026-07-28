@@ -137,10 +137,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         if (usuarioActual.rol === 'admin') {
           setTimeout(() => { if (window._setModoEdicion) window._setModoEdicion(true); }, 900);
         }
-        // Cargar historial de inventario si la pestaña ya está activa
-        if (usuarioActual.rol === 'asesora') {
-          setTimeout(() => { if (typeof cargarHistorialInventario === 'function') cargarHistorialInventario(); if (typeof cargarHistorialSalidas === 'function') cargarHistorialSalidas(); }, 1000);
-        }
+        // Los historiales se cargan solo al abrir Inventario para evitar lecturas
+        // duplicadas durante el inicio de sesión.
         // Cargar orden manual desde Firebase al autenticarse
         // Solo cargar orden desde Firebase si ya fue guardado correctamente con el botón naranja
         if (localStorage.getItem('ordenFirebaseActivo') === '1') {
@@ -586,10 +584,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         .btn-exportar { background-color: #8e44ad; color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1.1em; width: 100%; margin-top: 15px;}
 
         .fila-talla { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
-        .opciones-venta-admin { background:#fff7fc; border:1px solid #f1c7df; border-radius:10px; padding:12px; margin-top:10px; }
-        .opcion-venta-fila { display:grid; grid-template-columns:1.1fr 1fr .85fr .85fr .55fr; gap:6px; margin-top:7px; }
-        .opcion-venta-fila input { min-width:0; padding:8px!important; font-size:.82em; }
-        @media(max-width:700px) { .opcion-venta-fila { grid-template-columns:1fr 1fr; } .opcion-venta-fila .opv-foto { grid-column:span 2; } }
         .fila-talla input[type="text"] { flex: 2; }
         .fila-talla input[type="number"] { flex: 1; }
         .btn-remover-fila { background: #e74c3c; color: white; border: none; border-radius: 4px; padding: 8px; cursor: pointer; font-weight: bold;}
@@ -1480,18 +1474,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <div style="flex: 1;"><label>Precio Actual*:</label><input type="number" id="nuevo-precio" required="" style="width: 100%;"></div>
                     </div>
 
-                    <div class="opciones-venta-admin">
-                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;">
-                            <input type="checkbox" id="nuevo-opciones-venta-activo" onchange="toggleOpcionesVentaAdmin('nuevo')" style="width:18px;height:18px;accent-color:#ff4db8;">
-                            <strong>Vender el set completo o por separado</strong>
-                        </label>
-                        <p style="font-size:.76em;color:#76566a;margin:5px 0 0;">Agrega una referencia, precio y foto para cada forma de compra.</p>
-                        <div id="nuevo-opciones-venta-contenido" style="display:none;">
-                            <div class="opcion-venta-fila" style="font-size:.68em;font-weight:900;color:#876276;text-align:center;"><span>Opción</span><span>Referencia</span><span>Precio</span><span>Anterior</span><span>Foto #</span></div>
-                            <div id="nuevo-opciones-venta-filas"></div>
-                        </div>
-                    </div>
-
                     <label>Etiqueta Especial:</label> <input type="text" id="nueva-etiqueta-badge" value="¡Nueva Colección!" placeholder="Ej: Oferta">
 
                     <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; margin-top: 10px;">
@@ -1612,7 +1594,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <div id="inv-resumen-visual" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;"></div>
                     </div>
 
-                    <div id="panel-migracion-r2" style="display:none;margin-top:16px;background:#fff8e8;border:1.5px solid #f0bd59;border-radius:12px;padding:14px;">
+                    <div id="panel-migracion-r2" hidden aria-hidden="true" style="display:none !important;margin-top:16px;background:#fff8e8;border:1.5px solid #f0bd59;border-radius:12px;padding:14px;">
                         <h4 style="margin:0 0 5px;color:#9a5b00;">Migración segura de fotos a Cloudflare R2</h4>
                         <p style="margin:0 0 10px;color:#76551e;font-size:0.78em;font-weight:700;line-height:1.4;">Copia 5 productos por vez. Primero verifica las fotos nuevas y después actualiza Firebase. Los enlaces de Cloudinary se conservan como respaldo y no se elimina ninguna imagen.</p>
                         <div id="migracion-r2-resumen" style="background:white;border:1px solid #f4d89c;border-radius:9px;padding:9px 11px;color:#76551e;font-size:0.82em;font-weight:800;margin-bottom:9px;">Calculando...</div>
@@ -1965,17 +1947,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             <div style="display: flex; gap: 10px;">
                 <div style="flex: 1;"><label>Precio Anterior:</label><input type="number" id="edit-prod-precio-ant" style="width: 100%;"></div>
                 <div style="flex: 1;"><label>Precio Actual*:</label><input type="number" id="edit-prod-precio" required="" style="width: 100%;"></div>
-            </div>
-            <div class="opciones-venta-admin">
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;">
-                    <input type="checkbox" id="edit-opciones-venta-activo" onchange="toggleOpcionesVentaAdmin('edit')" style="width:18px;height:18px;accent-color:#ff4db8;">
-                    <strong>Vender el set completo o por separado</strong>
-                </label>
-                <p style="font-size:.76em;color:#76566a;margin:5px 0 0;">Agrega una referencia, precio y foto para cada forma de compra.</p>
-                <div id="edit-opciones-venta-contenido" style="display:none;">
-                    <div class="opcion-venta-fila" style="font-size:.68em;font-weight:900;color:#876276;text-align:center;"><span>Opción</span><span>Referencia</span><span>Precio</span><span>Anterior</span><span>Foto #</span></div>
-                    <div id="edit-opciones-venta-filas"></div>
-                </div>
             </div>
             <label>Etiqueta Especial:</label> <input type="text" id="edit-prod-etiqueta" placeholder="Ej: Oferta, Nuevo">
             <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; margin-top: 10px;">
@@ -3542,55 +3513,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             document.getElementById('contenedor-tallas-stock').appendChild(div);
         }
 
-        function opcionesVentaPredeterminadasAdmin() {
-            return [
-                { id:'set', nombre:'Set completo', codigo:'', precio:'', precioAnterior:'', imgIndex:1 },
-                { id:'blusa', nombre:'Solo blusa', codigo:'', precio:'', precioAnterior:'', imgIndex:2 },
-                { id:'jean', nombre:'Solo jean', codigo:'', precio:'', precioAnterior:'', imgIndex:3 }
-            ];
-        }
-
-        function toggleOpcionesVentaAdmin(prefijo) {
-            const activo = document.getElementById(prefijo + '-opciones-venta-activo').checked;
-            document.getElementById(prefijo + '-opciones-venta-contenido').style.display = activo ? 'block' : 'none';
-            const filas = document.getElementById(prefijo + '-opciones-venta-filas');
-            if (activo && filas && !filas.children.length) renderOpcionesVentaAdmin(prefijo);
-        }
-
-        function renderOpcionesVentaAdmin(prefijo, opciones) {
-            const lista = Array.isArray(opciones) && opciones.length ? opciones : opcionesVentaPredeterminadasAdmin();
-            const cont = document.getElementById(prefijo + '-opciones-venta-filas');
-            if (!cont) return;
-            cont.innerHTML = lista.map(function(o) {
-                return `<div class="opcion-venta-fila" data-id="${escapeHtmlAttr(o.id || '')}">
-                    <input class="opv-nombre" type="text" placeholder="Nombre" value="${escapeHtmlAttr(o.nombre || '')}">
-                    <input class="opv-codigo" type="text" placeholder="REF" value="${escapeHtmlAttr(o.codigo || '')}">
-                    <input class="opv-precio" type="number" min="0" placeholder="Precio" value="${escapeHtmlAttr(o.precio || '')}">
-                    <input class="opv-anterior" type="number" min="0" placeholder="Anterior" value="${escapeHtmlAttr(o.precioAnterior || '')}">
-                    <input class="opv-foto" type="number" min="1" placeholder="Foto #" value="${escapeHtmlAttr(o.imgIndex || 1)}">
-                </div>`;
-            }).join('');
-            toggleOpcionesVentaAdmin(prefijo);
-        }
-
-        function leerOpcionesVentaAdmin(prefijo) {
-            const opciones = [];
-            document.querySelectorAll('#' + prefijo + '-opciones-venta-filas .opcion-venta-fila').forEach(function(fila, index) {
-                const nombre = fila.querySelector('.opv-nombre').value.trim();
-                const codigo = fila.querySelector('.opv-codigo').value.trim();
-                const precio = parseInt(fila.querySelector('.opv-precio').value, 10);
-                if (nombre && codigo && !isNaN(precio) && precio > 0) opciones.push({
-                    id: fila.dataset.id || ('opcion-' + index),
-                    nombre: nombre,
-                    codigo: codigo,
-                    precio: precio,
-                    precioAnterior: parseInt(fila.querySelector('.opv-anterior').value, 10) || null,
-                    imgIndex: parseInt(fila.querySelector('.opv-foto').value, 10) || 1
-                });
-            });
-            return opciones;
-        }
-
         let subcategoriasCatalogoAbiertas = {};
 
         function obtenerSubcategoriaCatalogo(prod) {
@@ -3894,12 +3816,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const ordenManual = parseInt(document.getElementById('nuevo-orden').value) || 100;
             const codigoInput = document.getElementById('nuevo-codigo');
             const codigoNuevo = codigoInput ? String(codigoInput.value || '').trim() : '';
-            const ventaSeparada = document.getElementById('nuevo-opciones-venta-activo').checked;
-            const opcionesVenta = ventaSeparada ? leerOpcionesVentaAdmin('nuevo') : [];
 
             if (!nombre || !precioActual || !fotoPrincInput) return alert("Llena Nombre, Precio Actual y selecciona una Foto Principal.");
             if (!codigoNuevo) return alert("Agrega una referencia para el producto.");
-            if (ventaSeparada && opcionesVenta.length < 2) return alert("Completa al menos dos opciones con nombre, referencia y precio.");
             if (referenciaProductoExiste(codigoNuevo)) {
                 validarCodigoCatalogoPublicado(codigoNuevo);
                 codigoInput.focus();
@@ -3934,8 +3853,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     desc: document.getElementById('nueva-desc').value,
                     precio: precioActual,
                     precioAnterior: parseInt(document.getElementById('nuevo-precio-ant').value) || null,
-                    ventaSeparada: ventaSeparada,
-                    opcionesVenta: opcionesVenta,
                     etiquetaPersonalizada: document.getElementById('nueva-etiqueta-badge').value.trim(),
                     tallasObj: tallasObjArr,
                     imagenes: imgsFinalesUrls
@@ -3953,9 +3870,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 document.getElementById('nueva-etiqueta-badge').value = '¡Nueva Colección!';
                 document.getElementById('nueva-foto-princ').value = '';
                 document.getElementById('nuevas-fotos-extra').value = '';
-                document.getElementById('nuevo-opciones-venta-activo').checked = false;
-                renderOpcionesVentaAdmin('nuevo');
-                toggleOpcionesVentaAdmin('nuevo');
                 document.getElementById('contenedor-tallas-stock').innerHTML = `<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"></div>`;
                 alert("✅ ¡Producto subido con éxito!");
             } catch(error) {
@@ -4035,8 +3949,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             document.getElementById('edit-prod-desc').value = p.desc || '';
             document.getElementById('edit-prod-precio').value = p.precio || '';
             document.getElementById('edit-prod-precio-ant').value = p.precioAnterior || '';
-            document.getElementById('edit-opciones-venta-activo').checked = !!(p.ventaSeparada && Array.isArray(p.opcionesVenta) && p.opcionesVenta.length);
-            renderOpcionesVentaAdmin('edit', p.opcionesVenta);
             document.getElementById('edit-prod-etiqueta').value = p.etiquetaPersonalizada || '';
             let contTallas = document.getElementById('contenedor-edit-tallas-stock'); contTallas.innerHTML = '';
             if (p.tallasObj && p.tallasObj.length > 0) p.tallasObj.forEach(t => agregarFilaTallaEdit(t.nombre, t.stock, t.imgIndex || ''));
@@ -4260,9 +4172,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 p.desc = document.getElementById('edit-prod-desc').value;
                 p.precio = parseInt(document.getElementById('edit-prod-precio').value) || 0;
                 p.precioAnterior = parseInt(document.getElementById('edit-prod-precio-ant').value) || null;
-                p.ventaSeparada = document.getElementById('edit-opciones-venta-activo').checked;
-                p.opcionesVenta = p.ventaSeparada ? leerOpcionesVentaAdmin('edit') : [];
-                if (p.ventaSeparada && p.opcionesVenta.length < 2) throw new Error('Completa al menos dos opciones con nombre, referencia y precio.');
                 p.etiquetaPersonalizada = document.getElementById('edit-prod-etiqueta').value;
                 let tallasObjArr = [];
                 document.querySelectorAll('#contenedor-edit-tallas-stock .fila-talla').forEach(fila => {
@@ -5007,15 +4916,27 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         async function cargarClientesGestion() {
             if (!window.usuarioActual) return;
+            const ahora = Date.now();
+            if (window._clientesGestionCargadosEn && ahora - window._clientesGestionCargadosEn < 600000) {
+                actualizarDatalistClientesGestion();
+                return;
+            }
+            if (window._cargaClientesGestion) return window._cargaClientesGestion;
+            window._cargaClientesGestion = (async function() {
             try {
                 const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const snap = await getDocs(collection(db, 'clientes'));
                 window.clientesGestionCache = [];
                 snap.forEach(d => window.clientesGestionCache.push(d.data()));
+                window._clientesGestionCargadosEn = Date.now();
                 actualizarDatalistClientesGestion();
             } catch(e) {
                 console.log('No se pudieron cargar clientes de gestion:', e.message);
+            } finally {
+                window._cargaClientesGestion = null;
             }
+            })();
+            return window._cargaClientesGestion;
         }
 
         function actualizarDatalistClientesGestion() {
@@ -7208,16 +7129,13 @@ ${ped.comprobanteUrl ? `
             const pendientes = window._pendientesCatalogoDatos || [];
             if (!lista) return;
             if (reiniciar) { lista.innerHTML = ''; _pendientesRenderizados = 0; }
-            const fin = Math.min(_pendientesRenderizados + PENDIENTES_POR_PAGINA, pendientes.length);
+            const fin = pendientes.length;
             let tarjetas = '';
             for (let i = _pendientesRenderizados; i < fin; i++) tarjetas += tarjetaPendienteHtml(pendientes[i], i);
             const botonAnterior = document.getElementById('btn-mas-pendientes');
             if (botonAnterior) botonAnterior.remove();
             lista.insertAdjacentHTML('beforeend', tarjetas);
             _pendientesRenderizados = fin;
-            if (fin < pendientes.length) {
-                lista.insertAdjacentHTML('beforeend', '<button id="btn-mas-pendientes" type="button" onclick="mostrarMasPendientesCatalogo()" style="grid-column:1/-1;border:1.5px solid #e8a6cb;background:#fff0f8;color:#a52f73;border-radius:10px;padding:10px;font-weight:900;cursor:pointer;">Mostrar 12 más · '+fin+' de '+pendientes.length+'</button>');
-            }
         }
 
         function mostrarMasPendientesCatalogo() {
@@ -7331,21 +7249,18 @@ ${ped.comprobanteUrl ? `
             return m ? parseInt(m[0], 10) : 0;
         }
 
-        async function obtenerReferenciasInventarioMercancia() {
-            const refs = [];
-            try {
-                const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const snap = await getDocs(collection(db, 'inventario_mercancia'));
-                snap.forEach(d => refs.push(String((d.data() || {}).ref || '').trim()));
-            } catch(e) {}
-            return refs.filter(Boolean);
-        }
-
         async function referenciaInventarioExiste(ref) {
             const buscada = String(ref || '').trim();
             if (!buscada) return false;
-            const refs = await obtenerReferenciasInventarioMercancia();
-            return refs.some(r => r === buscada);
+            try {
+                const { collection, getDocs, limit, query, where } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const q = query(collection(db, 'inventario_mercancia'), where('ref', '==', buscada), limit(1));
+                const snap = await getDocs(q);
+                return !snap.empty;
+            } catch(e) {
+                console.log('No se pudo comprobar la referencia:', e);
+                return false;
+            }
         }
 
         async function obtenerUltimaReferenciaInventarioMercancia() {
@@ -7363,7 +7278,6 @@ ${ped.comprobanteUrl ? `
         }
 
         async function calcularSiguienteReferenciaInventario() {
-            const refs = await obtenerReferenciasInventarioMercancia();
             const guardadaLocal = parseInt(localStorage.getItem(CLAVE_SIGUIENTE_REF_INVENTARIO) || '0', 10) || 0;
             const ultimaRef = await obtenerUltimaReferenciaInventarioMercancia();
             const ultimoNumero = obtenerNumeroReferenciaInventario(ultimaRef);
@@ -7373,8 +7287,7 @@ ${ped.comprobanteUrl ? `
             let siguiente = ultimoNumero > 0
                 ? ultimoNumero + 1
                 : (guardadaLocal > 0 ? guardadaLocal : REF_INVENTARIO_BASE);
-            const usadas = new Set(refs.map(ref => obtenerNumeroReferenciaInventario(ref)).filter(Boolean));
-            while (usadas.has(siguiente)) siguiente++;
+            while (await referenciaInventarioExiste(String(siguiente))) siguiente++;
             localStorage.setItem(CLAVE_SIGUIENTE_REF_INVENTARIO, String(siguiente));
             return siguiente;
         }
@@ -7534,17 +7447,29 @@ ${ped.comprobanteUrl ? `
             }
         }
 
-        async function cargarHistorialInventario() {
+        async function cargarHistorialInventario(cargarMas) {
             const cont = document.getElementById('inv-historial');
             if (!cont) return;
-            try {
-                const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const q = query(collection(db, 'inventario_mercancia'), orderBy('timestamp', 'desc'));
-                const snap = await getDocs(q);
-                if (snap.empty) { const contador = document.getElementById('inv-historial-contador'); if (contador) contador.textContent = '(0)'; cont.innerHTML = '<p style="color:#888;text-align:center;font-size:0.85em;">Sin entradas registradas aun</p>'; return; }
-                const contador = document.getElementById('inv-historial-contador');
-                if (contador) contador.textContent = '(' + snap.size + ')';
+            const botonAnterior = document.getElementById('btn-mas-entradas-inventario');
+            if (botonAnterior) botonAnterior.remove();
+            if (!cargarMas) {
+                window._ultimoDocEntradasInventario = null;
+                window._entradasInventarioCargadas = 0;
                 cont.innerHTML = '';
+            }
+            try {
+                const { collection, getDocs, limit, orderBy, query, startAfter } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const restricciones = [orderBy('timestamp', 'desc')];
+                if (cargarMas && window._ultimoDocEntradasInventario) restricciones.push(startAfter(window._ultimoDocEntradasInventario));
+                restricciones.push(limit(200));
+                const q = query(collection(db, 'inventario_mercancia'), ...restricciones);
+                const snap = await getDocs(q);
+                if (snap.empty && !cargarMas) { const contador = document.getElementById('inv-historial-contador'); if (contador) contador.textContent = '(0)'; cont.innerHTML = '<p style="color:#888;text-align:center;font-size:0.85em;">Sin entradas registradas aun</p>'; return; }
+                if (snap.empty) return;
+                window._ultimoDocEntradasInventario = snap.docs[snap.docs.length - 1];
+                window._entradasInventarioCargadas = Number(window._entradasInventarioCargadas || 0) + snap.size;
+                const contador = document.getElementById('inv-historial-contador');
+                if (contador) contador.textContent = '(' + window._entradasInventarioCargadas + ' mostradas)';
                 snap.forEach(docSnap => {
                     const e = docSnap.data();
                     const fechaHoraEntrada = e.timestamp && typeof e.timestamp.toDate === 'function'
@@ -7572,9 +7497,18 @@ ${ped.comprobanteUrl ? `
                         +'<div style="margin-bottom:6px;display:flex;gap:4px;flex-wrap:wrap;">'+tallasHtml+'</div>'
                         +(e.obs ? '<div style="font-size:0.78em;color:#666;background:#f8f8f8;padding:6px 10px;border-radius:8px;margin-bottom:6px;">'+e.obs+'</div>' : '')
                         +'<button onclick="eliminarEntradaInventario(\'' + docSnap.id + '\')" style="background:#fde8e8;color:#e74c3c;border:1px solid #f5c6c6;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;">Eliminar</button>'
-                        +(window.usuarioActual && window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' ? '<button data-id="'+docSnap.id+'" data-ref="'+(e.ref||'')+'" data-desc="'+encodeURIComponent(e.desc||'')+'" data-tallas="'+encodeURIComponent(JSON.stringify(e.tallas||[]))+'" data-fotos="'+encodeURIComponent(JSON.stringify(fotosEntrada))+'" onclick="abrirEditarEntradaBtn(this)" style="background:#e8f5e9;color:#1a7a4a;border:1px solid #a8e6c1;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;margin-left:6px;">Editar</button>' : '') + '</div>';
+                        +(window.usuarioActual && (window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' || window.usuarioActual.uid === 'MtQpryHLGYab5v3UjhRZw88CAD63') ? '<button data-id="'+docSnap.id+'" data-ref="'+(e.ref||'')+'" data-desc="'+encodeURIComponent(e.desc||'')+'" data-valor="'+Number(e.valor||0)+'" data-tallas="'+encodeURIComponent(JSON.stringify(e.tallas||[]))+'" data-fotos="'+encodeURIComponent(JSON.stringify(fotosEntrada))+'" onclick="abrirEditarEntradaBtn(this)" style="background:#e8f5e9;color:#1a7a4a;border:1px solid #a8e6c1;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;margin-left:6px;">Editar</button>' : '') + '</div>';
                     cont.appendChild(card);
                 });
+                if (snap.size === 200) {
+                    const btnMas = document.createElement('button');
+                    btnMas.id = 'btn-mas-entradas-inventario';
+                    btnMas.type = 'button';
+                    btnMas.textContent = 'Mostrar 200 entradas anteriores';
+                    btnMas.onclick = function() { cargarHistorialInventario(true); };
+                    btnMas.style.cssText = 'width:100%;margin-top:8px;background:#eefaf2;color:#1a7a4a;border:1.5px solid #a8e6c1;border-radius:10px;padding:11px;font-family:Nunito,sans-serif;font-weight:900;cursor:pointer;';
+                    cont.appendChild(btnMas);
+                }
             } catch(e) {
                 cont.innerHTML = '<p style="color:#e74c3c;font-size:0.85em;">Error cargando historial</p>';
             }
@@ -7659,9 +7593,10 @@ ${ped.comprobanteUrl ? `
         function actualizarPanelMigracionR2() {
             const panel = document.getElementById('panel-migracion-r2');
             if (!panel) return;
-            const autorizado = typeof esYohanaInventario === 'function' && esYohanaInventario();
-            panel.style.display = autorizado ? 'block' : 'none';
-            if (!autorizado) return;
+            panel.hidden = true;
+            panel.setAttribute('aria-hidden', 'true');
+            panel.style.setProperty('display', 'none', 'important');
+            return;
 
             const productos = productosDB || [];
             const pendientes = obtenerProductosPendientesMigracionR2();
@@ -7770,8 +7705,12 @@ ${ped.comprobanteUrl ? `
             if (!desde && !hasta) { cont.innerHTML = ''; actualizarBotonResumenInventario(); return; }
             cont.innerHTML = '<p style="color:#6b8b78;font-weight:800;margin:0;">Cargando resumen...</p>';
             try {
-                const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const q = query(collection(db, 'inventario_mercancia'), orderBy('timestamp', 'desc'));
+                const { collection, getDocs, orderBy, query, where } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const filtrosFecha = [];
+                if (desde) filtrosFecha.push(where('fecha', '>=', desde));
+                if (hasta) filtrosFecha.push(where('fecha', '<=', hasta));
+                filtrosFecha.push(orderBy('fecha', 'desc'));
+                const q = query(collection(db, 'inventario_mercancia'), ...filtrosFecha);
                 const snap = await getDocs(q);
                 let entradas = [];
                 snap.forEach(d => entradas.push(Object.assign({ id: d.id }, d.data())));
@@ -7813,15 +7752,17 @@ ${ped.comprobanteUrl ? `
             var id = btn.getAttribute('data-id');
             var ref = btn.getAttribute('data-ref');
             var descEncoded = btn.getAttribute('data-desc');
+            var valor = Number(btn.getAttribute('data-valor') || 0);
             var tallasJson = JSON.parse(decodeURIComponent(btn.getAttribute('data-tallas')));
             var fotosJson = JSON.parse(decodeURIComponent(btn.getAttribute('data-fotos') || '%5B%5D'));
-            abrirEditarEntrada(id, ref, descEncoded, tallasJson, fotosJson);
+            abrirEditarEntrada(id, ref, descEncoded, valor, tallasJson, fotosJson);
         }
 
-        function abrirEditarEntrada(id, ref, descEncoded, tallasJson, fotosJson) {
+        function abrirEditarEntrada(id, ref, descEncoded, valor, tallasJson, fotosJson) {
             document.getElementById('edit-entrada-id').value = id;
             document.getElementById('edit-entrada-ref').value = ref;
             document.getElementById('edit-entrada-desc').value = decodeURIComponent(descEncoded);
+            document.getElementById('edit-entrada-valor').value = Number(valor || 0);
             var cont = document.getElementById('edit-entrada-tallas-cont');
             cont.innerHTML = '';
             var tallas = typeof tallasJson === 'string' ? JSON.parse(tallasJson) : tallasJson;
@@ -7895,10 +7836,11 @@ ${ped.comprobanteUrl ? `
             var id = document.getElementById('edit-entrada-id').value;
             var ref = document.getElementById('edit-entrada-ref').value.trim();
             var desc = document.getElementById('edit-entrada-desc').value.trim();
+            var valor = Math.max(0, Number(document.getElementById('edit-entrada-valor').value) || 0);
             var msg = document.getElementById('edit-entrada-msg');
-            if (!ref || !desc) {
+            if (!ref || !desc || valor <= 0) {
                 msg.style.color = '#e74c3c';
-                msg.textContent = '⚠️ Completa referencia y descripción';
+                msg.textContent = '⚠️ Completa referencia, nombre y precio de llegada';
                 msg.style.display = 'block';
                 return;
             }
@@ -7922,7 +7864,7 @@ ${ped.comprobanteUrl ? `
                     fotosFinales = fotosFinales.concat(nuevasUrls);
                 }
                 await updateDoc(doc(db, 'inventario_mercancia', id), {
-                    ref: ref, desc: desc, tallas: tallas,
+                    ref: ref, desc: desc, valor: valor, tallas: tallas,
                     fotoUrls: fotosFinales,
                     fotoUrl: fotosFinales[0] || ''
                 });
@@ -8023,8 +7965,8 @@ ${ped.comprobanteUrl ? `
             const cont = document.getElementById('sal-historial');
             if (!cont) return;
             try {
-                const { collection, getDocs, orderBy, query, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const q = query(collection(db, 'inventario_salidas'), orderBy('timestamp', 'desc'));
+                const { collection, getDocs, limit, orderBy, query, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const q = query(collection(db, 'inventario_salidas'), orderBy('timestamp', 'desc'), limit(200));
                 const snap = await getDocs(q);
                 if (snap.empty) { cont.innerHTML = '<p style="color:#888;text-align:center;font-size:0.85em;">Sin salidas registradas aún</p>'; return; }
                 cont.innerHTML = '';
@@ -9027,6 +8969,10 @@ ${ped.comprobanteUrl ? `
     <div style="margin-bottom:10px;">
       <label style="font-size:0.8em;color:#555;font-weight:700;">👗 Descripción</label>
       <input type="text" id="edit-entrada-desc" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:0.8em;color:#555;font-weight:700;">💰 Precio de llegada por unidad</label>
+      <input type="number" id="edit-entrada-valor" min="1" step="1" inputmode="numeric" placeholder="Ej: 25000" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;box-sizing:border-box;">
     </div>
     <div style="margin-bottom:10px;">
       <label style="font-size:0.8em;color:#555;font-weight:700;">📏 Tallas y Cantidades</label>
