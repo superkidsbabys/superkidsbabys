@@ -3859,7 +3859,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (!buscada) return false;
             // productosDB contiene únicamente los productos activos/publicados del catálogo.
             // No se consulta inventario_mercancia: allí sí se permiten entradas repetidas.
-            return (productosDB || []).some(p => String(p.codigo || '').trim().toUpperCase() === buscada && (!excluirId || p.id !== excluirId));
+            return (productosDB || []).some(function(p) {
+                return (!excluirId || p.id !== excluirId) && referenciasProductoCatalogo(p).includes(buscada);
+            });
         }
 
         function validarCodigoCatalogoPublicado(ref) {
@@ -7145,8 +7147,16 @@ ${ped.comprobanteUrl ? `
         let _pendientesRenderizados = 0;
         const PENDIENTES_POR_PAGINA = 12;
 
+        function referenciasProductoCatalogo(producto) {
+            const referencias = [producto && producto.codigo];
+            if (producto && Array.isArray(producto.opcionesVenta)) {
+                producto.opcionesVenta.forEach(function(opcion) { referencias.push(opcion && opcion.codigo); });
+            }
+            return referencias.map(function(ref) { return String(ref || '').trim().toUpperCase(); }).filter(Boolean);
+        }
+
         function firmaCatalogoActual() {
-            return (productosDB || []).map(function(p) { return String(p.codigo || '').trim().toUpperCase(); }).filter(Boolean).sort().join('|');
+            return (productosDB || []).flatMap(referenciasProductoCatalogo).sort().join('|');
         }
 
         function invalidarPendientesCatalogo() {
@@ -7252,9 +7262,7 @@ ${ped.comprobanteUrl ? `
             lista.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#9b6a85;font-weight:800;padding:18px;">Comparando entradas con el catálogo...</div>';
             _cargaPendientesCatalogo = (async function() {
             try {
-                const referenciasCatalogo = new Set((productosDB || []).map(function(p) {
-                    return String(p.codigo || '').trim().toUpperCase();
-                }).filter(Boolean));
+                const referenciasCatalogo = new Set((productosDB || []).flatMap(referenciasProductoCatalogo));
                 const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const snap = await getDocs(collection(db, 'inventario_mercancia'));
                 const agrupadas = new Map();
