@@ -4450,6 +4450,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         div.innerHTML = '<input type="text" class="inp-talla-nombre" placeholder="Talla / Color" value="'+talla+'">'
                             + '<input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0" value="'+tallaMap[talla]+'">'
                             + '<input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1">'
+                            + '<input type="number" class="inp-talla-precio" placeholder="Precio" min="0" title="Precio solo para esta talla; vacío = precio general">'
                             + '<button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>';
                         cont.appendChild(div);
                     });
