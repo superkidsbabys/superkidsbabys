@@ -7216,9 +7216,9 @@ ${ped.comprobanteUrl ? `
                     ? tallas.map(function(entrada) {
                         const talla = escapeHtmlAttr(String(entrada[0] || ''));
                         const cantidad = Math.max(0, parseInt(entrada[1], 10) || 0);
-                        return '<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color" value="'+talla+'"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0" value="'+cantidad+'"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"></div>';
+                        return '<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color" value="'+talla+'"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0" value="'+cantidad+'"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"><input type="number" class="inp-talla-precio" placeholder="Precio" min="0" title="Precio solo para esta talla; vacío = precio general"></div>';
                     }).join('')
-                    : '<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"></div>';
+                    : '<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"><input type="number" class="inp-talla-precio" placeholder="Precio" min="0" title="Precio solo para esta talla; vacío = precio general"></div>';
             }
 
             validarCodigoCatalogoPublicado(pendiente.ref || '');
