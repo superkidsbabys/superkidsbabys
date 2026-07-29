@@ -2005,7 +2005,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 return url.replace('/image/upload/', `/image/upload/f_auto,q_auto,c_limit,w_${ancho}/`);
             }
             if (url.startsWith(R2_FOTOS_ORIGIN + '/fotos/')) {
-                return ancho <= 800 ? url.replace('/full.', '/card.') : url.replace('/card.', '/full.');
+                // Algunas fotos recientes no tienen disponible la variante "card".
+                // Usamos siempre la versión completa de R2 para que se vean de forma confiable.
+                return url.replace('/card.', '/full.');
             }
             return url;
         };
@@ -3894,8 +3896,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const codigoNuevo = codigoInput ? String(codigoInput.value || '').trim() : '';
             const ventaSeparada = document.getElementById('nuevo-opciones-venta-activo').checked;
             const opcionesVenta = ventaSeparada ? leerOpcionesVentaAdmin('nuevo') : [];
+            const fotosPendiente = Array.isArray(window._fotosPendienteParaPublicar) ? window._fotosPendienteParaPublicar.filter(Boolean) : [];
+            const usarFotosPendiente = fotosPendiente.length > 0;
 
-            if (!nombre || !precioActual || !fotoPrincInput) return alert("Llena Nombre, Precio Actual y selecciona una Foto Principal.");
+            if (!nombre || !precioActual || (!fotoPrincInput && !fotosPendiente.length)) return alert("Llena Nombre, Precio Actual y selecciona una Foto Principal. Si vienes desde Pendientes, revisa que la entrada tenga al menos una foto.");
             if (!codigoNuevo) return alert("Agrega una referencia para el producto.");
             if (ventaSeparada && opcionesVenta.length < 2) return alert("Completa al menos dos opciones con nombre, referencia y precio.");
             if (referenciaProductoExiste(codigoNuevo)) {
@@ -3906,9 +3910,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
             btn.innerText = "☁️ Subiendo fotos..."; btn.disabled = true;
             try {
-                let promesasFotos = [subirACloudinary(fotoPrincInput)];
-                for (let i = 0; i < fotosExtraInput.length; i++) promesasFotos.push(subirACloudinary(fotosExtraInput[i]));
-                let imgsFinalesUrls = await Promise.all(promesasFotos);
+                let promesasFotos = usarFotosPendiente ? [] : (fotoPrincInput ? [subirACloudinary(fotoPrincInput)] : []);
+                if (!usarFotosPendiente) for (let i = 0; i < fotosExtraInput.length; i++) promesasFotos.push(subirACloudinary(fotosExtraInput[i]));
+                const fotosSubidas = await Promise.all(promesasFotos);
+                let imgsFinalesUrls = usarFotosPendiente ? fotosPendiente : fotosSubidas;
 
                 let tallasObjArr = [];
                 document.querySelectorAll('#contenedor-tallas-stock .fila-talla').forEach(fila => {
@@ -3953,13 +3958,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 document.getElementById('nueva-etiqueta-badge').value = '¡Nueva Colección!';
                 document.getElementById('nueva-foto-princ').value = '';
                 document.getElementById('nuevas-fotos-extra').value = '';
+                window._fotosPendienteParaPublicar = [];
                 document.getElementById('nuevo-opciones-venta-activo').checked = false;
                 renderOpcionesVentaAdmin('nuevo');
                 toggleOpcionesVentaAdmin('nuevo');
                 document.getElementById('contenedor-tallas-stock').innerHTML = `<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"><input type="number" class="inp-talla-precio" placeholder="Precio" min="0"></div>`;
                 alert("✅ ¡Producto subido con éxito!");
             } catch(error) {
-                alert("Error subiendo el producto. Verifica el preset 'superkids_upload' en Cloudinary.\n\nDetalle: " + error);
+                alert("Error guardando el producto. Verifica la conexión con Cloudflare R2.\n\nDetalle: " + error);
             } finally {
                 btn.innerText = "➕ Subir Producto y Guardar"; btn.disabled = false;
             }
@@ -7205,11 +7211,19 @@ ${ped.comprobanteUrl ? `
             const descripcion = document.getElementById('nueva-desc');
             const precio = document.getElementById('nuevo-precio');
             const tallasContenedor = document.getElementById('contenedor-tallas-stock');
+            window._fotosPendienteParaPublicar = Array.isArray(pendiente.fotos) ? pendiente.fotos.filter(Boolean).slice(0, 3) : [];
 
             if (codigo) codigo.value = pendiente.ref || '';
             if (nombre) nombre.value = pendiente.desc || '';
             if (descripcion) descripcion.value = '';
             if (precio && Number(pendiente.valor || 0) > 0) precio.value = Number(pendiente.valor);
+            const fotoPrincipal = document.getElementById('nueva-foto-princ');
+            const fotosExtra = document.getElementById('nuevas-fotos-extra');
+            if (fotoPrincipal && window._fotosPendienteParaPublicar.length) {
+                fotoPrincipal.value = '';
+                fotoPrincipal.setAttribute('title', 'Se usarán las fotos guardadas en la entrada de inventario.');
+            }
+            if (fotosExtra && window._fotosPendienteParaPublicar.length) fotosExtra.value = '';
             if (tallasContenedor) {
                 const tallas = Object.entries(pendiente.tallas || {});
                 tallasContenedor.innerHTML = tallas.length
