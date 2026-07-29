@@ -1802,9 +1802,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 return url.replace('/image/upload/', `/image/upload/f_auto,q_auto,c_limit,w_${ancho}/`);
             }
             if (url.startsWith(R2_FOTOS_ORIGIN + '/fotos/')) {
-                // Algunas fotos recientes no tienen disponible la variante "card".
-                // Usamos siempre la versión completa de R2 para que se vean de forma confiable.
-                return url.replace('/card.', '/full.');
+                return ancho <= 800 ? url.replace('/full.', '/card.') : url.replace('/card.', '/full.');
             }
             return url;
         };
