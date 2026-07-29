@@ -583,13 +583,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         .btn-secundario { background-color: #ecf0f1; color: #333; border: 1px solid #bdc3c7; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-weight: 600;}
         .btn-exportar { background-color: #8e44ad; color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1.1em; width: 100%; margin-top: 15px;}
 
-        .fila-talla { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .fila-talla { display: flex; gap: 6px; margin-bottom: 7px; align-items: center; }
         .opciones-venta-admin { background:#fff7fc; border:1px solid #f1c7df; border-radius:10px; padding:12px; margin-top:10px; }
         .opcion-venta-fila { display:grid; grid-template-columns:1.1fr 1fr .85fr .85fr .55fr; gap:6px; margin-top:7px; }
         .opcion-venta-fila input { min-width:0; padding:8px!important; font-size:.82em; }
         @media(max-width:700px) { .opcion-venta-fila { grid-template-columns:1fr 1fr; } .opcion-venta-fila .opv-foto { grid-column:span 2; } }
         .fila-talla input[type="text"] { flex: 2; }
-        .fila-talla input[type="number"] { flex: 1; }
+        .fila-talla input[type="number"] { flex: .8; min-width:72px; }
+        .fila-talla .inp-talla-precio, .fila-talla .inp-talla-precio-edit { flex:1.15; min-width:90px; }
         .btn-remover-fila { background: #e74c3c; color: white; border: none; border-radius: 4px; padding: 8px; cursor: pointer; font-weight: bold;}
 
         .lista-tags { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;}
@@ -1494,7 +1495,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
                     <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; margin-top: 10px;">
                         <label>📏 Tallas (Inventario)</label>
-                        <div id="contenedor-tallas-stock"><div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"></div></div>
+                        <div id="contenedor-tallas-stock"><div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"><input type="number" class="inp-talla-precio" placeholder="Precio" min="0" title="Precio solo para esta talla; vacío = precio general"></div></div>
                         <button type="button" class="btn-secundario" onclick="agregarFilaTalla()">+ AñAñadir renglón</button>
                     </div>
 
@@ -3536,7 +3537,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         function agregarFilaTalla() {
             const div = document.createElement('div'); div.className = 'fila-talla';
-            div.innerHTML = `<input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1" title="Numero de foto para esta talla/color"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>`;
+            div.innerHTML = `<input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1" title="Numero de foto para esta talla/color"><input type="number" class="inp-talla-precio" placeholder="Precio" min="0" title="Precio solo para esta talla; vacío = precio general"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>`;
             document.getElementById('contenedor-tallas-stock').appendChild(div);
         }
 
@@ -3914,8 +3915,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     let nom = fila.querySelector('.inp-talla-nombre').value.trim();
                     let stk = parseInt(fila.querySelector('.inp-talla-stock').value);
                     let imgIndex = parseInt((fila.querySelector('.inp-talla-img-index') || {value:''}).value);
+                    let precioTalla = parseInt((fila.querySelector('.inp-talla-precio') || {value:''}).value);
                     let tallaObj = { nombre: nom, stock: stk };
                     if (!isNaN(imgIndex) && imgIndex > 0) tallaObj.imgIndex = imgIndex;
+                    if (!isNaN(precioTalla) && precioTalla > 0) tallaObj.precio = precioTalla;
                     if (nom && !isNaN(stk)) tallasObjArr.push(tallaObj);
                 });
 
@@ -3953,7 +3956,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 document.getElementById('nuevo-opciones-venta-activo').checked = false;
                 renderOpcionesVentaAdmin('nuevo');
                 toggleOpcionesVentaAdmin('nuevo');
-                document.getElementById('contenedor-tallas-stock').innerHTML = `<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"></div>`;
+                document.getElementById('contenedor-tallas-stock').innerHTML = `<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"><input type="number" class="inp-talla-precio" placeholder="Precio" min="0"></div>`;
                 alert("✅ ¡Producto subido con éxito!");
             } catch(error) {
                 alert("Error subiendo el producto. Verifica el preset 'superkids_upload' en Cloudinary.\n\nDetalle: " + error);
@@ -4036,7 +4039,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             renderOpcionesVentaAdmin('edit', p.opcionesVenta);
             document.getElementById('edit-prod-etiqueta').value = p.etiquetaPersonalizada || '';
             let contTallas = document.getElementById('contenedor-edit-tallas-stock'); contTallas.innerHTML = '';
-            if (p.tallasObj && p.tallasObj.length > 0) p.tallasObj.forEach(t => agregarFilaTallaEdit(t.nombre, t.stock, t.imgIndex || ''));
+            if (p.tallasObj && p.tallasObj.length > 0) p.tallasObj.forEach(t => agregarFilaTallaEdit(t.nombre, t.stock, t.imgIndex || '', t.precio || ''));
             else agregarFilaTallaEdit('', '');
             document.getElementById('modal-editar-producto').style.display = 'block';
 
@@ -4073,9 +4076,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
-        function agregarFilaTallaEdit(nom = '', stk = '', imgIndex = '') {
+        function agregarFilaTallaEdit(nom = '', stk = '', imgIndex = '', precio = '') {
             const div = document.createElement('div'); div.className = 'fila-talla';
-            div.innerHTML = `<input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color" value="${nom}"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="${stk}"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1" value="${imgIndex || ''}" title="Numero de foto para esta talla/color"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>`;
+            div.innerHTML = `<input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color" value="${nom}"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="${stk}"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1" value="${imgIndex || ''}" title="Numero de foto para esta talla/color"><input type="number" class="inp-talla-precio-edit" placeholder="Precio" min="0" value="${precio || ''}" title="Precio solo para esta talla; vacío = precio general"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>`;
             document.getElementById('contenedor-edit-tallas-stock').appendChild(div);
         }
 
@@ -4266,8 +4269,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     let nom = fila.querySelector('.inp-talla-nombre-edit').value.trim();
                     let stk = parseInt(fila.querySelector('.inp-talla-stock-edit').value);
                     let imgIndex = parseInt((fila.querySelector('.inp-talla-img-index-edit') || {value:''}).value);
+                    let precioTalla = parseInt((fila.querySelector('.inp-talla-precio-edit') || {value:''}).value);
                     let tallaObj = { nombre: nom, stock: stk };
                     if (!isNaN(imgIndex) && imgIndex > 0) tallaObj.imgIndex = imgIndex;
+                    if (!isNaN(precioTalla) && precioTalla > 0) tallaObj.precio = precioTalla;
                     if (nom && !isNaN(stk)) tallasObjArr.push(tallaObj);
                 });
                 p.tallasObj = tallasObjArr;
