@@ -2882,7 +2882,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     enviarVarianteR2(card, imageId, 'card', clave),
                     enviarVarianteR2(full, imageId, 'full', clave)
                 ]);
-                return resultados[1];
+                const urlFinal = String(resultados[1] || '');
+                if (!urlFinal.startsWith(R2_FOTOS_ORIGIN + '/fotos/')) {
+                    throw new Error('Cloudflare no devolvio una URL valida para la foto');
+                }
+                return urlFinal;
             } catch (err) {
                 throw new Error('Fallo en la subida: ' + (err.message || err));
             }
