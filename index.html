@@ -1650,7 +1650,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 <div id="recomendacion-envio-prueba" style="display:none; margin:-1px 0 10px; padding:12px 14px; border:1px dashed #8b5cf6; border-radius:12px; background:#f7f3ff; color:#4c1d95; text-align:left; line-height:1.35;">
                     <div style="font-weight:900; margin-bottom:4px;">🧪 Recomendación de envío (prueba)</div>
                     <div id="recomendacion-envio-contenido"></div>
-                    <div style="font-size:.78em; color:#6b7280; margin-top:5px;">La tarifa se suma al pago de Wompi. En modo de pruebas no modifica el inventario real.</div>
+                    <div style="font-size:.78em; color:#6b7280; margin-top:5px;">La tarifa se suma al pago de Wompi. El inventario se actualiza al confirmarse el pago.</div>
                 </div>
                 <input type="tel" id="cart-telefono" placeholder="📱 WhatsApp / Teléfono" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <input type="email" id="cart-correo" placeholder="✉️ Correo electrónico" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
@@ -1928,6 +1928,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         let productosQuemados = filtrarProductosEliminados(window.productosQ || []);
         dbGuardada = filtrarProductosEliminados(dbGuardada || []);
         let productosDB;
+        // Firebase contiene las fotos migradas a Cloudflare R2. Evitamos pintar
+        // primero la copia antigua del HTML (que conserva URLs de Cloudinary).
+        let productosFirebaseListos = false;
+        let temporizadorRespaldoCatalogo = null;
         if (productosQuemados.length > 0) {
             let productosGuardados = {};
             dbGuardada.forEach(p => { if (p && p.id) productosGuardados[p.id] = p; });
@@ -2458,9 +2462,18 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             } catch(e) { console.log('Config Firebase error:', e); }
             // Aplicar diseño con colores de Firebase ya cargados
             aplicarDiseno();
-            renderizarCatalogo();
             renderizarPedidosPanel();
             inicializarAutorrellenoClientes();
+
+            // Solo usamos el catálogo embebido como respaldo si Firebase no
+            // responde. En condiciones normales, esperamos las URLs actuales
+            // de R2 para no descargar imágenes antiguas de Cloudinary.
+            temporizadorRespaldoCatalogo = setTimeout(function() {
+                if (!productosFirebaseListos) {
+                    console.warn('Firebase no respondió a tiempo; mostrando catálogo de respaldo.');
+                    renderizarCatalogo();
+                }
+            }, 8000);
 
             // ✅ CARGAR PRODUCTOS DESDE FIREBASE en tiempo real con onSnapshot
             try {
@@ -2472,6 +2485,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     // onSnapshot: escucha cambios en tiempo real — stock se actualiza al instante
                     onSnapshot(collection(dbPublica, 'productos'), (snap) => {
                         if (snap.empty) return;
+                        productosFirebaseListos = true;
+                        if (temporizadorRespaldoCatalogo) {
+                            clearTimeout(temporizadorRespaldoCatalogo);
+                            temporizadorRespaldoCatalogo = null;
+                        }
                         const productosFirebase = [];
                         snap.forEach(d => productosFirebase.push(Object.assign({}, d.data(), {
                             _firebaseId: d.id
