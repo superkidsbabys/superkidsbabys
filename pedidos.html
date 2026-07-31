@@ -6300,6 +6300,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 const imgBase = g.imagen || (prod && prod.imagenes && prod.imagenes[0]);
                 const imgUrl = imgBase ? imgBase.replace('/image/upload/', '/image/upload/f_auto,q_auto,w_160/') : 'https://via.placeholder.com/80x80?text=Sin+foto';
                 const tallasTxt = (g.tallas || []).join(', ');
+                const cantidadGrupo = g.cantidad || 1;
+                const precioUnitario = Math.round((g.totalPrecio || 0) / cantidadGrupo);
                 return `<tr>
                   <td style="padding:10px 8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;width:98px;">
                     <img src="${imgUrl}" alt="foto" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:block;border:2px solid #e8d5f5;" onerror="this.src='https://via.placeholder.com/80x80?text=Sin+foto'">
@@ -6308,7 +6310,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <div style="font-weight:700;color:#333;margin-bottom:2px;">${g.nom || ''}${g.cantidad > 1 ? ' (x' + g.cantidad + ')' : ''}</div>
                     <div style="font-size:.92em;color:#777;">Tallas: <strong style="color:#8e44ad;">${tallasTxt}</strong> · REF: ${g.cod || 'S/N'}</div>
                   </td>
-                  <td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;text-align:right;font-weight:bold;color:#333;font-size:1em;">${formatMoney(g.totalPrecio)}</td>
+                  <td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;text-align:right;font-weight:bold;color:#333;font-size:1em;white-space:nowrap;">
+                    ${cantidadGrupo > 1 ? `<span style="font-size:.72em;font-weight:600;color:#a479c4;margin-right:8px;">P/U: ${formatMoney(precioUnitario)}</span>` : ''}${formatMoney(g.totalPrecio)}
+                  </td>
                 </tr>`;
             }).join('');
 
