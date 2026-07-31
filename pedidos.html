@@ -4467,6 +4467,77 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }, 700);
         }
 
+        function agruparItemsPorProductoParaVista(items) {
+            const grupos = [];
+            const indice = {};
+            (items || []).forEach(function(item) {
+                const clave = String(item.id_prod || item.cod || item.nom || Math.random());
+                if (!indice.hasOwnProperty(clave)) {
+                    indice[clave] = grupos.length;
+                    grupos.push({
+                        id_prod: item.id_prod,
+                        cod: item.cod,
+                        nom: item.nom,
+                        imagen: item.imagen,
+                        tallas: [item.talla || 'Única'],
+                        totalPrecio: parseInt(item.precio, 10) || 0,
+                        cantidad: 1
+                    });
+                } else {
+                    const g = grupos[indice[clave]];
+                    g.tallas.push(item.talla || 'Única');
+                    g.totalPrecio += parseInt(item.precio, 10) || 0;
+                    g.cantidad += 1;
+                }
+            });
+            return grupos;
+        }
+
+        window.eliminarGrupoDePedido = async function(numPed, idProd, cod) {
+            if (!confirm('¿Eliminar todas las tallas de esta prenda del pedido? Se devolverá el stock correspondiente.')) return;
+            let pedIdx = historialPedidos.findIndex(p => String(p.num) === String(numPed));
+            if (pedIdx === -1) return;
+            let ped = historialPedidos[pedIdx];
+            const itemsAEliminar = (ped.items || []).filter(it => String(it.id_prod) === String(idProd) || (cod && String(it.cod) === String(cod)));
+            if (!itemsAEliminar.length) return;
+
+            let prod = productosDB.find(x => String(x.id) === String(idProd)) || productosDB.find(x => String(x.codigo || '') === String(cod || ''));
+            let stockDevuelto = false;
+
+            if (ped.stockDescontado && !ped.stockDevuelto && prod && prod.tallasObj) {
+                itemsAEliminar.forEach(item => {
+                    const tallaItem = normalizarTallaValor(item.talla);
+                    const tObj = (prod.tallasObj || []).find(t => normalizarTallaValor(t.nombre) === tallaItem);
+                    if (tObj) {
+                        tObj.stock = (parseInt(tObj.stock, 10) || 0) + (parseInt(item.cant, 10) || 1);
+                        stockDevuelto = true;
+                    }
+                });
+                if (stockDevuelto) {
+                    prod.stockTotal = (prod.tallasObj || []).reduce((s, t) => s + (parseInt(t.stock, 10) || 0), 0);
+                    localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                }
+            }
+
+            ped.items = (ped.items || []).filter(it => !itemsAEliminar.includes(it));
+            if (typeof recalcularTotalPedidoConEnvio === 'function') recalcularTotalPedidoConEnvio(ped);
+            localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+
+            try {
+                const { collection, query, where, getDocs, updateDoc, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                if (stockDevuelto && prod) {
+                    await setDoc(doc(db, 'productos', prod.id), Object.assign({}, prod, { actualizadoEn: new Date().toISOString() }), { merge: true });
+                }
+                const q = query(collection(db, 'pedidos'), where('num', '==', ped.num));
+                const snap = await getDocs(q);
+                await Promise.all(snap.docs.map(d => updateDoc(doc(db, 'pedidos', d.id), { items: ped.items, tot: ped.tot, actualizadoEn: new Date().toISOString() })));
+            } catch(e) { console.log('Error sync Firebase al eliminar grupo:', e); }
+
+            renderizarPedidosPanel();
+            if (typeof renderStockActual === 'function') renderStockActual();
+            if (typeof renderizarCatalogo === 'function') renderizarCatalogo();
+        };
+
         function normalizarTallaValor(talla) {
             return (talla || '').toString().trim().toUpperCase();
         }
@@ -6490,14 +6561,15 @@ ${ped.comprobanteUrl ? `
                 recalcularTotalPedidoConEnvio(ped);
                 const estadoActual = normalizarEstadoPedido(ped.estado);
                 const opcionesEstado = ESTADOS_PEDIDO.map(e => `<option value="${e.valor}" ${estadoActual === e.valor ? 'selected' : ''}>${e.label}</option>`).join('');
-                let htmlItems = ped.items.map((i, iIdx) => {
-                    let prodImg = productosDB.find(x => x.id === i.id_prod);
-                    let imgBase = i.imagen || (prodImg && prodImg.imagenes && prodImg.imagenes[0]);
+                let htmlItems = agruparItemsPorProductoParaVista(ped.items).map((g) => {
+                    let prodImg = productosDB.find(x => x.id === g.id_prod);
+                    let imgBase = g.imagen || (prodImg && prodImg.imagenes && prodImg.imagenes[0]);
                     let thumb = imgBase ? optimizarUrl(imgBase, 100) : '';
                     let imgTag = thumb
                         ? `<img src="${thumb}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'">`
                         : `<div style="width:44px;height:44px;border-radius:6px;background:#f5e6fb;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2em;">👗</div>`;
-                    return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${i.nom}</div><div style="font-size:0.72em;color:#888;">Talla: ${i.talla || 'Única'} · REF: ${i.cod || 'S/N'}</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(i.precio)}</span><button class="tp-btn-del-prod" title="Eliminar producto" onclick="eliminarProductoDePedido(${ped.num}, ${iIdx})">🗑️</button></div>`;
+                    const tallasTxt = g.tallas.join(', ');
+                    return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.nom}${g.cantidad > 1 ? ' (x' + g.cantidad + ')' : ''}</div><div style="font-size:0.72em;color:#888;">Tallas: ${tallasTxt} · REF: ${g.cod || 'S/N'}</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(g.totalPrecio)}</span><button class="tp-btn-del-prod" title="Eliminar todas las tallas de esta prenda" onclick="eliminarGrupoDePedido(${ped.num}, '${g.id_prod}', '${(g.cod||'').toString().replace(/'/g,"")}')">🗑️</button></div>`;
                 }).join('');
 
                 const numFact = ped.numOrden || ('SK' + String(ped.numFactura || ped.num).padStart(5, '0'));
