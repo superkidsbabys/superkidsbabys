@@ -6191,6 +6191,27 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
             // Subtotal real de productos (siempre desde items, nunca desde ped.tot —
             // ped.tot puede ya incluir un envío guardado antes, y usarlo aquí duplicaba el valor)
+            // Agrupar tallas por referencia para no repetir la misma foto en curvas
+            // ni en compras minoristas de varias tallas.
+            const gruposFactura = new Map();
+            (ped.items || []).forEach(function(item, indice) {
+                const clave = String(item.id_prod || item.cod || item.nom || indice);
+                if (!gruposFactura.has(clave)) gruposFactura.set(clave, { item: item, lineas: [] });
+                gruposFactura.get(clave).lineas.push({ item: item, indice: indice });
+            });
+            htmlProductos = Array.from(gruposFactura.values()).map(function(grupo) {
+                const base = grupo.item;
+                const prod = productosDB.find(x => x.id === base.id_prod);
+                const imgBase = base.imagen || (prod && prod.imagenes && prod.imagenes[0]);
+                const imgUrl = imgBase ? imgBase.replace('/image/upload/', '/image/upload/f_auto,q_auto,w_160/') : 'https://via.placeholder.com/80x80?text=Sin+foto';
+                return grupo.lineas.map(function(linea, posicion) {
+                    const i = linea.item;
+                    const foto = posicion === 0 ? `<td rowspan="${grupo.lineas.length}" style="padding:10px 8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;width:98px;"><img src="${imgUrl}" alt="foto" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:block;border:2px solid #e8d5f5;" onerror="this.src='https://via.placeholder.com/80x80?text=Sin+foto'"></td>` : '';
+                    const ref = posicion === 0 ? `<div style="font-size:.76em;color:#777;margin-bottom:3px;">REF: <strong style="color:#8e44ad;">${i.cod || 'S/N'}</strong></div>` : '';
+                    return `<tr>${foto}<td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;font-size:.88em;color:#555;">${ref}<span>Talla: <strong>${i.talla || 'Unica'}</strong></span><button type="button" onclick="quitarPrendaFactura(${linea.indice})" style="margin-left:7px;border:1px solid #efb0b0;background:#fff4f4;color:#b3261e;border-radius:6px;padding:2px 6px;cursor:pointer;font-size:.76em;font-weight:800;">Eliminar</button></td><td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;text-align:right;font-weight:bold;color:#333;font-size:1em;"><span class="precio-editable" contenteditable="true" spellcheck="false" data-precio="${i.precio}" data-cantidad="${Math.max(1, parseInt(i.cant, 10) || 1)}" oninput="recalcularTotal()" style="display:inline-block;border:1.5px dashed #c9a0dc;border-radius:6px;padding:2px 8px;cursor:pointer;color:#8e44ad;min-width:60px;">${formatMoney(i.precio)}</span></td></tr>`;
+                }).join('');
+            }).join('');
+
             const promoFactura = calcularDescuentoMamelucosPedido(ped.items || []);
             const descuentoPromoFactura = promoFactura.descuento;
             const descuentoPctFactura = Math.round((promoFactura.bruto - descuentoPromoFactura) * (parseFloat(ped.descuentoPorcentaje || 0) || 0) / 100);
@@ -6296,6 +6317,16 @@ ${ped.comprobanteUrl ? `
                 '  if(elTot)elTot.textContent="$"+total.toLocaleString("es-CO");' +
                 '}';
             vent.document.head.appendChild(scriptEl);
+
+            var scriptQuitarPrenda = vent.document.createElement('script');
+            scriptQuitarPrenda.textContent =
+                'window.quitarPrendaFactura = async function(indice){' +
+                ' var principal=window.parent;' +
+                ' if(!principal || !principal.eliminarProductoDePedido){alert("No se pudo comunicar con el panel.");return;}' +
+                ' await principal.eliminarProductoDePedido(' + JSON.stringify(ped.num) + ',indice);' +
+                ' principal.imprimirFactura(' + JSON.stringify(ped.num) + ');' +
+                '};';
+            vent.document.head.appendChild(scriptQuitarPrenda);
 
             var scriptFotoLib = vent.document.createElement('script');
             scriptFotoLib.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
