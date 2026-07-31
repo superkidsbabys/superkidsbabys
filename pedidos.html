@@ -5197,7 +5197,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
                 // PASO 1: Persistir y descontar stock
                 localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                descontarStockPedido(objetoOrden);
+                // Esperar el descuento de cada talla antes de persistir el pedido.
+                // Evita que una venta a crédito quede guardada mientras la escritura
+                // de inventario todavía está pendiente.
+                await descontarStockPedido(objetoOrden);
 
                 // PASO 2: WhatsApp
                 window.open('https://wa.me/' + config.whatsapp + '?text=' + encodeURIComponent(txtWA), '_blank');
@@ -6195,7 +6198,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             // ni en compras minoristas de varias tallas.
             const gruposFactura = new Map();
             (ped.items || []).forEach(function(item, indice) {
-                const clave = String(item.id_prod || item.cod || item.nom || indice);
+                // La referencia visible es la identidad comercial: algunas tallas
+                // pueden tener ids internos distintos, pero comparten el mismo REF.
+                const clave = String(item.cod || item.codigo || item.id_prod || item.nom || indice).trim().toUpperCase();
                 if (!gruposFactura.has(clave)) gruposFactura.set(clave, { item: item, lineas: [] });
                 gruposFactura.get(clave).lineas.push({ item: item, indice: indice });
             });
