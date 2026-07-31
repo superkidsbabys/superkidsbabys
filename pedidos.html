@@ -6200,7 +6200,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             (ped.items || []).forEach(function(item, indice) {
                 // La referencia visible es la identidad comercial: algunas tallas
                 // pueden tener ids internos distintos, pero comparten el mismo REF.
-                const clave = String(item.cod || item.codigo || item.id_prod || item.nom || indice).trim().toUpperCase();
+                const referenciaVisible = String(item.cod || item.codigo || item.ref || '').trim().toUpperCase();
+                const clave = referenciaVisible
+                    ? referenciaVisible.replace(/[^A-Z0-9]+/g, '')
+                    : String(item.id_prod || item.nom || indice).trim().toUpperCase();
                 if (!gruposFactura.has(clave)) gruposFactura.set(clave, { item: item, lineas: [] });
                 gruposFactura.get(clave).lineas.push({ item: item, indice: indice });
             });
