@@ -137,10 +137,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         if (usuarioActual.rol === 'admin') {
           setTimeout(() => { if (window._setModoEdicion) window._setModoEdicion(true); }, 900);
         }
-        // Cargar historial de inventario si la pestaña ya está activa
-        if (usuarioActual.rol === 'asesora') {
-          setTimeout(() => { if (typeof cargarHistorialInventario === 'function') cargarHistorialInventario(); if (typeof cargarHistorialSalidas === 'function') cargarHistorialSalidas(); }, 1000);
-        }
+        // Los historiales se cargan solo al abrir Inventario para evitar lecturas
+        // duplicadas durante el inicio de sesión.
         // Cargar orden manual desde Firebase al autenticarse
         // Solo cargar orden desde Firebase si ya fue guardado correctamente con el botón naranja
         if (localStorage.getItem('ordenFirebaseActivo') === '1') {
@@ -585,9 +583,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         .btn-secundario { background-color: #ecf0f1; color: #333; border: 1px solid #bdc3c7; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-weight: 600;}
         .btn-exportar { background-color: #8e44ad; color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1.1em; width: 100%; margin-top: 15px;}
 
-        .fila-talla { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .fila-talla { display: flex; gap: 6px; margin-bottom: 7px; align-items: center; }
+        .opciones-venta-admin { background:#fff7fc; border:1px solid #f1c7df; border-radius:10px; padding:12px; margin-top:10px; }
+        .opcion-venta-fila { display:grid; grid-template-columns:1.1fr 1fr .85fr .85fr .55fr; gap:6px; margin-top:7px; }
+        .opcion-venta-fila input { min-width:0; padding:8px!important; font-size:.82em; }
+        @media(max-width:700px) { .opcion-venta-fila { grid-template-columns:1fr 1fr; } .opcion-venta-fila .opv-foto { grid-column:span 2; } }
         .fila-talla input[type="text"] { flex: 2; }
-        .fila-talla input[type="number"] { flex: 1; }
+        .fila-talla input[type="number"] { flex: .8; min-width:72px; }
+        .fila-talla .inp-talla-precio, .fila-talla .inp-talla-precio-edit { flex:1.15; min-width:90px; }
         .btn-remover-fila { background: #e74c3c; color: white; border: none; border-radius: 4px; padding: 8px; cursor: pointer; font-weight: bold;}
 
         .lista-tags { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;}
@@ -1476,11 +1479,23 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <div style="flex: 1;"><label>Precio Actual*:</label><input type="number" id="nuevo-precio" required="" style="width: 100%;"></div>
                     </div>
 
+                    <div class="opciones-venta-admin">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;">
+                            <input type="checkbox" id="nuevo-opciones-venta-activo" onchange="toggleOpcionesVentaAdmin('nuevo')" style="width:18px;height:18px;accent-color:#ff4db8;">
+                            <strong>Vender el set completo o por separado</strong>
+                        </label>
+                        <p style="font-size:.76em;color:#76566a;margin:5px 0 0;">Agrega una referencia, precio y foto para cada forma de compra.</p>
+                        <div id="nuevo-opciones-venta-contenido" style="display:none;">
+                            <div class="opcion-venta-fila" style="font-size:.68em;font-weight:900;color:#876276;text-align:center;"><span>Opción</span><span>Referencia</span><span>Precio</span><span>Anterior</span><span>Foto #</span></div>
+                            <div id="nuevo-opciones-venta-filas"></div>
+                        </div>
+                    </div>
+
                     <label>Etiqueta Especial:</label> <input type="text" id="nueva-etiqueta-badge" value="¡Nueva Colección!" placeholder="Ej: Oferta">
 
                     <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; margin-top: 10px;">
                         <label>📏 Tallas (Inventario)</label>
-                        <div id="contenedor-tallas-stock"><div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"></div></div>
+                        <div id="contenedor-tallas-stock"><div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"><input type="number" class="inp-talla-precio" placeholder="Precio" min="0" title="Precio solo para esta talla; vacío = precio general"></div></div>
                         <button type="button" class="btn-secundario" onclick="agregarFilaTalla()">+ AñAñadir renglón</button>
                     </div>
 
@@ -1596,7 +1611,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <div id="inv-resumen-visual" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;"></div>
                     </div>
 
-                    <div id="panel-migracion-r2" style="display:none;margin-top:16px;background:#fff8e8;border:1.5px solid #f0bd59;border-radius:12px;padding:14px;">
+                    <div id="panel-migracion-r2" hidden aria-hidden="true" style="display:none !important;margin-top:16px;background:#fff8e8;border:1.5px solid #f0bd59;border-radius:12px;padding:14px;">
                         <h4 style="margin:0 0 5px;color:#9a5b00;">Migración segura de fotos a Cloudflare R2</h4>
                         <p style="margin:0 0 10px;color:#76551e;font-size:0.78em;font-weight:700;line-height:1.4;">Copia 5 productos por vez. Primero verifica las fotos nuevas y después actualiza Firebase. Los enlaces de Cloudinary se conservan como respaldo y no se elimina ninguna imagen.</p>
                         <div id="migracion-r2-resumen" style="background:white;border:1px solid #f4d89c;border-radius:9px;padding:9px 11px;color:#76551e;font-size:0.82em;font-weight:800;margin-bottom:9px;">Calculando...</div>
@@ -1949,6 +1964,17 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             <div style="display: flex; gap: 10px;">
                 <div style="flex: 1;"><label>Precio Anterior:</label><input type="number" id="edit-prod-precio-ant" style="width: 100%;"></div>
                 <div style="flex: 1;"><label>Precio Actual*:</label><input type="number" id="edit-prod-precio" required="" style="width: 100%;"></div>
+            </div>
+            <div class="opciones-venta-admin">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;">
+                    <input type="checkbox" id="edit-opciones-venta-activo" onchange="toggleOpcionesVentaAdmin('edit')" style="width:18px;height:18px;accent-color:#ff4db8;">
+                    <strong>Vender el set completo o por separado</strong>
+                </label>
+                <p style="font-size:.76em;color:#76566a;margin:5px 0 0;">Agrega una referencia, precio y foto para cada forma de compra.</p>
+                <div id="edit-opciones-venta-contenido" style="display:none;">
+                    <div class="opcion-venta-fila" style="font-size:.68em;font-weight:900;color:#876276;text-align:center;"><span>Opción</span><span>Referencia</span><span>Precio</span><span>Anterior</span><span>Foto #</span></div>
+                    <div id="edit-opciones-venta-filas"></div>
+                </div>
             </div>
             <label>Etiqueta Especial:</label> <input type="text" id="edit-prod-etiqueta" placeholder="Ej: Oferta, Nuevo">
             <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; margin-top: 10px;">
@@ -3066,11 +3092,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     enviarVarianteR2(card, imageId, 'card', clave),
                     enviarVarianteR2(full, imageId, 'full', clave)
                 ]);
-                const urlFinal = String(resultados[1] || '');
-                if (!urlFinal.startsWith(R2_FOTOS_ORIGIN + '/fotos/')) {
-                    throw new Error('Cloudflare no devolvio una URL valida para la foto');
-                }
-                return urlFinal;
+                return resultados[1];
             } catch (err) {
                 throw new Error('Fallo en la subida: ' + (err.message || err));
             }
@@ -3515,8 +3537,54 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         function agregarFilaTalla() {
             const div = document.createElement('div'); div.className = 'fila-talla';
-            div.innerHTML = `<input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1" title="Numero de foto para esta talla/color"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>`;
+            div.innerHTML = `<input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1" title="Numero de foto para esta talla/color"><input type="number" class="inp-talla-precio" placeholder="Precio" min="0" title="Precio solo para esta talla; vacío = precio general"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>`;
             document.getElementById('contenedor-tallas-stock').appendChild(div);
+        }
+
+        function opcionesVentaPredeterminadasAdmin() {
+            return [
+                { id:'set', nombre:'Set completo', codigo:'', precio:'', precioAnterior:'', imgIndex:1 },
+                { id:'blusa', nombre:'Solo blusa', codigo:'', precio:'', precioAnterior:'', imgIndex:2 },
+                { id:'jean', nombre:'Solo jean', codigo:'', precio:'', precioAnterior:'', imgIndex:3 }
+            ];
+        }
+
+        function toggleOpcionesVentaAdmin(prefijo) {
+            const activo = document.getElementById(prefijo + '-opciones-venta-activo').checked;
+            document.getElementById(prefijo + '-opciones-venta-contenido').style.display = activo ? 'block' : 'none';
+            const filas = document.getElementById(prefijo + '-opciones-venta-filas');
+            if (activo && filas && !filas.children.length) renderOpcionesVentaAdmin(prefijo);
+        }
+
+        function renderOpcionesVentaAdmin(prefijo, opciones) {
+            const lista = Array.isArray(opciones) && opciones.length ? opciones : opcionesVentaPredeterminadasAdmin();
+            const cont = document.getElementById(prefijo + '-opciones-venta-filas');
+            if (!cont) return;
+            cont.innerHTML = lista.map(function(o) {
+                return `<div class="opcion-venta-fila" data-id="${escapeHtmlAttr(o.id || '')}">
+                    <input class="opv-nombre" type="text" placeholder="Nombre" value="${escapeHtmlAttr(o.nombre || '')}">
+                    <input class="opv-codigo" type="text" placeholder="REF" value="${escapeHtmlAttr(o.codigo || '')}">
+                    <input class="opv-precio" type="number" min="0" placeholder="Precio" value="${escapeHtmlAttr(o.precio || '')}">
+                    <input class="opv-anterior" type="number" min="0" placeholder="Anterior" value="${escapeHtmlAttr(o.precioAnterior || '')}">
+                    <input class="opv-foto" type="number" min="1" placeholder="Foto #" value="${escapeHtmlAttr(o.imgIndex || 1)}">
+                </div>`;
+            }).join('');
+            toggleOpcionesVentaAdmin(prefijo);
+        }
+
+        function leerOpcionesVentaAdmin(prefijo) {
+            const opciones = [];
+            document.querySelectorAll('#' + prefijo + '-opciones-venta-filas .opcion-venta-fila').forEach(function(fila, index) {
+                const nombre = fila.querySelector('.opv-nombre').value.trim();
+                const codigo = fila.querySelector('.opv-codigo').value.trim();
+                const precio = parseInt(fila.querySelector('.opv-precio').value, 10);
+                if (nombre && codigo && !isNaN(precio) && precio > 0) opciones.push({
+                    id: fila.dataset.id || ('opcion-' + index), nombre: nombre, codigo: codigo, precio: precio,
+                    precioAnterior: parseInt(fila.querySelector('.opv-anterior').value, 10) || null,
+                    imgIndex: parseInt(fila.querySelector('.opv-foto').value, 10) || 1
+                });
+            });
+            return opciones;
         }
 
         let subcategoriasCatalogoAbiertas = {};
@@ -3792,7 +3860,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (!buscada) return false;
             // productosDB contiene únicamente los productos activos/publicados del catálogo.
             // No se consulta inventario_mercancia: allí sí se permiten entradas repetidas.
-            return (productosDB || []).some(p => String(p.codigo || '').trim().toUpperCase() === buscada && (!excluirId || p.id !== excluirId));
+            return (productosDB || []).some(function(p) {
+                return (!excluirId || p.id !== excluirId) && referenciasProductoCatalogo(p).includes(buscada);
+            });
         }
 
         function validarCodigoCatalogoPublicado(ref) {
@@ -3822,9 +3892,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const ordenManual = parseInt(document.getElementById('nuevo-orden').value) || 100;
             const codigoInput = document.getElementById('nuevo-codigo');
             const codigoNuevo = codigoInput ? String(codigoInput.value || '').trim() : '';
+            const ventaSeparada = document.getElementById('nuevo-opciones-venta-activo').checked;
+            const opcionesVenta = ventaSeparada ? leerOpcionesVentaAdmin('nuevo') : [];
+            const fotosPendiente = Array.isArray(window._fotosPendienteParaPublicar) ? window._fotosPendienteParaPublicar.filter(Boolean) : [];
+            const usarFotosPendiente = fotosPendiente.length > 0;
 
-            if (!nombre || !precioActual || !fotoPrincInput) return alert("Llena Nombre, Precio Actual y selecciona una Foto Principal.");
+            if (!nombre || !precioActual || (!fotoPrincInput && !fotosPendiente.length)) return alert("Llena Nombre, Precio Actual y selecciona una Foto Principal. Si vienes desde Pendientes, revisa que la entrada tenga al menos una foto.");
             if (!codigoNuevo) return alert("Agrega una referencia para el producto.");
+            if (ventaSeparada && opcionesVenta.length < 2) return alert("Completa al menos dos opciones con nombre, referencia y precio.");
             if (referenciaProductoExiste(codigoNuevo)) {
                 validarCodigoCatalogoPublicado(codigoNuevo);
                 codigoInput.focus();
@@ -3833,17 +3908,20 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
             btn.innerText = "☁️ Subiendo fotos..."; btn.disabled = true;
             try {
-                let promesasFotos = [subirACloudinary(fotoPrincInput)];
-                for (let i = 0; i < fotosExtraInput.length; i++) promesasFotos.push(subirACloudinary(fotosExtraInput[i]));
-                let imgsFinalesUrls = await Promise.all(promesasFotos);
+                let promesasFotos = usarFotosPendiente ? [] : (fotoPrincInput ? [subirACloudinary(fotoPrincInput)] : []);
+                if (!usarFotosPendiente) for (let i = 0; i < fotosExtraInput.length; i++) promesasFotos.push(subirACloudinary(fotosExtraInput[i]));
+                const fotosSubidas = await Promise.all(promesasFotos);
+                let imgsFinalesUrls = usarFotosPendiente ? fotosPendiente : fotosSubidas;
 
                 let tallasObjArr = [];
                 document.querySelectorAll('#contenedor-tallas-stock .fila-talla').forEach(fila => {
                     let nom = fila.querySelector('.inp-talla-nombre').value.trim();
                     let stk = parseInt(fila.querySelector('.inp-talla-stock').value);
                     let imgIndex = parseInt((fila.querySelector('.inp-talla-img-index') || {value:''}).value);
+                    let precioTalla = parseInt((fila.querySelector('.inp-talla-precio') || {value:''}).value);
                     let tallaObj = { nombre: nom, stock: stk };
                     if (!isNaN(imgIndex) && imgIndex > 0) tallaObj.imgIndex = imgIndex;
+                    if (!isNaN(precioTalla) && precioTalla > 0) tallaObj.precio = precioTalla;
                     if (nom && !isNaN(stk)) tallasObjArr.push(tallaObj);
                 });
 
@@ -3859,6 +3937,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     desc: document.getElementById('nueva-desc').value,
                     precio: precioActual,
                     precioAnterior: parseInt(document.getElementById('nuevo-precio-ant').value) || null,
+                    ventaSeparada: ventaSeparada,
+                    opcionesVenta: opcionesVenta,
                     etiquetaPersonalizada: document.getElementById('nueva-etiqueta-badge').value.trim(),
                     tallasObj: tallasObjArr,
                     imagenes: imgsFinalesUrls
@@ -3876,10 +3956,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 document.getElementById('nueva-etiqueta-badge').value = '¡Nueva Colección!';
                 document.getElementById('nueva-foto-princ').value = '';
                 document.getElementById('nuevas-fotos-extra').value = '';
-                document.getElementById('contenedor-tallas-stock').innerHTML = `<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"></div>`;
+                window._fotosPendienteParaPublicar = [];
+                document.getElementById('nuevo-opciones-venta-activo').checked = false;
+                renderOpcionesVentaAdmin('nuevo');
+                toggleOpcionesVentaAdmin('nuevo');
+                document.getElementById('contenedor-tallas-stock').innerHTML = `<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"><input type="number" class="inp-talla-precio" placeholder="Precio" min="0"></div>`;
                 alert("✅ ¡Producto subido con éxito!");
             } catch(error) {
-                alert("Error subiendo el producto. Verifica el preset 'superkids_upload' en Cloudinary.\n\nDetalle: " + error);
+                alert("Error guardando el producto. Verifica la conexión con Cloudflare R2.\n\nDetalle: " + error);
             } finally {
                 btn.innerText = "➕ Subir Producto y Guardar"; btn.disabled = false;
             }
@@ -3955,9 +4039,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             document.getElementById('edit-prod-desc').value = p.desc || '';
             document.getElementById('edit-prod-precio').value = p.precio || '';
             document.getElementById('edit-prod-precio-ant').value = p.precioAnterior || '';
+            document.getElementById('edit-opciones-venta-activo').checked = !!(p.ventaSeparada && Array.isArray(p.opcionesVenta) && p.opcionesVenta.length);
+            renderOpcionesVentaAdmin('edit', p.opcionesVenta);
             document.getElementById('edit-prod-etiqueta').value = p.etiquetaPersonalizada || '';
             let contTallas = document.getElementById('contenedor-edit-tallas-stock'); contTallas.innerHTML = '';
-            if (p.tallasObj && p.tallasObj.length > 0) p.tallasObj.forEach(t => agregarFilaTallaEdit(t.nombre, t.stock, t.imgIndex || ''));
+            if (p.tallasObj && p.tallasObj.length > 0) p.tallasObj.forEach(t => agregarFilaTallaEdit(t.nombre, t.stock, t.imgIndex || '', t.precio || ''));
             else agregarFilaTallaEdit('', '');
             document.getElementById('modal-editar-producto').style.display = 'block';
 
@@ -3994,9 +4080,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
-        function agregarFilaTallaEdit(nom = '', stk = '', imgIndex = '') {
+        function agregarFilaTallaEdit(nom = '', stk = '', imgIndex = '', precio = '') {
             const div = document.createElement('div'); div.className = 'fila-talla';
-            div.innerHTML = `<input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color" value="${nom}"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="${stk}"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1" value="${imgIndex || ''}" title="Numero de foto para esta talla/color"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>`;
+            div.innerHTML = `<input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color" value="${nom}"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="${stk}"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1" value="${imgIndex || ''}" title="Numero de foto para esta talla/color"><input type="number" class="inp-talla-precio-edit" placeholder="Precio" min="0" value="${precio || ''}" title="Precio solo para esta talla; vacío = precio general"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>`;
             document.getElementById('contenedor-edit-tallas-stock').appendChild(div);
         }
 
@@ -4178,14 +4264,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 p.desc = document.getElementById('edit-prod-desc').value;
                 p.precio = parseInt(document.getElementById('edit-prod-precio').value) || 0;
                 p.precioAnterior = parseInt(document.getElementById('edit-prod-precio-ant').value) || null;
+                p.ventaSeparada = document.getElementById('edit-opciones-venta-activo').checked;
+                p.opcionesVenta = p.ventaSeparada ? leerOpcionesVentaAdmin('edit') : [];
+                if (p.ventaSeparada && p.opcionesVenta.length < 2) throw new Error('Completa al menos dos opciones con nombre, referencia y precio.');
                 p.etiquetaPersonalizada = document.getElementById('edit-prod-etiqueta').value;
                 let tallasObjArr = [];
                 document.querySelectorAll('#contenedor-edit-tallas-stock .fila-talla').forEach(fila => {
                     let nom = fila.querySelector('.inp-talla-nombre-edit').value.trim();
                     let stk = parseInt(fila.querySelector('.inp-talla-stock-edit').value);
                     let imgIndex = parseInt((fila.querySelector('.inp-talla-img-index-edit') || {value:''}).value);
+                    let precioTalla = parseInt((fila.querySelector('.inp-talla-precio-edit') || {value:''}).value);
                     let tallaObj = { nombre: nom, stock: stk };
                     if (!isNaN(imgIndex) && imgIndex > 0) tallaObj.imgIndex = imgIndex;
+                    if (!isNaN(precioTalla) && precioTalla > 0) tallaObj.precio = precioTalla;
                     if (nom && !isNaN(stk)) tallasObjArr.push(tallaObj);
                 });
                 p.tallasObj = tallasObjArr;
@@ -4363,6 +4454,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         div.innerHTML = '<input type="text" class="inp-talla-nombre" placeholder="Talla / Color" value="'+talla+'">'
                             + '<input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0" value="'+tallaMap[talla]+'">'
                             + '<input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1">'
+                            + '<input type="number" class="inp-talla-precio" placeholder="Precio" min="0" title="Precio solo para esta talla; vacío = precio general">'
                             + '<button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>';
                         cont.appendChild(div);
                     });
@@ -4922,15 +5014,27 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         async function cargarClientesGestion() {
             if (!window.usuarioActual) return;
+            const ahora = Date.now();
+            if (window._clientesGestionCargadosEn && ahora - window._clientesGestionCargadosEn < 600000) {
+                actualizarDatalistClientesGestion();
+                return;
+            }
+            if (window._cargaClientesGestion) return window._cargaClientesGestion;
+            window._cargaClientesGestion = (async function() {
             try {
                 const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const snap = await getDocs(collection(db, 'clientes'));
                 window.clientesGestionCache = [];
                 snap.forEach(d => window.clientesGestionCache.push(d.data()));
+                window._clientesGestionCargadosEn = Date.now();
                 actualizarDatalistClientesGestion();
             } catch(e) {
                 console.log('No se pudieron cargar clientes de gestion:', e.message);
+            } finally {
+                window._cargaClientesGestion = null;
             }
+            })();
+            return window._cargaClientesGestion;
         }
 
         function actualizarDatalistClientesGestion() {
@@ -5525,26 +5629,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const subtotalPromocion = promo.bruto - promo.descuento;
             const porcentaje = Math.max(0, Math.min(100, parseFloat(ped.descuentoPorcentaje || 0) || 0));
             const descuentoPorcentajeValor = Math.round(subtotalPromocion * porcentaje / 100);
-            // Este descuento no es automático: solo se activa desde la prefactura.
-            // Se calcula sobre cada prenda real del pedido, incluso si una línea tiene cantidad mayor a 1.
-            const descuentoMayoristaPorPrenda = Math.max(0, parseInt(ped.descuentoMayoristaPorPrenda || 0, 10) || 0);
-            const cantidadPrendas = (ped.items || []).reduce(function(total, item) {
-                return total + Math.max(1, parseInt(item.cant, 10) || 1);
-            }, 0);
-            const descuentoMayoristaValor = Math.min(
-                Math.max(0, subtotalPromocion - descuentoPorcentajeValor),
-                descuentoMayoristaPorPrenda * cantidadPrendas
-            );
             const envio = parseInt(String(ped.valorEnvio || '0').replace(/[^0-9]/g, ''), 10) || 0;
             ped.subtotalBruto = promo.bruto;
             ped.cantidadPromoMamelucos = promo.cantidadPromo;
             ped.descuentoPromocion = promo.descuento;
             ped.descuentoPorcentaje = porcentaje;
             ped.descuentoPorcentajeValor = descuentoPorcentajeValor;
-            ped.cantidadPrendasDescuentoMayorista = cantidadPrendas;
-            ped.descuentoMayoristaPorPrenda = descuentoMayoristaPorPrenda;
-            ped.descuentoMayoristaValor = descuentoMayoristaValor;
-            ped.tot = subtotalPromocion - descuentoPorcentajeValor - descuentoMayoristaValor + envio;
+            ped.tot = subtotalPromocion - descuentoPorcentajeValor + envio;
             ped.actualizadoEn = new Date().toISOString();
         }
 
@@ -5569,7 +5660,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 }
                 const q = query(collection(db, 'pedidos'), where('num', '==', ped.num));
                 const snap = await getDocs(q);
-                const cambios = { items: ped.items, tot: ped.tot, subtotalBruto: ped.subtotalBruto || 0, cantidadPromoMamelucos: ped.cantidadPromoMamelucos || 0, descuentoPromocion: ped.descuentoPromocion || 0, descuentoPorcentaje: ped.descuentoPorcentaje || 0, descuentoPorcentajeValor: ped.descuentoPorcentajeValor || 0, cantidadPrendasDescuentoMayorista: ped.cantidadPrendasDescuentoMayorista || 0, descuentoMayoristaPorPrenda: ped.descuentoMayoristaPorPrenda || 0, descuentoMayoristaValor: ped.descuentoMayoristaValor || 0, actualizadoEn: ped.actualizadoEn };
+                const cambios = { items: ped.items, tot: ped.tot, subtotalBruto: ped.subtotalBruto || 0, cantidadPromoMamelucos: ped.cantidadPromoMamelucos || 0, descuentoPromocion: ped.descuentoPromocion || 0, descuentoPorcentaje: ped.descuentoPorcentaje || 0, descuentoPorcentajeValor: ped.descuentoPorcentajeValor || 0, actualizadoEn: ped.actualizadoEn };
                 const tareas = [];
                 snap.forEach(ds => tareas.push(updateDoc(ds.ref, cambios)));
                 await Promise.all(tareas);
@@ -6093,49 +6184,17 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <span style="font-size:0.9em;color:#888;">Talla: ${i.talla || 'Única'}</span>
                   </td>
                   <td style="padding:10px 8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;text-align:right;font-weight:bold;color:#333;font-size:1em;">
-                    <span class="precio-editable" contenteditable="true" spellcheck="false" data-precio="${i.precio}" data-cantidad="${Math.max(1, parseInt(i.cant, 10) || 1)}" oninput="recalcularTotal()" style="display:inline-block;border:1.5px dashed #c9a0dc;border-radius:6px;padding:2px 8px;cursor:pointer;color:#8e44ad;min-width:60px;">${formatMoney(i.precio)}</span>
+                    <span class="precio-editable" contenteditable="true" spellcheck="false" data-precio="${i.precio}" oninput="recalcularTotal()" style="display:inline-block;border:1.5px dashed #c9a0dc;border-radius:6px;padding:2px 8px;cursor:pointer;color:#8e44ad;min-width:60px;">${formatMoney(i.precio)}</span>
                   </td>
                 </tr>`;
             }).join('');
 
             // Subtotal real de productos (siempre desde items, nunca desde ped.tot —
             // ped.tot puede ya incluir un envío guardado antes, y usarlo aquí duplicaba el valor)
-            // Una referencia se dibuja una sola vez con todas sus tallas debajo.
-            const gruposFactura = new Map();
-            (ped.items || []).forEach(function(item, indice) {
-                const clave = String(item.id_prod || item.cod || item.nom || indice);
-                if (!gruposFactura.has(clave)) gruposFactura.set(clave, { item: item, lineas: [] });
-                gruposFactura.get(clave).lineas.push({ item: item, indice: indice });
-            });
-            htmlProductos = Array.from(gruposFactura.values()).map(function(grupo) {
-                const productoBase = grupo.item;
-                const prod = productosDB.find(x => x.id === productoBase.id_prod);
-                const imgBase = productoBase.imagen || (prod && prod.imagenes && prod.imagenes[0]);
-                const imgUrl = imgBase
-                    ? imgBase.replace('/image/upload/', '/image/upload/f_auto,q_auto,w_160/')
-                    : 'https://via.placeholder.com/80x80?text=Sin+foto';
-                return grupo.lineas.map(function(linea, posicion) {
-                    const i = linea.item;
-                    const foto = posicion === 0
-                        ? `<td rowspan="${grupo.lineas.length}" style="padding:10px 8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;width:98px;"><img src="${imgUrl}" alt="foto ${i.cod || ''}" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:block;border:2px solid #e8d5f5;" onerror="this.src='https://via.placeholder.com/80x80?text=Sin+foto'"></td>`
-                        : '';
-                    const referencia = posicion === 0
-                        ? `<div style="font-size:.76em;color:#777;margin-bottom:3px;">REF: <strong style="color:#8e44ad;">${i.cod || 'S/N'}</strong></div>`
-                        : '';
-                    return `<tr>${foto}<td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;font-size:.88em;color:#555;">${referencia}<span style="font-size:.92em;color:#555;">Talla: <strong>${i.talla || 'Unica'}</strong></span><button type="button" onclick="quitarPrendaFactura(${linea.indice})" title="Eliminar esta talla" style="margin-left:8px;border:1px solid #efb0b0;background:#fff4f4;color:#b3261e;border-radius:6px;padding:2px 6px;cursor:pointer;font-size:.76em;font-weight:800;">Eliminar</button></td><td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;text-align:right;font-weight:bold;color:#333;font-size:1em;"><span class="precio-editable" contenteditable="true" spellcheck="false" data-precio="${i.precio}" data-cantidad="${Math.max(1, parseInt(i.cant, 10) || 1)}" oninput="recalcularTotal()" style="display:inline-block;border:1.5px dashed #c9a0dc;border-radius:6px;padding:2px 8px;cursor:pointer;color:#8e44ad;min-width:60px;">${formatMoney(i.precio)}</span></td></tr>`;
-                }).join('');
-            }).join('');
-
             const promoFactura = calcularDescuentoMamelucosPedido(ped.items || []);
             const descuentoPromoFactura = promoFactura.descuento;
             const descuentoPctFactura = Math.round((promoFactura.bruto - descuentoPromoFactura) * (parseFloat(ped.descuentoPorcentaje || 0) || 0) / 100);
-            const cantidadPrendasFactura = (ped.items || []).reduce((total, item) => total + Math.max(1, parseInt(item.cant, 10) || 1), 0);
-            const descuentoMayoristaPorPrendaFactura = Math.max(0, parseInt(ped.descuentoMayoristaPorPrenda || 0, 10) || 0);
-            const descuentoMayoristaFactura = Math.min(
-                Math.max(0, promoFactura.bruto - descuentoPromoFactura - descuentoPctFactura),
-                descuentoMayoristaPorPrendaFactura * cantidadPrendasFactura
-            );
-            const subtotalReal = promoFactura.bruto - descuentoPromoFactura - descuentoPctFactura - descuentoMayoristaFactura;
+            const subtotalReal = promoFactura.bruto - descuentoPromoFactura - descuentoPctFactura;
             const envioInicial = parseInt((ped.valorEnvio || '0').toString().replace(/[^0-9]/g, '')) || 0;
 
             // Abrir la factura dentro de la aplicación, sin lanzar otra ventana de Chrome.
@@ -6177,7 +6236,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
   .fila-envio input,.fila-envio textarea{border:none}
   table{page-break-inside:avoid}
 }
-</style></head><body style="visibility:hidden;" data-descuento-mayorista-por-prenda="${descuentoMayoristaPorPrendaFactura}">
+</style></head><body style="visibility:hidden;">
 <div class="encabezado">
   <div class="bloque">
     <h4>👤 Cliente</h4>
@@ -6204,14 +6263,11 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
   <div class="resumen-fila"><span>Subtotal productos</span><span>${formatMoney(promoFactura.bruto)}</span></div>
   ${descuentoPromoFactura > 0 ? `<div class="resumen-fila" style="color:#168653;font-weight:800;"><span>Promoción mamelucos</span><span>−${formatMoney(descuentoPromoFactura)}</span></div>` : ''}
   ${descuentoPctFactura > 0 ? `<div class="resumen-fila" style="color:#b06b00;font-weight:800;"><span>Descuento adicional ${ped.descuentoPorcentaje}%</span><span>−${formatMoney(descuentoPctFactura)}</span></div>` : ''}
-  <div class="resumen-fila" id="fila-descuento-mayorista" style="color:#176a9b;font-weight:800;${descuentoMayoristaFactura > 0 ? '' : 'display:none;'}"><span>Descuento mayorista ($3.000 × <span id="cantidad-descuento-mayorista">${cantidadPrendasFactura}</span> prendas)</span><span id="valor-descuento-mayorista">−${formatMoney(descuentoMayoristaFactura)}</span></div>
   <div class="resumen-fila"><span>Total prendas con descuento</span><span id="subtotal-productos" data-sub="${subtotalReal}">${formatMoney(subtotalReal)}</span></div>
   <div class="resumen-fila"><span>Valor de envío</span><input id="fac-valor-envio" type="text" value="${ped.valorEnvio || ''}" placeholder="$ 0" oninput="recalcularTotal()" style="width:90px;text-align:right;border:1px dashed #c9a0dc;border-radius:6px;padding:2px 7px;font-size:0.9em;font-weight:700;color:#8e44ad;background:#fdf8ff;outline:none;"></div>
   <div class="resumen-fila"><span>TOTAL DEL PEDIDO</span><span id="total-final">${formatMoney(subtotalReal + envioInicial)}</span></div>
 </div>
 <div class="btn-no-print">
-  <button class="btn-g" id="btn-descuento-mayorista" onclick="aplicarDescuentoMayorista()" style="background:#e3f3ff;color:#176a9b;border:1.5px solid #76bce8;">${descuentoMayoristaFactura > 0 ? 'Descuento mayorista aplicado' : 'Aplicar $3.000 menos por prenda'}</button>
-  <button class="btn-g" id="btn-quitar-descuento-mayorista" onclick="quitarDescuentoMayorista()" style="display:${descuentoMayoristaFactura > 0 ? 'inline-block' : 'none'};background:#fff;color:#777;border:1.5px solid #bbb;">Quitar descuento</button>
   <button class="btn-g btn-verde" onclick="guardarCambiosPrefactura()">💾 Guardar cambios</button>
   <button class="btn-g btn-rojo" onclick="window.print()">📄 Guardar como PDF</button>
   <button class="btn-g" onclick="guardarFacturaComoFoto(this)" style="background:linear-gradient(135deg,#8e44ad,#b05cc5);color:white;">🖼️ Guardar foto</button>
@@ -6240,37 +6296,6 @@ ${ped.comprobanteUrl ? `
                 '  if(elTot)elTot.textContent="$"+total.toLocaleString("es-CO");' +
                 '}';
             vent.document.head.appendChild(scriptEl);
-
-            // El descuento mayorista se aplica solo cuando alguien pulsa el boton en la prefactura.
-            // Siempre toma los precios ya editados y los multiplica por la cantidad de cada prenda.
-            var scriptDescuentoMayorista = vent.document.createElement('script');
-            scriptDescuentoMayorista.textContent =
-                'window.recalcularTotal = function(){' +
-                ' var sub=0,cantidad=0;' +
-                ' document.querySelectorAll(".precio-editable").forEach(function(el){var precio=parseInt((el.textContent||"0").replace(/[^0-9]/g,""))||0;var cant=Math.max(1,parseInt(el.dataset.cantidad||"1",10)||1);sub+=precio*cant;cantidad+=cant;});' +
-                ' var porPrenda=Math.max(0,parseInt(document.body.dataset.descuentoMayoristaPorPrenda||"0",10)||0);' +
-                ' var descuento=Math.min(sub,porPrenda*cantidad);' +
-                ' var fila=document.getElementById("fila-descuento-mayorista"),valor=document.getElementById("valor-descuento-mayorista"),cantidadEl=document.getElementById("cantidad-descuento-mayorista");' +
-                ' if(fila)fila.style.display=descuento>0?"flex":"none";if(valor)valor.textContent="-$"+descuento.toLocaleString("es-CO");if(cantidadEl)cantidadEl.textContent=String(cantidad);' +
-                ' var subFinal=Math.max(0,sub-descuento),subEl=document.getElementById("subtotal-productos");if(subEl){subEl.dataset.sub=String(subFinal);subEl.textContent="$"+subFinal.toLocaleString("es-CO");}' +
-                ' var envioEl=document.getElementById("fac-valor-envio"),envio=envioEl?(parseInt((envioEl.value||"0").replace(/[^0-9]/g,""))||0):0,elTot=document.getElementById("total-final");if(elTot)elTot.textContent="$"+(subFinal+envio).toLocaleString("es-CO");' +
-                '};' +
-                'window.aplicarDescuentoMayorista=function(){document.body.dataset.descuentoMayoristaPorPrenda="3000";var b=document.getElementById("btn-descuento-mayorista"),q=document.getElementById("btn-quitar-descuento-mayorista");if(b){b.textContent="Descuento mayorista aplicado";b.disabled=true;b.style.opacity=".72";}if(q)q.style.display="inline-block";window.recalcularTotal();};' +
-                'window.quitarDescuentoMayorista=function(){document.body.dataset.descuentoMayoristaPorPrenda="0";var b=document.getElementById("btn-descuento-mayorista"),q=document.getElementById("btn-quitar-descuento-mayorista");if(b){b.textContent="Aplicar $3.000 menos por prenda";b.disabled=false;b.style.opacity="1";}if(q)q.style.display="none";window.recalcularTotal();};' +
-                'window.recalcularTotal();';
-            vent.document.head.appendChild(scriptDescuentoMayorista);
-
-            // Eliminar desde la prefactura usa la misma rutina segura del panel:
-            // devuelve el stock cuando corresponde y vuelve a dibujar la factura compacta.
-            var scriptQuitarPrenda = vent.document.createElement('script');
-            scriptQuitarPrenda.textContent =
-                'window.quitarPrendaFactura = async function(indice){' +
-                ' var principal=window.parent;' +
-                ' if(!principal || !principal.eliminarProductoDePedido){alert("No se pudo comunicar con el panel.");return;}' +
-                ' await principal.eliminarProductoDePedido(' + JSON.stringify(ped.num) + ',indice);' +
-                ' principal.imprimirFactura(' + JSON.stringify(ped.num) + ');' +
-                '};';
-            vent.document.head.appendChild(scriptQuitarPrenda);
 
             var scriptFotoLib = vent.document.createElement('script');
             scriptFotoLib.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
@@ -6308,7 +6333,6 @@ ${ped.comprobanteUrl ? `
                 '  var preciosItems = [];' +
                 '  precios.forEach(function(el){ var precio = parseInt(el.textContent.replace(/[^0-9]/g,""))||0; preciosItems.push(precio); sub += precio; });' +
                 '  var envioEl = document.getElementById("fac-valor-envio");' +
-                '  var descuentoMayoristaPorPrenda = Math.max(0, parseInt(document.body.dataset.descuentoMayoristaPorPrenda || "0", 10) || 0);' +
                 '  var guiaEl  = document.getElementById("fac-guia");' +
                 '  var transpEl = document.getElementById("fac-transportadora");' +
                 '  var obsEl   = document.getElementById("fac-observaciones");' +
@@ -6320,7 +6344,6 @@ ${ped.comprobanteUrl ? `
                 '    transportadora: transpEl ? transpEl.value.trim() : "",' +
                 '    observaciones: obsEl ? obsEl.value.trim() : "",' +
                 '    preciosItems: preciosItems,' +
-                '    descuentoMayoristaPorPrenda: descuentoMayoristaPorPrenda,' +
                 '    tot: sub + envio,' +
                 '    tipoVenta: document.getElementById(\'fac-tipo-venta-display\') ? document.getElementById(\'fac-tipo-venta-display\').textContent.trim() : \'Contraentrega\'' +
                 '  };' +
@@ -7134,8 +7157,16 @@ ${ped.comprobanteUrl ? `
         let _pendientesRenderizados = 0;
         const PENDIENTES_POR_PAGINA = 12;
 
+        function referenciasProductoCatalogo(producto) {
+            const referencias = [producto && producto.codigo];
+            if (producto && Array.isArray(producto.opcionesVenta)) {
+                producto.opcionesVenta.forEach(function(opcion) { referencias.push(opcion && opcion.codigo); });
+            }
+            return referencias.map(function(ref) { return String(ref || '').trim().toUpperCase(); }).filter(Boolean);
+        }
+
         function firmaCatalogoActual() {
-            return (productosDB || []).map(function(p) { return String(p.codigo || '').trim().toUpperCase(); }).filter(Boolean).sort().join('|');
+            return (productosDB || []).flatMap(referenciasProductoCatalogo).sort().join('|');
         }
 
         function invalidarPendientesCatalogo() {
@@ -7156,6 +7187,7 @@ ${ped.comprobanteUrl ? `
                 + '<div style="display:flex;gap:10px;align-items:flex-start;">'+fotos+'<div style="min-width:0;flex:1;">'
                 + '<div style="color:#c1287e;font-weight:900;font-size:.9em;">REF: '+escapeHtml(p.ref)+'</div>'
                 + '<div style="color:#27313a;font-weight:900;font-size:.86em;margin-top:2px;">'+escapeHtml(p.desc || 'Sin descripción')+'</div>'
+                + '<div style="color:#1a7a4a;font-weight:900;font-size:.82em;margin-top:4px;">💰 Precio registrado: '+(Number(p.valor || 0) > 0 ? formatMoney(p.valor) : 'Sin precio')+'</div>'
                 + '<div style="color:#8a7782;font-size:.72em;margin-top:5px;">'+escapeHtml(p.fecha || 'Sin fecha')+(p.registradoPor ? ' · '+escapeHtml(p.registradoPor) : '')+(p.entradas > 1 ? ' · '+p.entradas+' entradas' : '')+'</div>'
                 + '</div></div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;">'+(tallas || '<span style="color:#999;font-size:.74em;">Sin cantidades</span>')+'</div>'
                 + '<button type="button" onclick="publicarPendienteCatalogo('+indicePendiente+')" style="width:100%;margin-top:10px;background:#c1287e;color:white;border:0;border-radius:8px;padding:8px;font-weight:900;cursor:pointer;">✨ Publicar producto</button>'
@@ -7175,20 +7207,30 @@ ${ped.comprobanteUrl ? `
             const codigo = document.getElementById('nuevo-codigo');
             const nombre = document.getElementById('nuevo-nombre');
             const descripcion = document.getElementById('nueva-desc');
+            const precio = document.getElementById('nuevo-precio');
             const tallasContenedor = document.getElementById('contenedor-tallas-stock');
+            window._fotosPendienteParaPublicar = Array.isArray(pendiente.fotos) ? pendiente.fotos.filter(Boolean).slice(0, 3) : [];
 
             if (codigo) codigo.value = pendiente.ref || '';
             if (nombre) nombre.value = pendiente.desc || '';
             if (descripcion) descripcion.value = '';
+            if (precio && Number(pendiente.valor || 0) > 0) precio.value = Number(pendiente.valor);
+            const fotoPrincipal = document.getElementById('nueva-foto-princ');
+            const fotosExtra = document.getElementById('nuevas-fotos-extra');
+            if (fotoPrincipal && window._fotosPendienteParaPublicar.length) {
+                fotoPrincipal.value = '';
+                fotoPrincipal.setAttribute('title', 'Se usarán las fotos guardadas en la entrada de inventario.');
+            }
+            if (fotosExtra && window._fotosPendienteParaPublicar.length) fotosExtra.value = '';
             if (tallasContenedor) {
                 const tallas = Object.entries(pendiente.tallas || {});
                 tallasContenedor.innerHTML = tallas.length
                     ? tallas.map(function(entrada) {
                         const talla = escapeHtmlAttr(String(entrada[0] || ''));
                         const cantidad = Math.max(0, parseInt(entrada[1], 10) || 0);
-                        return '<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color" value="'+talla+'"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0" value="'+cantidad+'"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"></div>';
+                        return '<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color" value="'+talla+'"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0" value="'+cantidad+'"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"><input type="number" class="inp-talla-precio" placeholder="Precio" min="0" title="Precio solo para esta talla; vacío = precio general"></div>';
                     }).join('')
-                    : '<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"></div>';
+                    : '<div class="fila-talla"><input type="text" class="inp-talla-nombre" placeholder="Talla / Color"><input type="number" class="inp-talla-stock" placeholder="Cantidad" min="0"><input type="number" class="inp-talla-img-index" placeholder="Foto #" min="1"><input type="number" class="inp-talla-precio" placeholder="Precio" min="0" title="Precio solo para esta talla; vacío = precio general"></div>';
             }
 
             validarCodigoCatalogoPublicado(pendiente.ref || '');
@@ -7204,16 +7246,13 @@ ${ped.comprobanteUrl ? `
             const pendientes = window._pendientesCatalogoDatos || [];
             if (!lista) return;
             if (reiniciar) { lista.innerHTML = ''; _pendientesRenderizados = 0; }
-            const fin = Math.min(_pendientesRenderizados + PENDIENTES_POR_PAGINA, pendientes.length);
+            const fin = pendientes.length;
             let tarjetas = '';
             for (let i = _pendientesRenderizados; i < fin; i++) tarjetas += tarjetaPendienteHtml(pendientes[i], i);
             const botonAnterior = document.getElementById('btn-mas-pendientes');
             if (botonAnterior) botonAnterior.remove();
             lista.insertAdjacentHTML('beforeend', tarjetas);
             _pendientesRenderizados = fin;
-            if (fin < pendientes.length) {
-                lista.insertAdjacentHTML('beforeend', '<button id="btn-mas-pendientes" type="button" onclick="mostrarMasPendientesCatalogo()" style="grid-column:1/-1;border:1.5px solid #e8a6cb;background:#fff0f8;color:#a52f73;border-radius:10px;padding:10px;font-weight:900;cursor:pointer;">Mostrar 12 más · '+fin+' de '+pendientes.length+'</button>');
-            }
         }
 
         function mostrarMasPendientesCatalogo() {
@@ -7244,9 +7283,7 @@ ${ped.comprobanteUrl ? `
             lista.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#9b6a85;font-weight:800;padding:18px;">Comparando entradas con el catálogo...</div>';
             _cargaPendientesCatalogo = (async function() {
             try {
-                const referenciasCatalogo = new Set((productosDB || []).map(function(p) {
-                    return String(p.codigo || '').trim().toUpperCase();
-                }).filter(Boolean));
+                const referenciasCatalogo = new Set((productosDB || []).flatMap(referenciasProductoCatalogo));
                 const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const snap = await getDocs(collection(db, 'inventario_mercancia'));
                 const agrupadas = new Map();
@@ -7256,7 +7293,7 @@ ${ped.comprobanteUrl ? `
                     if (!clave || referenciasCatalogo.has(clave)) return;
                     let grupo = agrupadas.get(clave);
                     if (!grupo) {
-                        grupo = { ref: String(entrada.ref || '').trim(), desc: entrada.desc || '', fecha: entrada.fecha || '', timestamp: 0, registradoPor: entrada.registradoPor || '', fotos: [], tallas: {}, entradas: 0 };
+                        grupo = { ref: String(entrada.ref || '').trim(), desc: entrada.desc || '', fecha: entrada.fecha || '', timestamp: 0, registradoPor: entrada.registradoPor || '', fotos: [], tallas: {}, entradas: 0, valor: Number(entrada.valor || 0) };
                         agrupadas.set(clave, grupo);
                     }
                     grupo.entradas++;
@@ -7270,6 +7307,7 @@ ${ped.comprobanteUrl ? `
                         grupo.desc = entrada.desc || grupo.desc;
                         grupo.fecha = entrada.fecha || grupo.fecha;
                         grupo.registradoPor = entrada.registradoPor || grupo.registradoPor;
+                        grupo.valor = Number(entrada.valor || 0) || grupo.valor || 0;
                         const fotos = (entrada.fotoUrls && entrada.fotoUrls.length) ? entrada.fotoUrls : (entrada.fotoUrl ? [entrada.fotoUrl] : []);
                         if (fotos.length) grupo.fotos = fotos.slice(0, 3);
                     }
@@ -7327,21 +7365,18 @@ ${ped.comprobanteUrl ? `
             return m ? parseInt(m[0], 10) : 0;
         }
 
-        async function obtenerReferenciasInventarioMercancia() {
-            const refs = [];
-            try {
-                const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const snap = await getDocs(collection(db, 'inventario_mercancia'));
-                snap.forEach(d => refs.push(String((d.data() || {}).ref || '').trim()));
-            } catch(e) {}
-            return refs.filter(Boolean);
-        }
-
         async function referenciaInventarioExiste(ref) {
             const buscada = String(ref || '').trim();
             if (!buscada) return false;
-            const refs = await obtenerReferenciasInventarioMercancia();
-            return refs.some(r => r === buscada);
+            try {
+                const { collection, getDocs, limit, query, where } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const q = query(collection(db, 'inventario_mercancia'), where('ref', '==', buscada), limit(1));
+                const snap = await getDocs(q);
+                return !snap.empty;
+            } catch(e) {
+                console.log('No se pudo comprobar la referencia:', e);
+                return false;
+            }
         }
 
         async function obtenerUltimaReferenciaInventarioMercancia() {
@@ -7359,7 +7394,6 @@ ${ped.comprobanteUrl ? `
         }
 
         async function calcularSiguienteReferenciaInventario() {
-            const refs = await obtenerReferenciasInventarioMercancia();
             const guardadaLocal = parseInt(localStorage.getItem(CLAVE_SIGUIENTE_REF_INVENTARIO) || '0', 10) || 0;
             const ultimaRef = await obtenerUltimaReferenciaInventarioMercancia();
             const ultimoNumero = obtenerNumeroReferenciaInventario(ultimaRef);
@@ -7369,8 +7403,7 @@ ${ped.comprobanteUrl ? `
             let siguiente = ultimoNumero > 0
                 ? ultimoNumero + 1
                 : (guardadaLocal > 0 ? guardadaLocal : REF_INVENTARIO_BASE);
-            const usadas = new Set(refs.map(ref => obtenerNumeroReferenciaInventario(ref)).filter(Boolean));
-            while (usadas.has(siguiente)) siguiente++;
+            while (await referenciaInventarioExiste(String(siguiente))) siguiente++;
             localStorage.setItem(CLAVE_SIGUIENTE_REF_INVENTARIO, String(siguiente));
             return siguiente;
         }
@@ -7400,8 +7433,27 @@ ${ped.comprobanteUrl ? `
             const buscada = String(ref || '').trim().toUpperCase();
             if (!buscada) return null;
             return (productosDB || []).find(function(p) {
-                return String(p.codigo || '').trim().toUpperCase() === buscada;
+                return referenciasProductoCatalogo(p).includes(buscada);
             }) || null;
+        }
+
+        function sincronizarPrecioEntradaEnProducto(producto, ref, valor) {
+            const referencia = String(ref || '').trim().toUpperCase();
+            const precio = Math.max(0, Number(valor) || 0);
+            if (!referencia || !precio) return false;
+            let actualizado = false;
+            if (String(producto.codigo || '').trim().toUpperCase() === referencia) {
+                producto.precio = precio;
+                actualizado = true;
+            }
+            (producto.opcionesVenta || []).forEach(function(opcion) {
+                if (String(opcion.codigo || '').trim().toUpperCase() === referencia) {
+                    opcion.precio = precio;
+                    actualizado = true;
+                }
+            });
+            if (actualizado) producto.actualizadoEn = new Date().toISOString();
+            return actualizado;
         }
 
         function sumarEntradaAStockProducto(producto, tallasEntrada) {
@@ -7490,6 +7542,7 @@ ${ped.comprobanteUrl ? `
                             ? Object.assign({}, productoExistente, productoSnap.data(), { id: productoExistente.id })
                             : productoExistente;
                         productoActualizado = sumarEntradaAStockProducto(baseProducto, tallasArr);
+                        sincronizarPrecioEntradaEnProducto(productoActualizado, ref, entrada.valor);
                         transaction.set(productoRef, productoActualizado, { merge: true });
                         transaction.set(entradaRef, entrada);
                     });
@@ -7530,17 +7583,29 @@ ${ped.comprobanteUrl ? `
             }
         }
 
-        async function cargarHistorialInventario() {
+        async function cargarHistorialInventario(cargarMas) {
             const cont = document.getElementById('inv-historial');
             if (!cont) return;
-            try {
-                const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const q = query(collection(db, 'inventario_mercancia'), orderBy('timestamp', 'desc'));
-                const snap = await getDocs(q);
-                if (snap.empty) { const contador = document.getElementById('inv-historial-contador'); if (contador) contador.textContent = '(0)'; cont.innerHTML = '<p style="color:#888;text-align:center;font-size:0.85em;">Sin entradas registradas aun</p>'; return; }
-                const contador = document.getElementById('inv-historial-contador');
-                if (contador) contador.textContent = '(' + snap.size + ')';
+            const botonAnterior = document.getElementById('btn-mas-entradas-inventario');
+            if (botonAnterior) botonAnterior.remove();
+            if (!cargarMas) {
+                window._ultimoDocEntradasInventario = null;
+                window._entradasInventarioCargadas = 0;
                 cont.innerHTML = '';
+            }
+            try {
+                const { collection, getDocs, limit, orderBy, query, startAfter } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const restricciones = [orderBy('timestamp', 'desc')];
+                if (cargarMas && window._ultimoDocEntradasInventario) restricciones.push(startAfter(window._ultimoDocEntradasInventario));
+                restricciones.push(limit(200));
+                const q = query(collection(db, 'inventario_mercancia'), ...restricciones);
+                const snap = await getDocs(q);
+                if (snap.empty && !cargarMas) { const contador = document.getElementById('inv-historial-contador'); if (contador) contador.textContent = '(0)'; cont.innerHTML = '<p style="color:#888;text-align:center;font-size:0.85em;">Sin entradas registradas aun</p>'; return; }
+                if (snap.empty) return;
+                window._ultimoDocEntradasInventario = snap.docs[snap.docs.length - 1];
+                window._entradasInventarioCargadas = Number(window._entradasInventarioCargadas || 0) + snap.size;
+                const contador = document.getElementById('inv-historial-contador');
+                if (contador) contador.textContent = '(' + window._entradasInventarioCargadas + ' mostradas)';
                 snap.forEach(docSnap => {
                     const e = docSnap.data();
                     const fechaHoraEntrada = e.timestamp && typeof e.timestamp.toDate === 'function'
@@ -7568,9 +7633,18 @@ ${ped.comprobanteUrl ? `
                         +'<div style="margin-bottom:6px;display:flex;gap:4px;flex-wrap:wrap;">'+tallasHtml+'</div>'
                         +(e.obs ? '<div style="font-size:0.78em;color:#666;background:#f8f8f8;padding:6px 10px;border-radius:8px;margin-bottom:6px;">'+e.obs+'</div>' : '')
                         +'<button onclick="eliminarEntradaInventario(\'' + docSnap.id + '\')" style="background:#fde8e8;color:#e74c3c;border:1px solid #f5c6c6;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;">Eliminar</button>'
-                        +(window.usuarioActual && window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' ? '<button data-id="'+docSnap.id+'" data-ref="'+(e.ref||'')+'" data-desc="'+encodeURIComponent(e.desc||'')+'" data-tallas="'+encodeURIComponent(JSON.stringify(e.tallas||[]))+'" data-fotos="'+encodeURIComponent(JSON.stringify(fotosEntrada))+'" onclick="abrirEditarEntradaBtn(this)" style="background:#e8f5e9;color:#1a7a4a;border:1px solid #a8e6c1;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;margin-left:6px;">Editar</button>' : '') + '</div>';
+                        +(window.usuarioActual && (window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' || window.usuarioActual.uid === 'MtQpryHLGYab5v3UjhRZw88CAD63') ? '<button data-id="'+docSnap.id+'" data-ref="'+(e.ref||'')+'" data-desc="'+encodeURIComponent(e.desc||'')+'" data-valor="'+Number(e.valor||0)+'" data-tallas="'+encodeURIComponent(JSON.stringify(e.tallas||[]))+'" data-fotos="'+encodeURIComponent(JSON.stringify(fotosEntrada))+'" onclick="abrirEditarEntradaBtn(this)" style="background:#e8f5e9;color:#1a7a4a;border:1px solid #a8e6c1;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.78em;font-weight:700;margin-left:6px;">Editar</button>' : '') + '</div>';
                     cont.appendChild(card);
                 });
+                if (snap.size === 200) {
+                    const btnMas = document.createElement('button');
+                    btnMas.id = 'btn-mas-entradas-inventario';
+                    btnMas.type = 'button';
+                    btnMas.textContent = 'Mostrar 200 entradas anteriores';
+                    btnMas.onclick = function() { cargarHistorialInventario(true); };
+                    btnMas.style.cssText = 'width:100%;margin-top:8px;background:#eefaf2;color:#1a7a4a;border:1.5px solid #a8e6c1;border-radius:10px;padding:11px;font-family:Nunito,sans-serif;font-weight:900;cursor:pointer;';
+                    cont.appendChild(btnMas);
+                }
             } catch(e) {
                 cont.innerHTML = '<p style="color:#e74c3c;font-size:0.85em;">Error cargando historial</p>';
             }
@@ -7655,9 +7729,10 @@ ${ped.comprobanteUrl ? `
         function actualizarPanelMigracionR2() {
             const panel = document.getElementById('panel-migracion-r2');
             if (!panel) return;
-            const autorizado = typeof esYohanaInventario === 'function' && esYohanaInventario();
-            panel.style.display = autorizado ? 'block' : 'none';
-            if (!autorizado) return;
+            panel.hidden = true;
+            panel.setAttribute('aria-hidden', 'true');
+            panel.style.setProperty('display', 'none', 'important');
+            return;
 
             const productos = productosDB || [];
             const pendientes = obtenerProductosPendientesMigracionR2();
@@ -7766,8 +7841,12 @@ ${ped.comprobanteUrl ? `
             if (!desde && !hasta) { cont.innerHTML = ''; actualizarBotonResumenInventario(); return; }
             cont.innerHTML = '<p style="color:#6b8b78;font-weight:800;margin:0;">Cargando resumen...</p>';
             try {
-                const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const q = query(collection(db, 'inventario_mercancia'), orderBy('timestamp', 'desc'));
+                const { collection, getDocs, orderBy, query, where } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const filtrosFecha = [];
+                if (desde) filtrosFecha.push(where('fecha', '>=', desde));
+                if (hasta) filtrosFecha.push(where('fecha', '<=', hasta));
+                filtrosFecha.push(orderBy('fecha', 'desc'));
+                const q = query(collection(db, 'inventario_mercancia'), ...filtrosFecha);
                 const snap = await getDocs(q);
                 let entradas = [];
                 snap.forEach(d => entradas.push(Object.assign({ id: d.id }, d.data())));
@@ -7809,15 +7888,17 @@ ${ped.comprobanteUrl ? `
             var id = btn.getAttribute('data-id');
             var ref = btn.getAttribute('data-ref');
             var descEncoded = btn.getAttribute('data-desc');
+            var valor = Number(btn.getAttribute('data-valor') || 0);
             var tallasJson = JSON.parse(decodeURIComponent(btn.getAttribute('data-tallas')));
             var fotosJson = JSON.parse(decodeURIComponent(btn.getAttribute('data-fotos') || '%5B%5D'));
-            abrirEditarEntrada(id, ref, descEncoded, tallasJson, fotosJson);
+            abrirEditarEntrada(id, ref, descEncoded, valor, tallasJson, fotosJson);
         }
 
-        function abrirEditarEntrada(id, ref, descEncoded, tallasJson, fotosJson) {
+        function abrirEditarEntrada(id, ref, descEncoded, valor, tallasJson, fotosJson) {
             document.getElementById('edit-entrada-id').value = id;
             document.getElementById('edit-entrada-ref').value = ref;
             document.getElementById('edit-entrada-desc').value = decodeURIComponent(descEncoded);
+            document.getElementById('edit-entrada-valor').value = Number(valor || 0);
             var cont = document.getElementById('edit-entrada-tallas-cont');
             cont.innerHTML = '';
             var tallas = typeof tallasJson === 'string' ? JSON.parse(tallasJson) : tallasJson;
@@ -7842,13 +7923,13 @@ ${ped.comprobanteUrl ? `
             cont.appendChild(div);
         }
 
-        async function sincronizarCorreccionEntradaConCatalogo(refOriginal, refNueva, tallasOriginales, tallasNuevas) {
+        async function sincronizarCorreccionEntradaConCatalogo(refOriginal, refNueva, tallasOriginales, tallasNuevas, valor) {
             const normalizarRef = valor => String(valor || '').trim().toUpperCase();
             const refAntes = normalizarRef(refOriginal);
             const refDespues = normalizarRef(refNueva);
             const publicados = (productosDB || []).filter(function(p) {
-                const codigo = normalizarRef(p.codigo);
-                return codigo && (codigo === refAntes || codigo === refDespues);
+                const referencias = referenciasProductoCatalogo(p);
+                return referencias.includes(refAntes) || referencias.includes(refDespues);
             });
             if (!publicados.length) return 0;
 
@@ -7866,6 +7947,7 @@ ${ped.comprobanteUrl ? `
             const tallasAfectadas = new Set(Object.keys(antes).concat(Object.keys(despues)));
 
             for (const producto of publicados) {
+                sincronizarPrecioEntradaEnProducto(producto, refAntes || refDespues, valor);
                 producto.tallasObj = Array.isArray(producto.tallasObj) ? producto.tallasObj : [];
                 tallasAfectadas.forEach(function(nombreTalla) {
                     const diferencia = (despues[nombreTalla] || 0) - (antes[nombreTalla] || 0);
@@ -7891,10 +7973,11 @@ ${ped.comprobanteUrl ? `
             var id = document.getElementById('edit-entrada-id').value;
             var ref = document.getElementById('edit-entrada-ref').value.trim();
             var desc = document.getElementById('edit-entrada-desc').value.trim();
+            var valor = Math.max(0, Number(document.getElementById('edit-entrada-valor').value) || 0);
             var msg = document.getElementById('edit-entrada-msg');
-            if (!ref || !desc) {
+            if (!ref || !desc || valor <= 0) {
                 msg.style.color = '#e74c3c';
-                msg.textContent = '⚠️ Completa referencia y descripción';
+                msg.textContent = '⚠️ Completa referencia, nombre y precio de llegada';
                 msg.style.display = 'block';
                 return;
             }
@@ -7918,7 +8001,7 @@ ${ped.comprobanteUrl ? `
                     fotosFinales = fotosFinales.concat(nuevasUrls);
                 }
                 await updateDoc(doc(db, 'inventario_mercancia', id), {
-                    ref: ref, desc: desc, tallas: tallas,
+                    ref: ref, desc: desc, valor: valor, tallas: tallas,
                     fotoUrls: fotosFinales,
                     fotoUrl: fotosFinales[0] || ''
                 });
@@ -7926,11 +8009,12 @@ ${ped.comprobanteUrl ? `
                     window._editEntradaRefOriginal || ref,
                     ref,
                     window._editEntradaTallasOriginales || [],
-                    tallas
+                    tallas,
+                    valor
                 );
                 msg.style.color = '#27ae60';
                 msg.textContent = productosSincronizados
-                    ? '✅ Entrada y stock del catálogo actualizados'
+                    ? '✅ Entrada, precio y stock del catálogo actualizados'
                     : '✅ Entrada actualizada (esta referencia aún no está publicada)';
                 msg.style.display = 'block';
                 setTimeout(function() {
@@ -8019,8 +8103,8 @@ ${ped.comprobanteUrl ? `
             const cont = document.getElementById('sal-historial');
             if (!cont) return;
             try {
-                const { collection, getDocs, orderBy, query, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const q = query(collection(db, 'inventario_salidas'), orderBy('timestamp', 'desc'));
+                const { collection, getDocs, limit, orderBy, query, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const q = query(collection(db, 'inventario_salidas'), orderBy('timestamp', 'desc'), limit(200));
                 const snap = await getDocs(q);
                 if (snap.empty) { cont.innerHTML = '<p style="color:#888;text-align:center;font-size:0.85em;">Sin salidas registradas aún</p>'; return; }
                 cont.innerHTML = '';
@@ -9023,6 +9107,10 @@ ${ped.comprobanteUrl ? `
     <div style="margin-bottom:10px;">
       <label style="font-size:0.8em;color:#555;font-weight:700;">👗 Descripción</label>
       <input type="text" id="edit-entrada-desc" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:0.8em;color:#555;font-weight:700;">💰 Precio de llegada por unidad</label>
+      <input type="number" id="edit-entrada-valor" min="1" step="1" inputmode="numeric" placeholder="Ej: 25000" style="width:100%;padding:8px;border:1.5px solid #a8e6c1;border-radius:8px;font-family:Nunito,sans-serif;box-sizing:border-box;">
     </div>
     <div style="margin-bottom:10px;">
       <label style="font-size:0.8em;color:#555;font-weight:700;">📏 Tallas y Cantidades</label>
