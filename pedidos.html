@@ -1761,7 +1761,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <div class="seccion-admin-sub" style="background:#fbfffc;border:1.5px solid #b9e4c9;border-radius:14px;padding:17px;">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
                         <div><h3 style="margin:0;color:#187548;">Reporte contable de ventas</h3><p style="margin:4px 0 0;color:#667085;font-size:.85em;">Pedidos enviados, pagados y entregados. No incluye envíos ni datos de clientes.</p></div>
-                        <div style="display:flex;gap:7px;flex-wrap:wrap;"><button onclick="exportarReporteVentasCSV()" style="border:0;background:#168653;color:white;border-radius:9px;padding:9px 13px;font-weight:900;cursor:pointer;">Exportar Excel</button><button onclick="imprimirReporteVentas()" style="border:0;background:#8e44ad;color:white;border-radius:9px;padding:9px 13px;font-weight:900;cursor:pointer;">Exportar PDF</button></div>
+                        <div id="rv-exportaciones" style="display:flex;gap:7px;flex-wrap:wrap;"><button onclick="exportarReporteVentasCSV()" style="border:0;background:#168653;color:white;border-radius:9px;padding:9px 13px;font-weight:900;cursor:pointer;">Exportar Excel</button><button onclick="imprimirReporteVentas()" style="border:0;background:#8e44ad;color:white;border-radius:9px;padding:9px 13px;font-weight:900;cursor:pointer;">Exportar PDF</button></div>
                     </div>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin-bottom:14px;">
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Desde<input id="rv-desde" type="date" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;"></label>
@@ -1772,7 +1772,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     </div>
                     <div id="rv-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px;margin-bottom:14px;"></div>
                     <div id="rv-detalle-ref" style="display:none;margin-bottom:14px;"></div>
-                    <div style="overflow:auto;border:1.5px solid #ccebd7;border-radius:11px;background:white;"><table style="width:100%;border-collapse:collapse;font-size:.82em;min-width:720px;"><thead style="background:#eaf8ef;color:#187548;"><tr><th style="padding:10px;text-align:left;">Fecha</th><th>Ventas</th><th>Prendas</th><th style="text-align:right;">Venta bruta</th><th style="text-align:right;">Descuentos</th><th style="text-align:right;padding-right:12px;">Venta neta</th></tr></thead><tbody id="rv-tbody"></tbody></table></div>
+                    <div id="rv-tabla-general" style="overflow:auto;border:1.5px solid #ccebd7;border-radius:11px;background:white;"><table style="width:100%;border-collapse:collapse;font-size:.82em;min-width:720px;"><thead style="background:#eaf8ef;color:#187548;"><tr><th style="padding:10px;text-align:left;">Fecha</th><th>Ventas</th><th>Prendas</th><th style="text-align:right;">Venta bruta</th><th style="text-align:right;">Descuentos</th><th style="text-align:right;padding-right:12px;">Venta neta</th></tr></thead><tbody id="rv-tbody"></tbody></table></div>
                     <p id="rv-vacio" style="display:none;text-align:center;color:#98a2b3;font-weight:800;padding:22px;">No hay ventas finalizadas en las fechas elegidas.</p>
                 </div>
             </div>
@@ -8877,20 +8877,12 @@ ${ped.comprobanteUrl ? `
         function obtenerDetalleReferenciaReporte() {
             const consulta = String((document.getElementById('rv-ref') || {}).value || '').trim().toLowerCase();
             if (!consulta) return [];
-            const desde = (document.getElementById('rv-desde') || {}).value || '';
-            const hasta = (document.getElementById('rv-hasta') || {}).value || '';
-            const tipo = (document.getElementById('rv-tipo') || {}).value || '';
-            const asesora = (document.getElementById('rv-asesora') || {}).value || '';
             const detalle = [];
             (historialPedidos || []).forEach(function(ped) {
                 const estado = String(ped.estado || '').trim().toLowerCase().replace(/\s+/g, '_');
                 if (estado !== 'nuevo' && estado !== 'enviado' && estado !== 'pagado' && estado !== 'entregado') return;
-                if (tipo && String(ped.tipoVenta || '') !== tipo) return;
-                if (asesora && String(ped.asesora || '').toLowerCase() !== asesora.toLowerCase()) return;
                 const fecha = fechaPedidoReporte(ped); if (!fecha) return;
                 const iso = fechaISOReporte(fecha);
-                if (desde && iso < desde) return;
-                if (hasta && iso > hasta) return;
                 (ped.items || []).forEach(function(item) {
                     const ref = String(item.cod || item.codigo || item.ref || '').trim();
                     if (!ref.toLowerCase().includes(consulta)) return;
@@ -8925,13 +8917,19 @@ ${ped.comprobanteUrl ? `
             iniciarFechasReporteVentas();
             const data = obtenerDatosReporteVentas();
             renderizarDetalleReferenciaReporte();
+            const buscandoReferencia = !!String((document.getElementById('rv-ref') || {}).value || '').trim();
             const resumen = document.getElementById('rv-resumen');
+            if (resumen) resumen.style.display = buscandoReferencia ? 'none' : 'grid';
             if (resumen) resumen.innerHTML = [
                 ['Ventas',data.total.ventas],['Prendas',data.total.prendas],['Venta bruta',formatMoney(data.total.bruto)],['Descuentos',formatMoney(data.total.descuentos)],['Venta neta',formatMoney(data.total.neto)],['Promedio por venta',formatMoney(data.total.promedio)]
             ].map(x => '<div style="background:white;border:1.5px solid #ccebd7;border-radius:10px;padding:11px;"><div style="font-size:.72em;color:#667085;font-weight:800;text-transform:uppercase;">'+x[0]+'</div><div style="font-size:1.12em;color:#187548;font-weight:900;margin-top:3px;">'+x[1]+'</div></div>').join('');
+            const tablaGeneral = document.getElementById('rv-tabla-general');
+            if (tablaGeneral) tablaGeneral.style.display = buscandoReferencia ? 'none' : 'block';
+            const exportaciones = document.getElementById('rv-exportaciones');
+            if (exportaciones) exportaciones.style.display = buscandoReferencia ? 'none' : 'flex';
             const tbody = document.getElementById('rv-tbody');
             if (tbody) tbody.innerHTML = data.dias.map(d => '<tr style="border-bottom:1px solid #e8f3ec;"><td style="padding:10px;font-weight:800;">'+d.fecha.split('-').reverse().join('/')+'</td><td style="text-align:center;">'+d.ventas+'</td><td style="text-align:center;">'+d.prendas+'</td><td style="text-align:right;">'+formatMoney(d.bruto)+'</td><td style="text-align:right;color:#b06b00;">−'+formatMoney(d.descuentos)+'</td><td style="text-align:right;padding-right:12px;font-weight:900;color:#187548;">'+formatMoney(d.neto)+'</td></tr>').join('');
-            const vacio = document.getElementById('rv-vacio'); if (vacio) vacio.style.display = data.dias.length ? 'none' : 'block';
+            const vacio = document.getElementById('rv-vacio'); if (vacio) vacio.style.display = buscandoReferencia || data.dias.length ? 'none' : 'block';
         }
 
         function exportarReporteVentasCSV() {
