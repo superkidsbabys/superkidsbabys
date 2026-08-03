@@ -1692,7 +1692,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                             <option value="vip">VIP ($200.000+)</option>
                         </select>
                     </div>
-                    <div class="clientes-layout" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,0.8fr);gap:14px;align-items:start;">
+                    <div class="clientes-layout" style="display:flex;flex-direction:column;gap:14px;align-items:stretch;">
                         <div class="clientes-lista" style="overflow:auto;border:1.5px solid #d7e8ff;border-radius:12px;background:white;max-height:620px;">
                             <table style="width:100%;border-collapse:collapse;font-family:Nunito,sans-serif;font-size:0.84em;">
                                 <thead style="position:sticky;top:0;background:#eff6ff;color:#246b9b;z-index:1;">
@@ -6408,7 +6408,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
 </div>
 <div class="btn-no-print">
   <button class="btn-g btn-verde" onclick="guardarCambiosPrefactura()">💾 Guardar cambios</button>
-  <button class="btn-g btn-rojo" onclick="window.print()">📄 Guardar como PDF</button>
+  <button class="btn-g btn-rojo" onclick="imprimirFacturaPDF()">📄 Guardar como PDF</button>
   <button class="btn-g" onclick="guardarFacturaComoFoto(this)" style="background:linear-gradient(135deg,#8e44ad,#b05cc5);color:white;">🖼️ Guardar foto</button>
 </div>
 ${ped.comprobanteUrl ? `
@@ -6435,6 +6435,22 @@ ${ped.comprobanteUrl ? `
                 '  if(elTot)elTot.textContent="$"+total.toLocaleString("es-CO");' +
                 '}';
             vent.document.head.appendChild(scriptEl);
+
+            // Chrome usa el titulo de la pagina principal al guardar un iframe como PDF.
+            // Lo cambiamos solo durante la impresion y luego lo restauramos.
+            var scriptPdf = vent.document.createElement('script');
+            scriptPdf.textContent =
+                'window.imprimirFacturaPDF=function(){' +
+                ' var principal=window.parent.document;' +
+                ' var tituloAnterior=principal.title;' +
+                ' var tituloPDF=' + JSON.stringify(nombreBaseArchivoPedido) + ';' +
+                ' principal.title=tituloPDF;document.title=tituloPDF;' +
+                ' var restaurar=function(){principal.title=tituloAnterior;};' +
+                ' window.addEventListener("afterprint",restaurar,{once:true});' +
+                ' window.print();' +
+                ' setTimeout(restaurar,500);' +
+                '};';
+            vent.document.head.appendChild(scriptPdf);
 
             var scriptQuitarPrenda = vent.document.createElement('script');
             scriptQuitarPrenda.textContent =
@@ -8611,6 +8627,8 @@ ${ped.comprobanteUrl ? `
             const mapa = {};
             (historialPedidos || []).forEach(function(pedido) {
                 if (!pedido || (!pedido.nom && !pedido.tel && !pedido.cc)) return;
+                // Los pedidos anulados/cancelados no son ventas.
+                if (normalizarEstadoPedido(pedido.estado) === 'cancelado') return;
                 const key = clienteGestionKey(pedido);
                 if (!mapa[key]) {
                     mapa[key] = {
@@ -8760,14 +8778,17 @@ ${ped.comprobanteUrl ? `
                 '<h4 style="margin:10px 0 6px;color:#246b9b;">Productos mas comprados</h4>' +
                 (topProductos.length ? '<ul style="margin:0 0 12px 18px;padding:0;color:#344054;">' + topProductos.map(p => '<li>' + p + ' <b>x' + productos[p] + '</b></li>').join('') + '</ul>' : '<p style="color:#98a2b3;">Sin productos.</p>') +
                 '<h4 style="margin:10px 0 6px;color:#246b9b;">Historial</h4>' +
-                '<div style="max-height:240px;overflow:auto;">' + pedidos.map(function(p) {
+                '<div style="display:grid;grid-template-columns:1fr;gap:10px;">' + pedidos.map(function(p) {
                     const items = (p.items || []).map(i => i.nom + (i.talla ? ' (' + i.talla + ')' : '')).join(', ');
-                    return '<div style="border-top:1px solid #eef4ff;padding:8px 0;">' +
+                    return '<div style="border:1.5px solid #d7e8ff;border-radius:10px;padding:12px;background:#f8fbff;">' +
                         '<b>' + (p.numOrden || ('SK' + String(p.num).padStart(5,'0'))) + '</b> · ' + (p.fecha || '') + '<br>' +
                         '<span style="color:#667085;font-size:0.84em;">' + items + '</span><br>' +
                         '<span style="color:#8e44ad;font-weight:900;">' + formatMoney(totalPedidoCliente(p)) + '</span>' +
                     '</div>';
                 }).join('') + '</div>';
+            setTimeout(function() {
+                cont.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 0);
         }
 
         function prepararEditorFotosEntrada(fotos) {
