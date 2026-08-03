@@ -8779,11 +8779,23 @@ ${ped.comprobanteUrl ? `
                 (topProductos.length ? '<ul style="margin:0 0 12px 18px;padding:0;color:#344054;">' + topProductos.map(p => '<li>' + p + ' <b>x' + productos[p] + '</b></li>').join('') + '</ul>' : '<p style="color:#98a2b3;">Sin productos.</p>') +
                 '<h4 style="margin:10px 0 6px;color:#246b9b;">Historial</h4>' +
                 '<div style="display:grid;grid-template-columns:1fr;gap:10px;">' + pedidos.map(function(p) {
-                    const items = (p.items || []).map(i => i.nom + (i.talla ? ' (' + i.talla + ')' : '')).join(', ');
+                    const items = (p.items || []).map(function(i, indice) {
+                        const nombre = i.nom || i.nombre || 'Producto';
+                        const talla = i.talla || 'Unica';
+                        const cantidad = Math.max(1, parseInt(i.cant || i.cantidad, 10) || 1);
+                        return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;' +
+                            (indice ? 'border-top:1px solid #e2ecf8;' : '') + '">' +
+                            '<span style="color:#344054;font-size:0.88em;font-weight:700;overflow-wrap:anywhere;">' + escapeHtml(nombre) + '</span>' +
+                            '<span style="color:#667085;font-size:0.82em;white-space:nowrap;">Talla: <b>' + escapeHtml(talla) + '</b> &middot; Cant: <b>' + cantidad + '</b></span>' +
+                        '</div>';
+                    }).join('');
                     return '<div style="border:1.5px solid #d7e8ff;border-radius:10px;padding:12px;background:#f8fbff;">' +
-                        '<b>' + (p.numOrden || ('SK' + String(p.num).padStart(5,'0'))) + '</b> · ' + (p.fecha || '') + '<br>' +
-                        '<span style="color:#667085;font-size:0.84em;">' + items + '</span><br>' +
-                        '<span style="color:#8e44ad;font-weight:900;">' + formatMoney(totalPedidoCliente(p)) + '</span>' +
+                        '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">' +
+                            '<b>' + escapeHtml(p.numOrden || ('SK' + String(p.num).padStart(5,'0'))) + '</b>' +
+                            '<span style="color:#667085;font-size:0.84em;">' + escapeHtml(p.fecha || '') + '</span>' +
+                        '</div>' +
+                        '<div style="margin:7px 0;">' + (items || '<span style="color:#98a2b3;font-size:0.84em;">Sin prendas registradas.</span>') + '</div>' +
+                        '<div style="border-top:1px solid #d7e8ff;padding-top:8px;text-align:right;color:#8e44ad;font-weight:900;">Total: ' + formatMoney(totalPedidoCliente(p)) + '</div>' +
                     '</div>';
                 }).join('') + '</div>';
             setTimeout(function() {
