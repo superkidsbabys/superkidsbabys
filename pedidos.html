@@ -6323,10 +6323,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const descuentoPctFactura = Math.round((promoFactura.bruto - descuentoPromoFactura) * (parseFloat(ped.descuentoPorcentaje || 0) || 0) / 100);
             const subtotalReal = promoFactura.bruto - descuentoPromoFactura - descuentoPctFactura;
             const envioInicial = parseInt((ped.valorEnvio || '0').toString().replace(/[^0-9]/g, '')) || 0;
+            const numeroArchivoPedido = String(ped.numOrden || ('SK' + ped.num) || 'SK').replace(/[^a-zA-Z0-9_-]/g, '');
+            const clienteArchivoPedido = String(ped.nom || 'Cliente').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[<>:"/\\|?*]+/g, '').trim();
+            const nombreBaseArchivoPedido = 'Pedido-' + numeroArchivoPedido + '-' + (clienteArchivoPedido || 'Cliente');
 
             // Abrir la factura dentro de la aplicación, sin lanzar otra ventana de Chrome.
             let vent = abrirFacturaEnApp();
-            vent.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Pedido ${ped.numOrden || ('#SK-' + ped.num)}</title><style>
+            vent.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${escapeHtml(nombreBaseArchivoPedido)}</title><style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',sans-serif;background:#fff;color:#222;padding:12px;max-width:600px;margin:0 auto;font-size:13px}
 .encabezado{display:flex;gap:10px;margin-bottom:8px}
@@ -6362,7 +6365,9 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
   body{padding:6px;background:white}
   .precio-editable{border:none !important;padding:0}
   .fila-envio input,.fila-envio textarea{border:none}
-  table{page-break-inside:avoid}
+  table{page-break-inside:auto}
+  thead{display:table-header-group}
+  tr{break-inside:avoid;page-break-inside:avoid}
   .tabla-editable{display:none !important}
   .tabla-limpia{display:table !important}
 }
@@ -6448,6 +6453,7 @@ ${ped.comprobanteUrl ? `
 
             var scriptFoto = vent.document.createElement('script');
             scriptFoto.textContent = 'window.guardarFacturaComoFoto = async function(btn) {' +
+                ' var nombreBase=' + JSON.stringify(nombreBaseArchivoPedido) + ';' +
                 ' if(!window.html2canvas){ alert("La función de foto todavía está cargando. Espera unos segundos e inténtalo nuevamente."); return; }' +
                 ' var texto=btn.textContent; btn.disabled=true; btn.textContent="Preparando foto...";' +
                 ' try {' +
@@ -6461,7 +6467,17 @@ ${ped.comprobanteUrl ? `
                 '  document.body.appendChild(tarjeta);' +
                 '  await Promise.all(Array.from(tarjeta.querySelectorAll("img")).map(function(img){return img.complete?Promise.resolve():new Promise(function(ok){img.onload=ok;img.onerror=ok;});}));' +
                 '  var canvas=await html2canvas(tarjeta,{backgroundColor:"#ffffff",scale:2,useCORS:true,allowTaint:false,logging:false}); tarjeta.remove();' +
-                '  var a=document.createElement("a");a.download="Pedido-"+(document.getElementById("fac-num-orden").textContent||"SuperKids").replace(/[^a-zA-Z0-9_-]/g,"")+".png";a.href=canvas.toDataURL("image/png");a.click();' +
+                '  var anchoSalida=1080,altoSalida=1920,maxAlto=altoSalida*2;' +
+                '  var escala=Math.min(anchoSalida/canvas.width,maxAlto/canvas.height);' +
+                '  var anchoEscalado=Math.max(1,Math.round(canvas.width*escala)),altoEscalado=Math.max(1,Math.round(canvas.height*escala));' +
+                '  var intermedio=document.createElement("canvas");intermedio.width=anchoSalida;intermedio.height=altoEscalado;' +
+                '  var ictx=intermedio.getContext("2d");ictx.fillStyle="#ffffff";ictx.fillRect(0,0,intermedio.width,intermedio.height);ictx.drawImage(canvas,Math.round((anchoSalida-anchoEscalado)/2),0,anchoEscalado,altoEscalado);' +
+                '  var partes=altoEscalado>altoSalida?2:1;' +
+                '  for(var parte=0;parte<partes;parte++){' +
+                '   var salida=document.createElement("canvas");salida.width=anchoSalida;salida.height=altoSalida;var sctx=salida.getContext("2d");sctx.fillStyle="#ffffff";sctx.fillRect(0,0,anchoSalida,altoSalida);sctx.drawImage(intermedio,0,-(parte*altoSalida));' +
+                '   var a=document.createElement("a");a.download=nombreBase+(partes>1?"-Parte-"+(parte+1):"")+".png";a.href=salida.toDataURL("image/png");document.body.appendChild(a);a.click();a.remove();' +
+                '   if(partes>1)await new Promise(function(ok){setTimeout(ok,350);});' +
+                '  }' +
                 ' } catch(e){ alert("No se pudo crear la foto: "+e.message); } finally {btn.disabled=false;btn.textContent=texto;}' +
                 '};';
             vent.document.head.appendChild(scriptFoto);
