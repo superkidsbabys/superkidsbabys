@@ -1403,7 +1403,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         .tp-btn-del-prod:hover { opacity: 1; background: #fde8e8; }
     </style>
     <script src="https://checkout.wompi.co/widget.js"></script>
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
 <body style="visibility: hidden; background: #f7f7f8;">
 <!-- ====================================================
@@ -3476,6 +3475,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             return true;
         }
 
+        let clavePaginacionCatalogo = '';
+        let limiteProductosCatalogo = 24;
+
+        function esNavegadorMovilIntegrado() {
+            const agente = String(navigator.userAgent || '');
+            return /WhatsApp|FBAN|FBAV|Instagram|wv\)/i.test(agente) || window.innerWidth <= 768;
+        }
+
+        function mostrarMasProductosCatalogo() {
+            limiteProductosCatalogo += esNavegadorMovilIntegrado() ? 12 : 24;
+            renderizarCatalogo();
+        }
+
         function renderizarCatalogo() {
             const cont = document.getElementById('contenedor-productos'); cont.innerHTML = "";
 
@@ -3516,7 +3528,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             }
 
             cont.className = 'catalogo';
-            filtrados.forEach(prod => {
+            const claveActualCatalogo = [generoActual, filtroActual, tallaFiltroActual, soloPromociones, soloNuevaColeccion].join('|');
+            if (claveActualCatalogo !== clavePaginacionCatalogo) {
+                clavePaginacionCatalogo = claveActualCatalogo;
+                limiteProductosCatalogo = esNavegadorMovilIntegrado() ? 12 : filtrados.length;
+            }
+            const productosParaMostrar = filtrados.slice(0, limiteProductosCatalogo);
+            const tarjetasCatalogo = [];
+            productosParaMostrar.forEach(prod => {
                 let htmlTallasChips = "", hayStockTotal = false, tallaInicialSeleccionada = null;
                 if (prod.tallasObj && prod.tallasObj.length > 0) {
                     let primeraDisponibleMarcada = false;
@@ -3543,7 +3562,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (prod.etiquetaPersonalizada) customH = `<div class="etiqueta-custom">${prod.etiquetaPersonalizada}</div>`;
                 let imgs = prod.imagenes || [prod.img || "https://via.placeholder.com/600?text=Sin+Imagen"];
                 let imgPrincipal = obtenerImagenProducto(prod, tallaInicialSeleccionada);
-                let htmlGal = imgs.length > 1 ? `<div class="galeria-miniaturas">${imgs.map((img, i) => `<img src="${optimizarUrl(img, 150)}" data-url="${img}" class="thumb ${img === imgPrincipal ? 'activo' : ''}" onclick="cambiarImg('${prod.id}', '${img}', this)">`).join('')}</div>` : "";
+                let htmlGal = imgs.length > 1 ? `<div class="galeria-miniaturas">${imgs.map((img, i) => `<img src="${optimizarUrl(img, 150)}" data-url="${img}" class="thumb ${img === imgPrincipal ? 'activo' : ''}" loading="lazy" decoding="async" onclick="cambiarImg('${prod.id}', '${img}', this)">`).join('')}</div>` : "";
                 let productoNuevaColeccion = esProductoNuevaColeccion(prod);
                 let carritoNuevaBloqueado = productoNuevaColeccion && !nuevaColeccionCarritoActivo();
                 let btnAgregar = carritoNuevaBloqueado
@@ -3556,8 +3575,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 const _esAdmin = modoEdicion && window.usuarioActual && window.usuarioActual.rol === 'admin';
                 const btnEditarEliminar = _esAdmin ? `<div style="display:flex;gap:6px;margin-top:6px;"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button><button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button></div>` : '';
                 const refVisible = opcionInicial ? (opcionInicial.codigo || prod.codigo) : prod.codigo;
-                cont.innerHTML += `<div class="producto" id="producto-card-${prod.id}"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia" id="ref-producto-${prod.id}">REF: ${refVisible || 'S/N'}</span></div><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p>${htmlSelectorOpcionesVenta(prod)}<div class="precio-contenedor" id="precio-producto-${prod.id}">${pNew}</div><div class="fila-tallas-curva">${htmlTallasChips}${btnCurva}</div>${btnAgregar}${btnEditarEliminar}</div></div>`;
+                tarjetasCatalogo.push(`<div class="producto" id="producto-card-${prod.id}"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" decoding="async" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia" id="ref-producto-${prod.id}">REF: ${refVisible || 'S/N'}</span></div><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p>${htmlSelectorOpcionesVenta(prod)}<div class="precio-contenedor" id="precio-producto-${prod.id}">${pNew}</div><div class="fila-tallas-curva">${htmlTallasChips}${btnCurva}</div>${btnAgregar}${btnEditarEliminar}</div></div>`);
             });
+
+            if (productosParaMostrar.length < filtrados.length) {
+                tarjetasCatalogo.push(`<div style="grid-column:1/-1;text-align:center;padding:18px 8px 30px;"><button type="button" onclick="mostrarMasProductosCatalogo()" style="border:0;border-radius:28px;padding:13px 28px;background:var(--color-banner,#8e44ad);color:white;font-weight:900;font-size:1em;cursor:pointer;box-shadow:0 6px 18px rgba(142,68,173,.22);">Ver más productos (${filtrados.length - productosParaMostrar.length})</button></div>`);
+            }
+            cont.innerHTML = tarjetasCatalogo.join('');
 
             // Si alguien llega desde una página de producto de Google (o de
             // WhatsApp) con "?producto=ID" en el link, lo llevamos derechito
@@ -4395,10 +4419,37 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         let turnstilePedidoId = null;
         let turnstilePedidoToken = '';
+        let cargaTurnstilePedido = null;
+
+        function cargarTurnstilePedidoCuandoSeNecesite() {
+            if (window.turnstile) return Promise.resolve();
+            if (cargaTurnstilePedido) return cargaTurnstilePedido;
+            cargaTurnstilePedido = new Promise(function(resolve, reject) {
+                const script = document.createElement('script');
+                script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+                script.async = true;
+                script.defer = true;
+                script.onload = resolve;
+                script.onerror = function() {
+                    cargaTurnstilePedido = null;
+                    reject(new Error('No fue posible cargar la verificacion de seguridad'));
+                };
+                document.head.appendChild(script);
+            });
+            return cargaTurnstilePedido;
+        }
 
         function prepararTurnstilePedido() {
             const contenedor = document.getElementById('turnstile-pedido');
-            if (!contenedor || !window.turnstile) return;
+            if (!contenedor) return;
+            if (!window.turnstile) {
+                cargarTurnstilePedidoCuandoSeNecesite()
+                    .then(prepararTurnstilePedido)
+                    .catch(function() {
+                        contenedor.innerHTML = '<span style="color:#b3261e;font-size:.86em;">No cargó la verificación. Revisa tu conexión.</span>';
+                    });
+                return;
+            }
             turnstilePedidoToken = '';
             if (turnstilePedidoId !== null) {
                 window.turnstile.reset(turnstilePedidoId);
