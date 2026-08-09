@@ -1,4 +1,4 @@
-const CACHE_NAME = 'superkids-catalogo-pwa-v3';
+const CACHE_NAME = 'superkids-catalogo-pwa-v4';
 const APP_ASSETS = [
   './index.html',
   './manifest.json',
