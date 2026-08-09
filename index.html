@@ -3476,16 +3476,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         let clavePaginacionCatalogo = '';
-        let limiteProductosCatalogo = 24;
 
         function esNavegadorMovilIntegrado() {
             const agente = String(navigator.userAgent || '');
             return /WhatsApp|FBAN|FBAV|Instagram|wv\)/i.test(agente) || window.innerWidth <= 768;
-        }
-
-        function mostrarMasProductosCatalogo() {
-            limiteProductosCatalogo += esNavegadorMovilIntegrado() ? 12 : 24;
-            renderizarCatalogo();
         }
 
         function renderizarCatalogo() {
@@ -3531,9 +3525,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             const claveActualCatalogo = [generoActual, filtroActual, tallaFiltroActual, soloPromociones, soloNuevaColeccion].join('|');
             if (claveActualCatalogo !== clavePaginacionCatalogo) {
                 clavePaginacionCatalogo = claveActualCatalogo;
-                limiteProductosCatalogo = esNavegadorMovilIntegrado() ? 12 : filtrados.length;
             }
-            const productosParaMostrar = filtrados.slice(0, limiteProductosCatalogo);
+            // Mostrar siempre el catálogo completo. Las imágenes continúan usando
+            // loading="lazy" para no descargarse hasta acercarse a la pantalla.
+            const productosParaMostrar = filtrados;
             const tarjetasCatalogo = [];
             productosParaMostrar.forEach(prod => {
                 let htmlTallasChips = "", hayStockTotal = false, tallaInicialSeleccionada = null;
@@ -3578,9 +3573,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 tarjetasCatalogo.push(`<div class="producto" id="producto-card-${prod.id}"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" decoding="async" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia" id="ref-producto-${prod.id}">REF: ${refVisible || 'S/N'}</span></div><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p>${htmlSelectorOpcionesVenta(prod)}<div class="precio-contenedor" id="precio-producto-${prod.id}">${pNew}</div><div class="fila-tallas-curva">${htmlTallasChips}${btnCurva}</div>${btnAgregar}${btnEditarEliminar}</div></div>`);
             });
 
-            if (productosParaMostrar.length < filtrados.length) {
-                tarjetasCatalogo.push(`<div style="grid-column:1/-1;text-align:center;padding:18px 8px 30px;"><button type="button" onclick="mostrarMasProductosCatalogo()" style="border:0;border-radius:28px;padding:13px 28px;background:var(--color-banner,#8e44ad);color:white;font-weight:900;font-size:1em;cursor:pointer;box-shadow:0 6px 18px rgba(142,68,173,.22);">Ver más productos (${filtrados.length - productosParaMostrar.length})</button></div>`);
-            }
             cont.innerHTML = tarjetasCatalogo.join('');
 
             // Si alguien llega desde una página de producto de Google (o de
