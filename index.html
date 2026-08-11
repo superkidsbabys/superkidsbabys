@@ -2033,7 +2033,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     : '';
                 let tallasChips = '';
                 if (prod.tallasObj && prod.tallasObj.length > 0) {
-                    tallasChips = `<div class="contenedor-tallas-chips" id="contenedor-tallas-${prod.id}">${prod.tallasObj.map(t => `<span class="chip-talla${t.stock<=0?' agotada':''}" onclick="seleccionarTallaChip('${prod.id}',this,${t.stock<=0})">${t.nombre}${t.stock<=0?' (agotada)':''}</span>`).join('')}</div>`;
+                    let primeraDisponibleMarcada = false;
+                    const chips = prod.tallasObj.map(t => {
+                        const esAgotada = Number(t.stock || 0) <= 0;
+                        const preSeleccionada = !esAgotada && !primeraDisponibleMarcada;
+                        if (preSeleccionada) primeraDisponibleMarcada = true;
+                        return `<span class="chip-talla${esAgotada ? ' agotada' : (preSeleccionada ? ' seleccionada' : '')}" data-talla="${t.nombre}" onclick="seleccionarTallaChip('${prod.id}',this,${esAgotada})">${t.nombre}${esAgotada ? ' (agotada)' : ''}</span>`;
+                    }).join('');
+                    tallasChips = `<div class="contenedor-tallas-chips" id="contenedor-tallas-${prod.id}">${chips}</div>`;
                 }
                 const productoNuevaColeccion = esProductoNuevaColeccion(prod);
                 const carritoNuevaBloqueado = productoNuevaColeccion && !nuevaColeccionCarritoActivo();
