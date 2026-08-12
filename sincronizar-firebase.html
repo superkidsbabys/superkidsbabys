@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sincronizar inventario — SuperKids&Babys</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:22px;background:#fbeaf8;color:#382c34;font-family:Arial,sans-serif}.caja{width:min(680px,100%);background:white;border:2px solid #efbdd4;border-radius:22px;padding:26px;box-shadow:0 14px 45px rgba(146,54,95,.15)}h1{margin:0 0 8px;color:#ad3e72;font-size:1.45rem}.aviso,.estado{padding:13px;border-radius:12px;margin:14px 0;line-height:1.5}.aviso{background:#fff5d8;border:1px solid #edc95a;color:#614900;font-weight:700}.estado{background:#f6f3f5;white-space:pre-wrap}.ok{background:#eafff1;color:#126334}.error{background:#fff0f0;color:#9c2424}input{width:100%;padding:12px;border:1.5px solid #dfb7c9;border-radius:10px;background:#fff}label{display:block;font-weight:800;margin-top:14px}.fila{display:grid;grid-template-columns:1fr 1fr;gap:10px}button{padding:13px;border:0;border-radius:12px;background:#c23878;color:white;font-weight:800;cursor:pointer;margin-top:14px}button.sec{background:#76505f}button:disabled{background:#bbb;cursor:not-allowed}.barra{height:13px;background:#eadde3;border-radius:99px;overflow:hidden;margin-top:14px}.barra span{display:block;width:0;height:100%;background:#d63f85;transition:width .2s}.nota{font-size:.82rem;color:#76636c;margin-top:12px}
+  </style>
+</head>
+<body>
+  <main class="caja">
+    <h1>🔥 Sincronizar inventario con Firebase</h1>
+    <div class="aviso">Usa únicamente el respaldo recuperado de 579 prendas. Esta herramienta crea o actualiza registros; no elimina productos.</div>
+    <div id="sesion" class="estado">Comprobando sesión de Gestión…</div>
+    <label for="archivo">Respaldo recuperado (.json)</label>
+    <input id="archivo" type="file" accept="application/json,.json">
+    <div id="revision" class="estado">Selecciona el archivo respaldo-superkids-2026-08-12.json.</div>
+    <label><input id="confirmar" type="checkbox" style="width:auto"> Confirmo que deseo escribir las 579 prendas en Firebase.</label>
+    <div class="fila">
+      <button id="sincronizar" disabled>Sincronizar 579 prendas</button>
+      <button id="verificar" class="sec" disabled>Verificar Firebase</button>
+    </div>
+    <div class="barra"><span id="progreso"></span></div>
+    <div id="resultado" class="estado">Aún no se ha realizado ningún cambio.</div>
+    <div class="nota">Mantén esta pestaña abierta hasta ver “Sincronización completada”. Después puedes verificar el total directamente desde Firebase.</div>
+  </main>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import { getFirestore, collection, doc, writeBatch, getCountFromServer } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const firebaseConfig={apiKey:'AIzaSyBn5zp89TGHUj6OkA8jyKm_ROfEazCRgUc',authDomain:'superkidsbabys-222b0.firebaseapp.com',projectId:'superkidsbabys-222b0',storageBucket:'superkidsbabys-222b0.firebasestorage.app',messagingSenderId:'564588158910',appId:'1:564588158910:web:d478f56a15aa1c3f3223ef'};
+    const UID_ADMIN='F2SHGFQYSuMWlkbQKV8yrKAXgaH3';
+    const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+    const sesion=document.getElementById('sesion'),archivo=document.getElementById('archivo'),revision=document.getElementById('revision'),confirmar=document.getElementById('confirmar'),btn=document.getElementById('sincronizar'),verificar=document.getElementById('verificar'),resultado=document.getElementById('resultado'),progreso=document.getElementById('progreso');
+    let usuarioAdmin=false,productos=null;
+    function habilitar(){btn.disabled=!(usuarioAdmin&&productos&&productos.length===579&&confirmar.checked);verificar.disabled=!usuarioAdmin}
+    onAuthStateChanged(auth,user=>{usuarioAdmin=!!(user&&user.uid===UID_ADMIN);sesion.className='estado '+(usuarioAdmin?'ok':'error');sesion.textContent=usuarioAdmin?'✅ Sesión administrativa de Yohana confirmada.':'❌ No hay una sesión administrativa válida. Abre pedidos.html, inicia sesión como Yohana y regresa a esta pestaña.';habilitar()});
+    archivo.addEventListener('change',async()=>{productos=null;try{const paquete=JSON.parse(await archivo.files[0].text());if(!Array.isArray(paquete.productos))throw new Error('El archivo no contiene productos.');const ids=new Set(),errores=[];paquete.productos.forEach((p,i)=>{if(!p.id&&p._firebaseId)p.id=p._firebaseId;if(!p.id)errores.push('Registro '+(i+1)+' sin ID');if(ids.has(p.id))errores.push('ID duplicado: '+p.id);ids.add(p.id)});if(paquete.productos.length!==579)throw new Error('Se esperaban 579 prendas y el archivo contiene '+paquete.productos.length+'.');if(errores.length)throw new Error(errores.slice(0,5).join('\n'));productos=paquete.productos;const c={};productos.forEach(p=>{const g=p.genero||'Sin género';c[g]=(c[g]||0)+1});revision.className='estado ok';revision.textContent='✅ Respaldo válido: 579 prendas\n'+Object.entries(c).map(([g,n])=>'• '+g+': '+n).join('\n')}catch(e){revision.className='estado error';revision.textContent='❌ '+e.message}habilitar()});
+    confirmar.addEventListener('change',habilitar);
+    btn.addEventListener('click',async()=>{if(btn.disabled)return;btn.disabled=true;archivo.disabled=true;confirmar.disabled=true;resultado.className='estado';resultado.textContent='Preparando lotes…';try{let escritos=0;for(let inicio=0;inicio<productos.length;inicio+=450){const lote=writeBatch(db),grupo=productos.slice(inicio,inicio+450);grupo.forEach(p=>{const limpio=JSON.parse(JSON.stringify(p));lote.set(doc(db,'productos',String(p.id)),limpio,{merge:true})});await lote.commit();escritos+=grupo.length;progreso.style.width=Math.round(escritos/productos.length*100)+'%';resultado.textContent='Sincronizando: '+escritos+' de '+productos.length+'…'}resultado.className='estado ok';resultado.textContent='✅ Sincronización completada: 579 prendas creadas o actualizadas. No se eliminó ningún registro.';verificar.disabled=false}catch(e){resultado.className='estado error';resultado.textContent='❌ La sincronización se detuvo: '+e.message+'\nNo cierres esta página; envía una captura del error.'}finally{archivo.disabled=false;confirmar.disabled=false;habilitar()}});
+    verificar.addEventListener('click',async()=>{try{const snap=await getCountFromServer(collection(db,'productos'));resultado.className='estado ok';resultado.textContent='Firebase contiene actualmente '+snap.data().count+' documentos en productos.'}catch(e){resultado.className='estado error';resultado.textContent='No se pudo verificar: '+e.message}});
+  </script>
+</body>
+</html>
