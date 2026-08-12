@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Recuperar inventario — SuperKids&Babys</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:22px;background:#fbeaf8;color:#382c34;font-family:Arial,sans-serif}.caja{width:min(620px,100%);background:#fff;border:2px solid #efbdd4;border-radius:22px;padding:26px;box-shadow:0 14px 45px rgba(146,54,95,.15)}h1{margin:0 0 8px;color:#ad3e72;font-size:1.45rem}.aviso{background:#fff6da;border:1px solid #efcf67;border-radius:12px;padding:12px;margin:16px 0;color:#694e00;font-weight:700}.estado{padding:14px;border-radius:12px;background:#f8f5f7;line-height:1.55;white-space:pre-wrap}.ok{background:#ecfff3;color:#126334}.error{background:#fff0f0;color:#9c2424}button{width:100%;margin-top:16px;padding:13px;border:0;border-radius:12px;background:linear-gradient(135deg,#d9478d,#b52e6e);color:#fff;font-size:1rem;font-weight:800;cursor:pointer}button:disabled{background:#bbb;cursor:not-allowed}.nota{font-size:.83rem;color:#75656e;margin-top:12px;line-height:1.45}
+  </style>
+</head>
+<body>
+  <main class="caja">
+    <h1>💾 Recuperar inventario local</h1>
+    <p>Esta página solamente lee la copia almacenada en este navegador. No modifica Firebase ni el catálogo.</p>
+    <div class="aviso">Ábrela en el navegador normal donde todavía veías todas las prendas. No uses incógnito.</div>
+    <div id="estado" class="estado">Buscando copias locales…</div>
+    <button id="descargar" type="button" disabled>Descargar copia recuperada</button>
+    <div class="nota">El archivo descargado contiene productos y configuración. Envíalo por este chat para reconstruir el catálogo público.</div>
+  </main>
+  <script>
+    (function(){
+      'use strict';
+      var clavesProductos=['productosV36','productosV35','productosV34','productosV33','productosV32','productosV31','productosV30','productosV25'];
+      var clavesConfig=['tiendaConfigV36','tiendaConfigV35','tiendaConfigV34','tiendaConfigV33','tiendaConfigV32','tiendaConfigV31','tiendaConfigV30','tiendaConfigV25'];
+      var copias=[];
+      function leer(clave){try{var v=localStorage.getItem(clave);return v?JSON.parse(v):null}catch(e){return null}}
+      clavesProductos.forEach(function(clave){var datos=leer(clave);if(Array.isArray(datos))copias.push({clave:clave,productos:datos})});
+      copias.sort(function(a,b){
+        var ga=new Set(a.productos.map(function(p){return p.genero||''})).size;
+        var gb=new Set(b.productos.map(function(p){return p.genero||''})).size;
+        return gb-ga||b.productos.length-a.productos.length;
+      });
+      var estado=document.getElementById('estado');
+      var boton=document.getElementById('descargar');
+      if(!copias.length){estado.className='estado error';estado.textContent='No encontré ninguna copia de productos en este navegador. Confirma que abriste esta página desde el navegador normal y en superkidsbabys.com.';return}
+      var mejor=copias[0];
+      var conteos={};
+      mejor.productos.forEach(function(p){var g=p.genero||'Sin género';conteos[g]=(conteos[g]||0)+1});
+      var config=null,claveConfig='';
+      for(var i=0;i<clavesConfig.length;i++){config=leer(clavesConfig[i]);if(config){claveConfig=clavesConfig[i];break}}
+      estado.className='estado ok';
+      estado.textContent='Copia encontrada: '+mejor.clave+'\nTotal: '+mejor.productos.length+' prendas\n'+Object.keys(conteos).map(function(g){return '• '+g+': '+conteos[g]}).join('\n')+(config?'\nConfiguración: '+claveConfig:'\nConfiguración: no encontrada');
+      boton.disabled=false;
+      boton.addEventListener('click',function(){
+        var paquete={tipo:'respaldo-superkids-local',fecha:new Date().toISOString(),origen:location.origin,claveProductos:mejor.clave,claveConfig:claveConfig,conteos:conteos,productos:mejor.productos,config:config};
+        var blob=new Blob([JSON.stringify(paquete,null,2)],{type:'application/json'});
+        var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='respaldo-superkids-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},1000);
+      });
+    })();
+  </script>
+</body>
+</html>
