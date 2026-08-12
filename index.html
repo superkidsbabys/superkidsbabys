@@ -2580,7 +2580,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             const cont = document.getElementById('banner-cruce');
             if (!cont) return;
             if (window._bannerInterval) { clearInterval(window._bannerInterval); window._bannerInterval = null; }
-            const fotos = (config.bannerFotos && config.bannerFotos.length) ? config.bannerFotos : [];
+            const fotosConfiguradas = (config.bannerFotos && config.bannerFotos.length) ? config.bannerFotos : [];
+            const fotosR2 = fotosConfiguradas.filter(url => typeof url === 'string' && url.startsWith(R2_FOTOS_ORIGIN + '/fotos/'));
+            // Si ya existen banners migrados, priorizarlos y omitir los enlaces
+            // antiguos de Cloudinary que pueden responder 401.
+            const fotos = fotosR2.length ? fotosR2 : fotosConfiguradas;
             if (!fotos.length) { cont.innerHTML = ''; return; }
             cont.innerHTML = '<img class="banner-cruce-img der"><img class="banner-cruce-img izq">';
             const imgDer = cont.querySelector('.der');
@@ -2598,6 +2602,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 imgIzq.src = optimizarUrl(fotos[idxIzq], 1600);
             });
         }
+
+        // El banner no debe depender de window.onload: una imagen externa
+        // dañada no puede impedir que se muestren las fotos válidas de R2.
+        document.addEventListener('DOMContentLoaded', renderizarBannerSlideshow);
 
         function aplicarDiseno() {
             let cfg = esGeneroNinas(generoActual) ? config.ninas : config.ninos;
