@@ -1,6 +1,8 @@
-const CACHE_NAME = 'superkids-catalogo-pwa-v4';
+const CACHE_NAME = 'superkids-catalogo-pwa-v5';
 const APP_ASSETS = [
   './index.html',
+  './pedidos.html',
+  './pedido.html',
   './manifest.json',
   './pwa.js',
   './icons/icon-192.png',
@@ -18,7 +20,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.map(key => key === CACHE_NAME ? null : caches.delete(key))))
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -29,21 +31,29 @@ self.addEventListener('fetch', event => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => caches.match('./index.html'))
+      fetch(request).then(response => {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+        return response;
+      }).catch(() => {
+        const path = new URL(request.url).pathname;
+        if (/\/pedidos?\.html$/i.test(path)) {
+          return caches.match('./pedidos.html');
+        }
+        return caches.match('./index.html');
+      })
     );
     return;
   }
 
   event.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) return cached;
-      return fetch(request).then(response => {
+    fetch(request).then(response => {
+      if (response.ok && new URL(request.url).origin === self.location.origin) {
         const copy = response.clone();
-        if (response.ok && new URL(request.url).origin === self.location.origin) {
-          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-        }
-        return response;
-      });
-    })
+        caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+      }
+      return response;
+    }).catch(() => caches.match(request))
   );
 });
