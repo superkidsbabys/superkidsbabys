@@ -2536,43 +2536,27 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 }
             }, 8000);
 
-            // ✅ CARGAR PRODUCTOS DESDE FIREBASE en tiempo real con onSnapshot
+            // Mostrar inmediatamente el catálogo embebido. Los visitantes ya
+            // no leen los 579 documentos de Firestore uno por uno.
+            renderizarCatalogo();
+
+            // Cargar una sola copia pública desde Cloudflare.
             try {
-                const { getFirestore, collection, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const { getApps } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
-                const appActiva = getApps()[0];
-                if (appActiva) {
-                    const dbPublica = getFirestore(appActiva);
-                    // onSnapshot: escucha cambios en tiempo real — stock se actualiza al instante
-                    onSnapshot(collection(dbPublica, 'productos'), (snap) => {
-                        if (snap.empty) return;
+                const respuestaCatalogo = await fetch('https://superkids-pagos-api.superkids-babys.workers.dev/catalogo-publico', { cache: 'no-cache' });
+                if (respuestaCatalogo.ok) {
+                    const datosCatalogo = await respuestaCatalogo.json();
+                    if (Array.isArray(datosCatalogo.productos) && datosCatalogo.productos.length) {
                         productosFirebaseListos = true;
-                        if (temporizadorRespaldoCatalogo) {
-                            clearTimeout(temporizadorRespaldoCatalogo);
-                            temporizadorRespaldoCatalogo = null;
-                        }
-                        const productosFirebase = [];
-                        snap.forEach(d => productosFirebase.push(Object.assign({}, d.data(), {
-                            _firebaseId: d.id
-                        })));
-                        // Mezclar: Firebase gana sobre quemados (datos más actualizados)
-                        const quemados = filtrarProductosEliminados(window.productosQ || []);
-                        const productosFirebaseActivos = filtrarProductosEliminados(productosFirebase);
-                        const soloQuemadosNoEnFirebase = quemados.filter(q => !productosFirebaseActivos.find(f => f.id === q.id));
-                        const nuevosProds = aplicarOrdenGuardadoLocal([...productosFirebaseActivos, ...soloQuemadosNoEnFirebase]);
-                        productosDB = nuevosProds;
+                        if (temporizadorRespaldoCatalogo) clearTimeout(temporizadorRespaldoCatalogo);
+                        productosDB = aplicarOrdenGuardadoLocal(filtrarProductosEliminados(datosCatalogo.productos));
                         ordenarProductosPorOrdenVisual(productosDB, generoActual);
                         localStorage.setItem('productosV36', JSON.stringify(productosDB));
                         renderizarFiltroTallas();
                         renderizarCatalogo();
-                        if (!window._ordenPublicoCargado && typeof cargarOrdenDesdeFirebase === 'function') {
-                            window._ordenPublicoCargado = true;
-                            cargarOrdenDesdeFirebase();
-                        }
-                    });
+                    }
                 }
             } catch(e) {
-                console.log('Carga Firebase:', e.message);
+                console.log('Catálogo público no disponible; usando respaldo integrado:', e.message);
             }
         };
 
