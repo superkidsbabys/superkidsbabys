@@ -20,6 +20,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
   window.db = db;
   const auth = getAuth(app);
   setPersistence(auth, browserLocalPersistence);
+  window.obtenerTokenSesion = async function() {
+    return auth.currentUser ? auth.currentUser.getIdToken() : '';
+  };
 
   // ── ROLES ─────────────────────────────────────────────────
   const ROLES = {
@@ -73,6 +76,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
   window.fbLogout = async function() {
     const btn = document.getElementById('btn-logout');
     try {
+      if (window.registrarActividadEquipo) {
+        await window.registrarActividadEquipo('cerrar_sesion', 'sesion', '', {});
+      }
       if (btn) {
         btn.disabled = true;
         btn.textContent = 'Cerrando...';
@@ -108,6 +114,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
       usuarioActual = ROLES[user.uid] || null;
       if (usuarioActual) usuarioActual.uid = user.uid;
       window.usuarioActual = usuarioActual;
+      setTimeout(function(){
+        if (window.registrarActividadEquipo) window.registrarActividadEquipo('iniciar_sesion','sesion','',{});
+      }, 1200);
       setTimeout(function(){ if (typeof mostrarBuscadorRef === 'function') mostrarBuscadorRef(); }, 500);
       document.getElementById('login-overlay') && (document.getElementById('login-overlay').style.display = 'none');
 
@@ -9497,5 +9506,43 @@ document.addEventListener('DOMContentLoaded', function() {
   var me = document.getElementById('modal-editar-producto');
   if (me) obs.observe(me, { attributes: true, attributeFilter: ['style'] });
 });
+</script>
+<script>
+(function(){
+  const API='https://superkids-pagos-api.superkids-babys.workers.dev';
+  const UID_YOHANA='F2SHGFQYSuMWlkbQKV8yrKAXgaH3';
+  async function token(){return window.obtenerTokenSesion?window.obtenerTokenSesion():''}
+  async function api(ruta,opciones){
+    const t=await token();
+    const opts=Object.assign({},opciones||{});opts.headers=Object.assign({'Authorization':'Bearer '+t,'Content-Type':'application/json'},opts.headers||{});
+    const r=await fetch(API+ruta,opts),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||('HTTP '+r.status));return d;
+  }
+  window.registrarActividadEquipo=async function(accion,recurso,recursoId,detalle,resultado){
+    try{return await api('/auditoria',{method:'POST',body:JSON.stringify({accion,recurso,recursoId,detalle:detalle||{},resultado:resultado||'exitoso'})})}catch(e){console.warn('Auditoría:',e.message)}
+  };
+  function envolver(nombre,accion,recurso,idFn){
+    const original=window[nombre];if(typeof original!=='function'||original.__audit)return;
+    const fn=async function(){const args=[...arguments],id=idFn?idFn(args):'';try{const r=await original.apply(this,args);await window.registrarActividadEquipo(accion,recurso,id,{argumentos:args.slice(0,4)});return r}catch(e){await window.registrarActividadEquipo(accion,recurso,id,{error:e.message},'error');throw e}};fn.__audit=true;window[nombre]=fn;
+  }
+  function instalarWrappers(){
+    envolver('procesarYAgregarProducto','crear_producto','producto',()=> 'nuevo');
+    envolver('guardarEdicionProducto','editar_producto','producto',()=>String(window.editandoId||window.idEditando||''));
+    envolver('eliminarProducto','eliminar_producto','producto',a=>a[0]);
+    envolver('guardarEntradaInventario','entrada_inventario','inventario',()=> 'entrada');
+    envolver('guardarEdicionEntrada','editar_entrada','inventario',()=> 'entrada');
+    envolver('eliminarEntradaInventario','eliminar_entrada','inventario',a=>a[0]);
+    envolver('eliminarSalidaInventario','eliminar_salida','inventario',a=>a[0]);
+    envolver('eliminarPedido','eliminar_pedido','pedido',a=>a[0]);
+    envolver('guardarDatosTienda','editar_configuracion','config_tienda',()=> 'configuracion');
+  }
+  function crearPanel(){
+    if(document.getElementById('auditoria-equipo'))return;
+    const btn=document.createElement('button');btn.id='btn-auditoria-equipo';btn.textContent='🛡️ Actividad del equipo';btn.style.cssText='position:fixed;left:18px;bottom:18px;z-index:10001;background:#7c2d6b;color:white;border:0;border-radius:24px;padding:12px 18px;font-weight:900;cursor:pointer;box-shadow:0 5px 18px #0003';document.body.appendChild(btn);
+    const panel=document.createElement('div');panel.id='auditoria-equipo';panel.style.cssText='display:none;position:fixed;inset:0;z-index:10002;background:#0008;padding:3vh 3vw;overflow:auto';panel.innerHTML='<div style="max-width:1050px;margin:auto;background:white;border-radius:18px;padding:20px"><div style="display:flex;justify-content:space-between;gap:10px"><h2 style="margin:0;color:#7c2d6b">🛡️ Actividad del equipo</h2><button id="cerrar-auditoria">✕</button></div><div style="display:flex;gap:8px;margin:14px 0"><button id="recargar-auditoria">Actualizar</button><button id="reconstruir-catalogo">Reconstruir catálogo público</button></div><div id="estado-auditoria" style="padding:10px;background:#f8edf5;border-radius:10px">Cargando…</div><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;margin-top:12px"><thead><tr><th>Fecha</th><th>Usuaria</th><th>Acción</th><th>Recurso</th><th>Resultado</th></tr></thead><tbody id="filas-auditoria"></tbody></table></div></div>';document.body.appendChild(panel);
+    async function cargar(){const est=document.getElementById('estado-auditoria');try{est.textContent='Cargando actividad…';const d=await api('/auditoria');document.getElementById('filas-auditoria').innerHTML=(d.eventos||[]).map(e=>'<tr><td style="padding:8px;border-bottom:1px solid #eee">'+new Date(e.fecha||e.timestamp).toLocaleString('es-CO')+'</td><td>'+String(e.usuaria||'')+'</td><td>'+String(e.accion||'')+'</td><td>'+String(e.recurso||'')+' '+String(e.recursoId||'')+'</td><td>'+String(e.resultado||'')+'</td></tr>').join('');est.textContent=(d.eventos||[]).length+' eventos recientes'}catch(e){est.textContent='Error: '+e.message}}
+    btn.onclick=()=>{panel.style.display='block';cargar()};document.getElementById('cerrar-auditoria').onclick=()=>panel.style.display='none';document.getElementById('recargar-auditoria').onclick=cargar;document.getElementById('reconstruir-catalogo').onclick=async()=>{const est=document.getElementById('estado-auditoria');try{est.textContent='Reconstruyendo catálogo…';const d=await api('/catalogo-publico',{method:'POST',body:'{}'});est.textContent='Catálogo actualizado: '+d.total+' prendas'}catch(e){est.textContent='Error: '+e.message}};
+  }
+  let intentos=0,timer=setInterval(()=>{instalarWrappers();const u=window.usuarioActual;if(u&&u.uid===UID_YOHANA){crearPanel();clearInterval(timer)}if(++intentos>80)clearInterval(timer)},250);
+})();
 </script>
 </body></html>
