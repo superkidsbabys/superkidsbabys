@@ -2682,8 +2682,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         const productosFirebaseActivos = filtrarProductosEliminados(productosFirebase);
                         const soloQuemadosNoEnFirebase = quemados.filter(q => !productosFirebaseActivos.find(f => f.id === q.id));
                         productosDB = aplicarOrdenGuardadoLocal([...productosFirebaseActivos, ...soloQuemadosNoEnFirebase]);
+                        window.productosDB = productosDB;
                         ordenarProductosPorOrdenVisual(productosDB, generoActual);
                         localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                        if (typeof invalidarPendientesCatalogo === 'function') invalidarPendientesCatalogo();
                         renderizarFiltroTallas();
                         renderizarCatalogo();
                         if (!window._ordenPublicoCargado && typeof cargarOrdenDesdeFirebase === 'function') {
@@ -9538,10 +9540,12 @@ document.addEventListener('DOMContentLoaded', function() {
     envolver('procesarYAgregarProducto','crear_producto','producto',()=> 'nuevo',true);
     envolver('guardarEdicionProducto','editar_producto','producto',()=>String(window.editandoId||window.idEditando||''),true);
     envolver('eliminarProducto','eliminar_producto','producto',a=>a[0],true);
-    envolver('guardarEntradaInventario','entrada_inventario','inventario',()=> 'entrada');
-    envolver('guardarEdicionEntrada','editar_entrada','inventario',()=> 'entrada');
-    envolver('eliminarEntradaInventario','eliminar_entrada','inventario',a=>a[0]);
-    envolver('eliminarSalidaInventario','eliminar_salida','inventario',a=>a[0]);
+    envolver('guardarEdicionStockGina','editar_stock_producto','producto',()=>String(window.stockGinaEditandoId||''),true);
+    envolver('guardarEntradaInventario','entrada_inventario','inventario',()=> 'entrada',true);
+    envolver('guardarEdicionEntrada','editar_entrada','inventario',()=> 'entrada',true);
+    envolver('eliminarEntradaInventario','eliminar_entrada','inventario',a=>a[0],true);
+    envolver('guardarSalidaInventario','salida_inventario','inventario',()=> 'salida',true);
+    envolver('eliminarSalidaInventario','eliminar_salida','inventario',a=>a[0],true);
     envolver('eliminarPedido','eliminar_pedido','pedido',a=>a[0]);
     envolver('guardarDatosTienda','editar_configuracion','config_tienda',()=> 'configuracion');
   }
