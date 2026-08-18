@@ -4261,10 +4261,27 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         function cerrarModalEditar() { document.getElementById('modal-editar-producto').style.display = 'none'; }
 
+        function detalleEdicionProductoAuditoria(anterior, actual) {
+            const cambios = {};
+            ['nombre','codigo','categoria','genero','orden','desc','precio','precioAnterior','etiquetaPersonalizada','ventaSeparada'].forEach(function(campo) {
+                const antes = anterior ? anterior[campo] : undefined;
+                const despues = actual ? actual[campo] : undefined;
+                if (JSON.stringify(antes) !== JSON.stringify(despues)) cambios[campo] = { antes: antes ?? null, despues: despues ?? null };
+            });
+            const tallasAntes = (anterior && anterior.tallasObj) || [];
+            const tallasDespues = (actual && actual.tallasObj) || [];
+            if (JSON.stringify(tallasAntes) !== JSON.stringify(tallasDespues)) cambios.tallas = { antes: tallasAntes, despues: tallasDespues };
+            const opcionesAntes = (anterior && anterior.opcionesVenta) || [];
+            const opcionesDespues = (actual && actual.opcionesVenta) || [];
+            if (JSON.stringify(opcionesAntes) !== JSON.stringify(opcionesDespues)) cambios.opcionesVenta = { antes: opcionesAntes, despues: opcionesDespues };
+            return { nombre: actual && actual.nombre || '', referencia: actual && actual.codigo || '', cambios: cambios };
+        }
+
         async function guardarEdicionProducto() {
             let id = document.getElementById('edit-prod-id').value;
             let pIndex = productosDB.findIndex(x => x.id === id); if (pIndex === -1) return;
             let p = productosDB[pIndex];
+            const productoAntesDeEditar = JSON.parse(JSON.stringify(p));
             const btn = document.getElementById('btn-guardar-edicion');
             let fileInput = document.getElementById('edit-prod-foto-file').files[0];
             btn.innerText = "⏳ Guardando..."; btn.disabled = true;
@@ -4306,6 +4323,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 // Ahora persistir el producto completo con todos los cambios en Firebase
                 if (window.fbGuardarProducto) await window.fbGuardarProducto(p);
                 localStorage.setItem('productosV36', JSON.stringify(productosDB)); marcarCambio();
+                if (window.registrarActividadEquipo) await window.registrarActividadEquipo('editar_producto','producto',p.id,detalleEdicionProductoAuditoria(productoAntesDeEditar,p));
+                if (window.sincronizarCatalogoPublico) await window.sincronizarCatalogoPublico();
                 cerrarModalEditar(); renderizarFiltroTallas(); renderizarCatalogo();
                 alert("✅ ¡Actualizado con éxito!");
             } catch(e) { alert("Error: " + e); }
@@ -7493,9 +7512,18 @@ ${ped.comprobanteUrl ? `
             lista.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#9b6a85;font-weight:800;padding:18px;">Comparando entradas con el catálogo...</div>';
             _cargaPendientesCatalogo = (async function() {
             try {
-                const referenciasCatalogo = new Set((productosDB || []).flatMap(referenciasProductoCatalogo));
                 const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const snap = await getDocs(collection(db, 'inventario_mercancia'));
+                const resultados = await Promise.all([
+                    getDocs(collection(db, 'productos')),
+                    getDocs(collection(db, 'inventario_mercancia'))
+                ]);
+                const snapProductos = resultados[0];
+                const snap = resultados[1];
+                const productosCatalogoCompletos = [];
+                snapProductos.forEach(function(documento) {
+                    productosCatalogoCompletos.push(Object.assign({ id: documento.id }, documento.data()));
+                });
+                const referenciasCatalogo = new Set(productosCatalogoCompletos.flatMap(referenciasProductoCatalogo));
                 const agrupadas = new Map();
                 snap.forEach(function(documento) {
                     const entrada = Object.assign({ id: documento.id }, documento.data());
@@ -9532,13 +9560,13 @@ document.addEventListener('DOMContentLoaded', function() {
       return null;
     }
   }
+  window.sincronizarCatalogoPublico=sincronizarCatalogoDespuesDeCambio;
   function envolver(nombre,accion,recurso,idFn,sincronizaCatalogo){
     const original=window[nombre];if(typeof original!=='function'||original.__audit)return;
     const fn=async function(){const args=[...arguments],id=idFn?idFn(args):'';try{const r=await original.apply(this,args);await window.registrarActividadEquipo(accion,recurso,id,{argumentos:args.slice(0,4)});if(sincronizaCatalogo)await sincronizarCatalogoDespuesDeCambio();return r}catch(e){await window.registrarActividadEquipo(accion,recurso,id,{error:e.message},'error');throw e}};fn.__audit=true;window[nombre]=fn;
   }
   function instalarWrappers(){
     envolver('procesarYAgregarProducto','crear_producto','producto',()=> 'nuevo',true);
-    envolver('guardarEdicionProducto','editar_producto','producto',()=>String(window.editandoId||window.idEditando||''),true);
     envolver('eliminarProducto','eliminar_producto','producto',a=>a[0],true);
     envolver('guardarEdicionStockGina','editar_stock_producto','producto',()=>String(window.stockGinaEditandoId||''),true);
     envolver('guardarEntradaInventario','entrada_inventario','inventario',()=> 'entrada',true);
@@ -9552,8 +9580,9 @@ document.addEventListener('DOMContentLoaded', function() {
   function crearPanel(){
     if(document.getElementById('auditoria-equipo'))return;
     const btn=document.createElement('button');btn.id='btn-auditoria-equipo';btn.textContent='🛡️ Actividad del equipo';btn.style.cssText='position:fixed;left:18px;bottom:18px;z-index:10001;background:#7c2d6b;color:white;border:0;border-radius:24px;padding:12px 18px;font-weight:900;cursor:pointer;box-shadow:0 5px 18px #0003';document.body.appendChild(btn);
-    const panel=document.createElement('div');panel.id='auditoria-equipo';panel.style.cssText='display:none;position:fixed;inset:0;z-index:10002;background:#0008;padding:3vh 3vw;overflow:auto';panel.innerHTML='<div style="max-width:1050px;margin:auto;background:white;border-radius:18px;padding:20px"><div style="display:flex;justify-content:space-between;gap:10px"><h2 style="margin:0;color:#7c2d6b">🛡️ Actividad del equipo</h2><button id="cerrar-auditoria">✕</button></div><div style="display:flex;gap:8px;margin:14px 0"><button id="recargar-auditoria">Actualizar</button><button id="reconstruir-catalogo">Reconstruir catálogo público</button></div><div id="estado-auditoria" style="padding:10px;background:#f8edf5;border-radius:10px">Cargando…</div><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;margin-top:12px"><thead><tr><th>Fecha</th><th>Usuaria</th><th>Acción</th><th>Recurso</th><th>Resultado</th></tr></thead><tbody id="filas-auditoria"></tbody></table></div></div>';document.body.appendChild(panel);
-    async function cargar(){const est=document.getElementById('estado-auditoria');try{est.textContent='Cargando actividad…';const d=await api('/auditoria');document.getElementById('filas-auditoria').innerHTML=(d.eventos||[]).map(e=>'<tr><td style="padding:8px;border-bottom:1px solid #eee">'+new Date(e.fecha||e.timestamp).toLocaleString('es-CO')+'</td><td>'+String(e.usuaria||'')+'</td><td>'+String(e.accion||'')+'</td><td>'+String(e.recurso||'')+' '+String(e.recursoId||'')+'</td><td>'+String(e.resultado||'')+'</td></tr>').join('');est.textContent=(d.eventos||[]).length+' eventos recientes'}catch(e){est.textContent='Error: '+e.message}}
+    const panel=document.createElement('div');panel.id='auditoria-equipo';panel.style.cssText='display:none;position:fixed;inset:0;z-index:10002;background:#0008;padding:3vh 3vw;overflow:auto';panel.innerHTML='<div style="max-width:1150px;margin:auto;background:white;border-radius:18px;padding:20px"><div style="display:flex;justify-content:space-between;gap:10px"><h2 style="margin:0;color:#7c2d6b">🛡️ Actividad del equipo</h2><button id="cerrar-auditoria">✕</button></div><div style="display:flex;gap:8px;margin:14px 0"><button id="recargar-auditoria">Actualizar</button><button id="reconstruir-catalogo">Reconstruir catálogo público</button></div><div id="estado-auditoria" style="padding:10px;background:#f8edf5;border-radius:10px">Cargando…</div><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;margin-top:12px"><thead><tr><th>Fecha</th><th>Usuaria</th><th>Acción</th><th>Recurso</th><th>Resultado</th><th>Detalle</th></tr></thead><tbody id="filas-auditoria"></tbody></table></div></div>';document.body.appendChild(panel);
+    function textoSeguro(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+    async function cargar(){const est=document.getElementById('estado-auditoria');try{est.textContent='Cargando actividad…';const d=await api('/auditoria');document.getElementById('filas-auditoria').innerHTML=(d.eventos||[]).map(e=>{const detalle=e.detalle&&Object.keys(e.detalle).length?textoSeguro(JSON.stringify(e.detalle,null,2)).slice(0,6000):'';return '<tr><td style="padding:8px;border-bottom:1px solid #eee">'+new Date(e.fecha||e.timestamp).toLocaleString('es-CO')+'</td><td>'+textoSeguro(e.usuaria||'')+'</td><td>'+textoSeguro(e.accion||'')+'</td><td>'+textoSeguro(e.recurso||'')+' '+textoSeguro(e.recursoId||'')+'</td><td>'+textoSeguro(e.resultado||'')+'</td><td>'+(detalle?'<details><summary style="cursor:pointer;color:#7c2d6b;font-weight:800">Ver detalle</summary><pre style="white-space:pre-wrap;max-width:360px;font-size:11px">'+detalle+'</pre></details>':'—')+'</td></tr>'}).join('');est.textContent=(d.eventos||[]).length+' eventos recientes'}catch(e){est.textContent='Error: '+e.message}}
     btn.onclick=()=>{panel.style.display='block';cargar()};document.getElementById('cerrar-auditoria').onclick=()=>panel.style.display='none';document.getElementById('recargar-auditoria').onclick=cargar;document.getElementById('reconstruir-catalogo').onclick=async()=>{const est=document.getElementById('estado-auditoria');try{est.textContent='Reconstruyendo catálogo…';const d=await api('/catalogo-publico',{method:'POST',body:'{}'});est.textContent='Catálogo actualizado: '+d.total+' prendas'}catch(e){est.textContent='Error: '+e.message}};
   }
   let intentos=0,timer=setInterval(()=>{instalarWrappers();const u=window.usuarioActual;if(u&&u.uid===UID_YOHANA){crearPanel();clearInterval(timer)}if(++intentos>80)clearInterval(timer)},250);
