@@ -268,14 +268,27 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
   });
 
   // Guardar UN producto en Firebase
-  window.fbGuardarProducto = async function(producto) {
+  window.fbGuardarProducto = async function(producto, contextoAuditoria) {
     try {
       await setDoc(doc(db, "productos", producto.id), {
         ...producto,
         stockTotal: (producto.tallasObj||[]).reduce((s,t)=>s+(t.stock||0),0),
         actualizadoEn: new Date().toISOString()
       });
-    } catch(e) { console.warn("Firebase error:", e.message); }
+      if (window.registrarActividadEquipo) {
+        const contexto = contextoAuditoria || {};
+        const respuestaAuditoria = await window.registrarActividadEquipo(
+          contexto.accion || 'guardar_producto',
+          'producto',
+          producto.id,
+          contexto.detalle || { nombre: producto.nombre || '', referencia: producto.codigo || '' }
+        );
+        if (!respuestaAuditoria || !respuestaAuditoria.ok) {
+          alert('La prenda se guardó, pero no fue posible registrar la actividad. Informa a Yohana.');
+        }
+      }
+      return { ok: true };
+    } catch(e) { console.warn("Firebase error:", e.message); throw e; }
   };
 
   // Sincronizar TODOS los productos con Firebase
@@ -4321,9 +4334,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 // Guardar orden primero (reordena productosDB internamente)
                 await guardarOrdenEnFirebase(p.id);
                 // Ahora persistir el producto completo con todos los cambios en Firebase
-                if (window.fbGuardarProducto) await window.fbGuardarProducto(p);
+                if (window.fbGuardarProducto) await window.fbGuardarProducto(p, {
+                    accion: 'editar_producto',
+                    detalle: detalleEdicionProductoAuditoria(productoAntesDeEditar,p)
+                });
                 localStorage.setItem('productosV36', JSON.stringify(productosDB)); marcarCambio();
-                if (window.registrarActividadEquipo) await window.registrarActividadEquipo('editar_producto','producto',p.id,detalleEdicionProductoAuditoria(productoAntesDeEditar,p));
                 if (window.sincronizarCatalogoPublico) await window.sincronizarCatalogoPublico();
                 cerrarModalEditar(); renderizarFiltroTallas(); renderizarCatalogo();
                 alert("✅ ¡Actualizado con éxito!");
