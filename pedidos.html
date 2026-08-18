@@ -9520,14 +9520,24 @@ document.addEventListener('DOMContentLoaded', function() {
   window.registrarActividadEquipo=async function(accion,recurso,recursoId,detalle,resultado){
     try{return await api('/auditoria',{method:'POST',body:JSON.stringify({accion,recurso,recursoId,detalle:detalle||{},resultado:resultado||'exitoso'})})}catch(e){console.warn('Auditoría:',e.message)}
   };
-  function envolver(nombre,accion,recurso,idFn){
+  async function sincronizarCatalogoDespuesDeCambio(){
+    try{
+      return await api('/catalogo-publico',{method:'POST',body:'{}'});
+    }catch(e){
+      console.warn('Catálogo público:',e.message);
+      await window.registrarActividadEquipo('sincronizar_catalogo','catalogo_publico','v1',{error:e.message},'error');
+      alert('El cambio se guardó en Firebase, pero no se pudo actualizar el catálogo público. Yohana puede usar "Reconstruir catálogo público".');
+      return null;
+    }
+  }
+  function envolver(nombre,accion,recurso,idFn,sincronizaCatalogo){
     const original=window[nombre];if(typeof original!=='function'||original.__audit)return;
-    const fn=async function(){const args=[...arguments],id=idFn?idFn(args):'';try{const r=await original.apply(this,args);await window.registrarActividadEquipo(accion,recurso,id,{argumentos:args.slice(0,4)});return r}catch(e){await window.registrarActividadEquipo(accion,recurso,id,{error:e.message},'error');throw e}};fn.__audit=true;window[nombre]=fn;
+    const fn=async function(){const args=[...arguments],id=idFn?idFn(args):'';try{const r=await original.apply(this,args);await window.registrarActividadEquipo(accion,recurso,id,{argumentos:args.slice(0,4)});if(sincronizaCatalogo)await sincronizarCatalogoDespuesDeCambio();return r}catch(e){await window.registrarActividadEquipo(accion,recurso,id,{error:e.message},'error');throw e}};fn.__audit=true;window[nombre]=fn;
   }
   function instalarWrappers(){
-    envolver('procesarYAgregarProducto','crear_producto','producto',()=> 'nuevo');
-    envolver('guardarEdicionProducto','editar_producto','producto',()=>String(window.editandoId||window.idEditando||''));
-    envolver('eliminarProducto','eliminar_producto','producto',a=>a[0]);
+    envolver('procesarYAgregarProducto','crear_producto','producto',()=> 'nuevo',true);
+    envolver('guardarEdicionProducto','editar_producto','producto',()=>String(window.editandoId||window.idEditando||''),true);
+    envolver('eliminarProducto','eliminar_producto','producto',a=>a[0],true);
     envolver('guardarEntradaInventario','entrada_inventario','inventario',()=> 'entrada');
     envolver('guardarEdicionEntrada','editar_entrada','inventario',()=> 'entrada');
     envolver('eliminarEntradaInventario','eliminar_entrada','inventario',a=>a[0]);
