@@ -3818,9 +3818,35 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             if (wrapEd) wrapEd.style.display = genero === 'Unisex' ? 'flex' : 'none';
         }
 
-        function abrirModalEditar(id) {
+        async function abrirModalEditar(id) {
             if (window.datosQuemados) return;
-            let p = productosDB.find(x => x.id === id); if (!p) return;
+            let p;
+            try {
+                const respuesta = await fetch(
+                    'https://superkids-pagos-api.superkids-babys.workers.dev/catalogo-publico?editar=' +
+                    encodeURIComponent(id) + '&t=' + Date.now(),
+                    { cache: 'no-store' }
+                );
+                if (!respuesta.ok) throw new Error('No se pudo consultar el inventario');
+                const datos = await respuesta.json();
+                p = Array.isArray(datos.productos)
+                    ? datos.productos.find(function(producto) { return String(producto.id) === String(id); })
+                    : null;
+                if (!p) throw new Error('La prenda no aparece en el catálogo vigente');
+
+                // Sustituir también la copia de esta pestaña para impedir que al
+                // guardar se restaure accidentalmente un stock anterior.
+                const indiceActual = productosDB.findIndex(function(producto) {
+                    return String(producto.id) === String(id);
+                });
+                if (indiceActual >= 0) productosDB[indiceActual] = p;
+                else productosDB.push(p);
+                localStorage.setItem('productosV36', JSON.stringify(productosDB));
+            } catch (error) {
+                alert('No se abrió la edición porque no fue posible confirmar el stock actual.\n\n' +
+                    (error && error.message ? error.message : 'Revisa tu conexión e intenta nuevamente.'));
+                return;
+            }
             document.getElementById('edit-prod-id').value = p.id;
             document.getElementById('edit-prod-foto-file').value = '';
             // Inicializar gestor de fotos
