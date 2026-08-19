@@ -5284,6 +5284,30 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             }
         }
 
+        async function refrescarCatalogoDespuesDePedido() {
+            try {
+                const respuesta = await fetch(
+                    'https://superkids-pagos-api.superkids-babys.workers.dev/catalogo-publico?pedido=' + Date.now(),
+                    { cache: 'no-store' }
+                );
+                if (!respuesta.ok) return false;
+                const datos = await respuesta.json();
+                if (!Array.isArray(datos.productos) || !datos.productos.length) return false;
+                productosFirebaseListos = true;
+                productosDB = aplicarOrdenGuardadoLocal(
+                    filtrarProductosEliminados(datos.productos)
+                );
+                ordenarProductosPorOrdenVisual(productosDB, generoActual);
+                localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                renderizarFiltroTallas();
+                renderizarCatalogo();
+                return true;
+            } catch (error) {
+                console.warn('El pedido fue creado, pero no se pudo refrescar el catálogo:', error);
+                return false;
+            }
+        }
+
         async function procesarOrdenWA() {
             if (window._procesandoOrdenWA) return;
             let n = document.getElementById('cart-nombre').value.trim();
@@ -5362,6 +5386,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 historialPedidos = depurarPedidosDuplicados(historialPedidos);
                 localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
                 renderizarPedidosPanel();
+
+                // El Worker ya descontó el inventario de forma atómica.
+                // Volvemos a leer su copia confirmada para no mostrar stock viejo
+                // en esta misma pestaña después de completar el pedido.
+                await refrescarCatalogoDespuesDePedido();
 
                 let productosWA = '';
                 (objetoOrdenSeguro.items || []).forEach(function(item) {
