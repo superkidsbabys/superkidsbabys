@@ -4548,6 +4548,27 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             return grupos;
         }
 
+        function resumenItemPedidoAuditoria(item) {
+            return {
+                productoId: String(item && item.id_prod || ''),
+                nombre: String(item && (item.nom || item.nombre) || ''),
+                referencia: String(item && (item.cod || item.codigo) || ''),
+                talla: String(item && item.talla || ''),
+                cantidad: Math.max(1, parseInt(item && item.cant, 10) || 1),
+                precio: Number(item && item.precio || 0)
+            };
+        }
+
+        async function registrarActividadGestionDirecta(accion, recurso, recursoId, detalle, resultado) {
+            if (!window.registrarActividadEquipo) {
+                alert('El cambio se realizó, pero la auditoría aún no estaba disponible. Recarga Gestión antes de continuar.');
+                return null;
+            }
+            const respuesta = await window.registrarActividadEquipo(accion, recurso, recursoId, detalle || {}, resultado || 'exitoso');
+            if (!respuesta || !respuesta.ok) alert('El cambio se realizó, pero no fue posible guardar su actividad. Informa a Yohana.');
+            return respuesta;
+        }
+
         window.eliminarGrupoDePedido = async function(numPed, idProd, cod) {
             if (!confirm('¿Eliminar todas las tallas de esta prenda del pedido? Se devolverá el stock correspondiente.')) return;
             let pedIdx = historialPedidos.findIndex(p => String(p.num) === String(numPed));
@@ -4559,7 +4580,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             let prod = productosDB.find(x => String(x.id) === String(idProd)) || productosDB.find(x => String(x.codigo || '') === String(cod || ''));
             let stockDevuelto = false;
 
-            if (ped.stockDescontado && !ped.stockDevuelto && prod && prod.tallasObj) {
+            if (!ped.stockDevuelto && prod && prod.tallasObj) {
                 itemsAEliminar.forEach(item => {
                     const tallaItem = normalizarTallaValor(item.talla);
                     const tObj = (prod.tallasObj || []).find(t => normalizarTallaValor(t.nombre) === tallaItem);
@@ -4587,6 +4608,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 const snap = await getDocs(q);
                 await Promise.all(snap.docs.map(d => updateDoc(doc(db, 'pedidos', d.id), { items: ped.items, tot: ped.tot, actualizadoEn: new Date().toISOString() })));
             } catch(e) { console.log('Error sync Firebase al eliminar grupo:', e); }
+
+            await registrarActividadGestionDirecta('eliminar_prenda_pedido','pedido',ped.num,{
+                cliente: ped.nom || '',
+                prendasEliminadas: itemsAEliminar.map(resumenItemPedidoAuditoria),
+                stockDevuelto: stockDevuelto,
+                totalPedidoDespues: Number(ped.tot || 0)
+            });
+            if (stockDevuelto && window.sincronizarCatalogoPublico) await window.sincronizarCatalogoPublico();
 
             renderizarPedidosPanel();
             if (typeof renderStockActual === 'function') renderStockActual();
@@ -5845,10 +5874,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const cant = parseInt(item.cant,10) || 1;
             const tAnterior = prod.tallasObj.find(t => normalizarTallaValor(t.nombre) === anterior);
             const tNueva = prod.tallasObj.find(t => normalizarTallaValor(t.nombre) === nueva);
-            if (!tNueva || (ped.stockDescontado && !ped.stockDevuelto && (parseInt(tNueva.stock,10)||0) < cant)) {
+            if (!tNueva || (!ped.stockDevuelto && (parseInt(tNueva.stock,10)||0) < cant)) {
                 alert('No hay unidades suficientes en esa talla.'); renderItemsEditorPedido(ped); return;
             }
-            if (ped.stockDescontado && !ped.stockDevuelto) {
+            if (!ped.stockDevuelto) {
                 if (tAnterior) tAnterior.stock = (parseInt(tAnterior.stock,10)||0) + cant;
                 tNueva.stock = (parseInt(tNueva.stock,10)||0) - cant;
             }
@@ -5856,6 +5885,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             item.imagen = obtenerImagenProducto(prod, tNueva.nombre);
             recalcularTotalPedidoConEnvio(ped);
             await guardarEdicionPrendasPedidoFirebase(ped, [prod]);
+            await registrarActividadGestionDirecta('cambiar_talla_pedido','pedido',ped.num,{
+                cliente: ped.nom || '', producto: prod.nombre || '', referencia: prod.codigo || '',
+                tallaAnterior: anterior, tallaNueva: nueva, cantidad: cant
+            });
+            if (window.sincronizarCatalogoPublico) await window.sincronizarCatalogoPublico();
             renderItemsEditorPedido(ped); renderizarPedidosPanel();
             if (typeof renderStockActual === 'function') renderStockActual();
         }
@@ -5881,12 +5915,17 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const tObj = prod && (prod.tallasObj || []).find(t => normalizarTallaValor(t.nombre) === normalizarTallaValor(talla));
             if (!ped || !prod || !tObj) return;
             if ((parseInt(tObj.stock,10)||0) < 1) return alert('Esa talla ya no tiene existencias.');
-            if (ped.stockDescontado && !ped.stockDevuelto) tObj.stock = (parseInt(tObj.stock,10)||0) - 1;
+            if (!ped.stockDevuelto) tObj.stock = (parseInt(tObj.stock,10)||0) - 1;
             const existente = (ped.items || []).find(i => String(i.id_prod) === String(prod.id) && normalizarTallaValor(i.talla) === normalizarTallaValor(tObj.nombre));
             if (existente) existente.cant = (parseInt(existente.cant,10)||1) + 1;
             else ped.items.push({ id_prod: prod.id, nom: prod.nombre, cod: prod.codigo || '', talla: tObj.nombre, cant: 1, precio: parseInt(prod.precio,10)||0, imagen: obtenerImagenProducto(prod, tObj.nombre) });
             recalcularTotalPedidoConEnvio(ped);
             await guardarEdicionPrendasPedidoFirebase(ped, [prod]);
+            await registrarActividadGestionDirecta('agregar_prenda_pedido','pedido',ped.num,{
+                cliente: ped.nom || '', producto: prod.nombre || '', referencia: prod.codigo || '',
+                talla: tObj.nombre, cantidad: 1
+            });
+            if (window.sincronizarCatalogoPublico) await window.sincronizarCatalogoPublico();
             renderItemsEditorPedido(ped); buscarProductoParaPedido(document.getElementById('buscar-agregar-pedido').value); renderizarPedidosPanel();
             if (typeof renderStockActual === 'function') renderStockActual();
         }
@@ -5908,7 +5947,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             let prod = productosDB.find(x => String(x.id) === String(item.id_prod))
                 || productosDB.find(x => String(x.codigo || '') === String(item.cod || ''));
 
-            if (ped.stockDescontado && !ped.stockDevuelto && prod && prod.tallasObj) {
+            if (!ped.stockDevuelto && prod && prod.tallasObj) {
                 const tallaItem = normalizarTallaValor(item.talla);
                 let tObj = (prod.tallasObj || []).find(t => normalizarTallaValor(t.nombre) === tallaItem);
                 if (tObj) {
@@ -5942,6 +5981,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             } catch(e) {
                 console.log('Error sync Firebase al eliminar producto:', e);
             }
+
+            await registrarActividadGestionDirecta('eliminar_prenda_pedido','pedido',ped.num,{
+                cliente: ped.nom || '',
+                prendaEliminada: resumenItemPedidoAuditoria(item),
+                stockDevuelto: stockDevueltoItem,
+                totalPedidoDespues: Number(ped.tot || 0)
+            });
+            if (stockDevueltoItem && window.sincronizarCatalogoPublico) await window.sincronizarCatalogoPublico();
 
             renderizarPedidosPanel();
             if (typeof renderStockActual === 'function') renderStockActual();
@@ -6140,6 +6187,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
             await persistirPedidoEnFirebase(pedido);
+            await registrarActividadGestionDirecta('cambiar_estado_pedido','pedido',pedido.num,{
+                cliente: pedido.nom || '', estadoAnterior: estadoAnterior,
+                estadoNuevo: nuevoEstado, stockDevuelto: !!pedido.stockDevuelto
+            });
             renderizarPedidosPanel();
         }
 
@@ -6214,7 +6265,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         async function eliminarPedido(numPed) {
             if (!confirm(`¿Mover el pedido #SK-${numPed} a la papelera durante 30 días?`)) return;
             const pedido = historialPedidos.find(p => p.num === numPed);
-            if (pedido && pedido.stockDescontado && !pedido.stockDevuelto) {
+            if (pedido && !pedido.stockDevuelto) {
                 Object.assign(pedido, await anularPedidoEnServidor(pedido));
             }
             await enviarPedidoAPapelera(pedido);
@@ -6225,14 +6276,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 const { collection, query, where, getDocs, doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 if (pedido && pedido._firebaseId) {
                     await deleteDoc(doc(db, 'pedidos', pedido._firebaseId));
-                    return;
+                } else {
+                    const q = query(collection(db, 'pedidos'), where('num', '==', numPed));
+                    const snap = await getDocs(q);
+                    await Promise.all(snap.docs.map(d => deleteDoc(doc(db, 'pedidos', d.id))));
                 }
-                const q = query(collection(db, 'pedidos'), where('num', '==', numPed));
-                const snap = await getDocs(q);
-                await Promise.all(snap.docs.map(d => deleteDoc(doc(db, 'pedidos', d.id))));
             } catch(e) {
                 console.log('Pedido eliminado localmente, Firebase no disponible:', e.message);
             }
+            await registrarActividadGestionDirecta('eliminar_pedido','pedido',numPed,{
+                cliente: pedido && pedido.nom || '', prendas: (pedido && pedido.items || []).map(resumenItemPedidoAuditoria),
+                stockDevuelto: !!(pedido && pedido.stockDevuelto), enviadoAPapelera: true
+            });
+            if (pedido && pedido.stockDevuelto && window.sincronizarCatalogoPublico) await window.sincronizarCatalogoPublico();
         }
 
         async function subirComprobantePedido(numPed, inputEl) {
@@ -9589,7 +9645,6 @@ document.addEventListener('DOMContentLoaded', function() {
     envolver('eliminarEntradaInventario','eliminar_entrada','inventario',a=>a[0],true);
     envolver('guardarSalidaInventario','salida_inventario','inventario',()=> 'salida',true);
     envolver('eliminarSalidaInventario','eliminar_salida','inventario',a=>a[0],true);
-    envolver('eliminarPedido','eliminar_pedido','pedido',a=>a[0]);
     envolver('guardarDatosTienda','editar_configuracion','config_tienda',()=> 'configuracion');
   }
   function crearPanel(){
