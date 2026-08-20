@@ -1602,6 +1602,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                             <span id="inv-historial-flecha" style="font-size:1.05em;">v</span>
                         </button>
                         <div id="inv-historial-panel" style="display:none;padding:12px;">
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;padding:10px;border:1px solid #f0c5dc;border-radius:10px;background:#fff8fc;">
+                                <button type="button" onclick="analizarFotosAntiguasInventario()" style="background:#a52f73;color:white;border:none;border-radius:8px;padding:8px 12px;font-family:Nunito,sans-serif;font-weight:900;cursor:pointer;">🔎 Analizar fotos antiguas</button>
+                                <span id="inv-diagnostico-fotos" style="font-size:0.78em;color:#70425d;font-weight:700;">Solo revisa enlaces; no modifica registros.</span>
+                            </div>
                             <div id="inv-historial" style="max-height:400px;overflow-y:auto;"></div>
                         </div>
                     </div>
@@ -7884,6 +7888,67 @@ ${ped.comprobanteUrl ? `
                 msg.style.color = '#e74c3c';
                 msg.textContent = 'Error al guardar: ' + e.message;
                 msg.style.display = 'block';
+            }
+        }
+
+        async function analizarFotosAntiguasInventario() {
+            const estado = document.getElementById('inv-diagnostico-fotos');
+            if (!estado) return;
+            if (typeof esYohanaInventario === 'function' && !esYohanaInventario()) {
+                estado.textContent = 'Esta revisión solo está disponible para Yohana.';
+                return;
+            }
+            estado.textContent = 'Leyendo el historial y comprobando enlaces...';
+            try {
+                const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const snap = await getDocs(collection(db, 'inventario_mercancia'));
+                const enlaces = [];
+                let registrosConFotos = 0;
+                snap.forEach(function(docSnap) {
+                    const entrada = docSnap.data() || {};
+                    const urls = Array.isArray(entrada.fotoUrls) && entrada.fotoUrls.length
+                        ? entrada.fotoUrls
+                        : (entrada.fotoUrl ? [entrada.fotoUrl] : []);
+                    if (urls.length) registrosConFotos += 1;
+                    urls.forEach(function(url) {
+                        if (url) enlaces.push({ id: docSnap.id, ref: String(entrada.ref || ''), url: String(url) });
+                    });
+                });
+
+                const resultado = { totalRegistros: snap.size, registrosConFotos, totalFotos: enlaces.length, r2: [], recuperables: [], perdidas: [] };
+                let siguiente = 0;
+                async function revisarSiguiente() {
+                    while (siguiente < enlaces.length) {
+                        const item = enlaces[siguiente++];
+                        if (item.url.startsWith(R2_FOTOS_ORIGIN + '/fotos/')) {
+                            resultado.r2.push(item);
+                            continue;
+                        }
+                        if (item.url.startsWith('blob:')) {
+                            resultado.perdidas.push(Object.assign({ motivo: 'enlace temporal vencido' }, item));
+                            continue;
+                        }
+                        try {
+                            const respuesta = await fetch(item.url, { method: 'HEAD', cache: 'no-store' });
+                            if (respuesta.ok) resultado.recuperables.push(item);
+                            else resultado.perdidas.push(Object.assign({ motivo: 'HTTP ' + respuesta.status }, item));
+                        } catch (error) {
+                            resultado.perdidas.push(Object.assign({ motivo: 'sin respuesta' }, item));
+                        }
+                        estado.textContent = 'Revisadas ' + Math.min(siguiente, enlaces.length) + ' de ' + enlaces.length + ' fotos...';
+                    }
+                }
+                await Promise.all(Array.from({ length: Math.min(6, Math.max(1, enlaces.length)) }, revisarSiguiente));
+                window._diagnosticoFotosInventario = resultado;
+                const refsPerdidas = [...new Set(resultado.perdidas.map(function(item) { return item.ref; }).filter(Boolean))].slice(0, 12);
+                estado.innerHTML = '<strong>Diagnóstico terminado:</strong> ' +
+                    resultado.totalFotos + ' fotos encontradas · ' +
+                    resultado.r2.length + ' ya están en R2 · ' +
+                    resultado.recuperables.length + ' se pueden recuperar · ' +
+                    resultado.perdidas.length + ' no respondieron' +
+                    (refsPerdidas.length ? '<br>Referencias con enlaces dañados: ' + refsPerdidas.join(', ') : '');
+            } catch (error) {
+                estado.textContent = 'No se pudo completar el diagnóstico: ' + (error.message || error);
             }
         }
 
