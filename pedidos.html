@@ -7928,13 +7928,30 @@ ${ped.comprobanteUrl ? `
                             resultado.perdidas.push(Object.assign({ motivo: 'enlace temporal vencido' }, item));
                             continue;
                         }
+                        let disponible = false;
+                        let motivo = 'sin respuesta';
                         try {
                             const respuesta = await fetch(item.url, { method: 'HEAD', cache: 'no-store' });
-                            if (respuesta.ok) resultado.recuperables.push(item);
-                            else resultado.perdidas.push(Object.assign({ motivo: 'HTTP ' + respuesta.status }, item));
-                        } catch (error) {
-                            resultado.perdidas.push(Object.assign({ motivo: 'sin respuesta' }, item));
+                            disponible = respuesta.ok;
+                            if (!disponible) motivo = 'HTTP ' + respuesta.status;
+                        } catch (error) {}
+                        // Algunos enlaces de Cloudinary rechazan HEAD aunque la
+                        // imagen todavía exista. Confirmar con una descarga GET
+                        // diminuta antes de clasificarla como perdida.
+                        if (!disponible) {
+                            try {
+                                let urlPrueba = item.url;
+                                if (typeof crearUrlFuenteMigracionR2 === 'function') {
+                                    urlPrueba = crearUrlFuenteMigracionR2(item.url).replace('w_1600', 'w_40');
+                                }
+                                const respuestaGet = await fetch(urlPrueba, { method: 'GET', cache: 'no-store' });
+                                const tipo = String(respuestaGet.headers.get('Content-Type') || '').toLowerCase();
+                                disponible = respuestaGet.ok && tipo.startsWith('image/');
+                                if (!disponible) motivo = 'HTTP ' + respuestaGet.status;
+                            } catch (error) {}
                         }
+                        if (disponible) resultado.recuperables.push(item);
+                        else resultado.perdidas.push(Object.assign({ motivo }, item));
                         estado.textContent = 'Revisadas ' + Math.min(siguiente, enlaces.length) + ' de ' + enlaces.length + ' fotos...';
                     }
                 }
