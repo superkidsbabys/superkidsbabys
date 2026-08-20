@@ -2676,39 +2676,34 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             renderizarPedidosPanel();
             inicializarAutorrellenoClientes();
 
-            // ✅ CARGAR PRODUCTOS DESDE FIREBASE en tiempo real con onSnapshot
+            // Cargar los productos desde la copia pública de Cloudflare.
+            // Evita abrir una escucha permanente de los 579 documentos de
+            // Firestore cada vez que una integrante entra a Gestión.
             try {
-                const { getFirestore, collection, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const { getApps } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
-                const appActiva = getApps()[0];
-                if (appActiva) {
-                    const dbPublica = getFirestore(appActiva);
-                    // onSnapshot: escucha cambios en tiempo real — stock se actualiza al instante
-                    onSnapshot(collection(dbPublica, 'productos'), (snap) => {
-                        if (snap.empty) return;
-                        const productosFirebase = [];
-                        snap.forEach(d => productosFirebase.push(Object.assign({}, d.data(), {
-                            _firebaseId: d.id
-                        })));
-                        // Mezclar: Firebase gana sobre quemados (datos más actualizados)
-                        const quemados = filtrarProductosEliminados(window.productosQ || []);
-                        const productosFirebaseActivos = filtrarProductosEliminados(productosFirebase);
-                        const soloQuemadosNoEnFirebase = quemados.filter(q => !productosFirebaseActivos.find(f => f.id === q.id));
-                        productosDB = aplicarOrdenGuardadoLocal([...productosFirebaseActivos, ...soloQuemadosNoEnFirebase]);
-                        window.productosDB = productosDB;
-                        ordenarProductosPorOrdenVisual(productosDB, generoActual);
-                        localStorage.setItem('productosV36', JSON.stringify(productosDB));
-                        if (typeof invalidarPendientesCatalogo === 'function') invalidarPendientesCatalogo();
-                        renderizarFiltroTallas();
-                        renderizarCatalogo();
-                        if (!window._ordenPublicoCargado && typeof cargarOrdenDesdeFirebase === 'function') {
-                            window._ordenPublicoCargado = true;
-                            cargarOrdenDesdeFirebase();
-                        }
-                    });
+                const respuestaCatalogo = await fetch(
+                    'https://superkids-pagos-api.superkids-babys.workers.dev/catalogo-publico?t=' + Date.now(),
+                    { cache: 'no-store' }
+                );
+                if (!respuestaCatalogo.ok) throw new Error('No se pudo cargar el catálogo público');
+                const datosCatalogo = await respuestaCatalogo.json();
+                if (!Array.isArray(datosCatalogo.productos) || !datosCatalogo.productos.length) {
+                    throw new Error('El catálogo público llegó vacío');
+                }
+                productosDB = aplicarOrdenGuardadoLocal(
+                    filtrarProductosEliminados(datosCatalogo.productos)
+                );
+                window.productosDB = productosDB;
+                ordenarProductosPorOrdenVisual(productosDB, generoActual);
+                localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                if (typeof invalidarPendientesCatalogo === 'function') invalidarPendientesCatalogo();
+                renderizarFiltroTallas();
+                renderizarCatalogo();
+                if (!window._ordenPublicoCargado && typeof cargarOrdenDesdeFirebase === 'function') {
+                    window._ordenPublicoCargado = true;
+                    cargarOrdenDesdeFirebase();
                 }
             } catch(e) {
-                console.log('Carga Firebase:', e.message);
+                console.log('Carga del catálogo público:', e.message);
             }
         };
 
