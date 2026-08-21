@@ -4862,6 +4862,41 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             }
         }
 
+        async function cargarProductoCompletoParaStock(item) {
+            item = item || {};
+            const ids = [item.id_prod, item.id].filter(Boolean).map(String);
+            const codigo = String(item.cod ?? item.codigo ?? '').trim();
+            let existente = productosDB.find(p =>
+                ids.includes(String(p.id)) || ids.includes(String(p._firebaseId || '')) ||
+                (codigo && String(p.codigo || '').trim() === codigo)
+            );
+            if (existente) return existente;
+            const { doc, getDoc, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+            let documento = null;
+            for (const id of ids) {
+                const snap = await getDoc(doc(db, 'productos', id));
+                if (snap.exists()) { documento = snap; break; }
+            }
+            if (!documento && codigo) {
+                const snapCodigo = await getDocs(query(collection(db, 'productos'), where('codigo', '==', codigo)));
+                if (!snapCodigo.empty) documento = snapCodigo.docs[0];
+                if (!documento && /^\d+$/.test(codigo)) {
+                    const snapCodigoNumero = await getDocs(query(collection(db, 'productos'), where('codigo', '==', Number(codigo))));
+                    if (!snapCodigoNumero.empty) documento = snapCodigoNumero.docs[0];
+                }
+            }
+            if (!documento) return null;
+            const datos = documento.data();
+            const producto = Object.assign({}, datos, {
+                id: datos.id || documento.id,
+                _firebaseId: documento.id
+            });
+            productosDB.push(producto);
+            window.productosDB = productosDB;
+            localStorage.setItem('productosV36', JSON.stringify(productosDB));
+            return producto;
+        }
+
         async function devolverStockPedido(pedido) {
             if (!pedido || pedido.stockDevuelto) return;
             // Los pedidos contraentrega también descuentan inventario y deben
@@ -4877,6 +4912,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (!porProducto[clave]) porProducto[clave] = [];
                 porProducto[clave].push(item);
             });
+            try {
+                await Promise.all(Object.keys(porProducto).map(async idProd => {
+                    const item = (porProducto[idProd] || [])[0] || { id_prod: idProd };
+                    await cargarProductoCompletoParaStock(item);
+                }));
+            } catch (error) {
+                throw new Error('No se pudo consultar el producto agotado: ' + (error.message || error));
+            }
             let huboDevolucion = false;
             const cambiosAplicados = [];
             const productosModificados = new Map();
@@ -6013,7 +6056,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     // ningún listener puede volver a tratarlo como pedido nuevo
                     // mientras se está devolviendo su inventario.
                     localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                    Object.assign(pedido, await anularPedidoEnServidor(pedido));
+                    await devolverStockPedido(pedido);
+                    pedido.estado = 'cancelado';
                 } catch (error) {
                     pedido.estado = estadoAnterior;
                     pedido.stockDevuelto = false;
@@ -6052,6 +6096,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         function imprimirFactura(numPed) {
             let ped = historialPedidos.find(p => p.num === numPed); if (!ped) return;
+            const cantidadTotalPrendas = (ped.items || []).reduce(function(total, item) {
+                return total + Math.max(1, parseInt(item.cant || item.cantidad, 10) || 1);
+            }, 0);
 
             // Buscar imagen de cada producto en productosDB
             let htmlProductos = ped.items.map(i => {
@@ -6065,8 +6112,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     <img src="${imgUrl}" alt="foto" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:block;border:2px solid #e8d5f5;" onerror="this.src='https://via.placeholder.com/80x80?text=Sin+foto'">
                   </td>
                   <td style="padding:10px 8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;font-size:0.88em;color:#555;">
+                    <strong style="color:#333;">${Math.max(1, parseInt(i.cant || i.cantidad, 10) || 1) > 1 ? '(' + Math.max(1, parseInt(i.cant || i.cantidad, 10) || 1) + ') ' : ''}${i.nom || ''}</strong><br>
                     REF: <strong style="color:#8e44ad;">${i.cod || 'S/N'}</strong><br>
-                    <span style="font-size:0.9em;color:#888;">Talla: ${i.talla || 'Única'}</span>
+                    <span style="font-size:0.9em;color:#888;">Talla: ${i.talla || 'Única'}${Math.max(1, parseInt(i.cant || i.cantidad, 10) || 1) > 1 ? ' · ' + Math.max(1, parseInt(i.cant || i.cantidad, 10) || 1) + ' unidades' : ''}</span>
                   </td>
                   <td style="padding:10px 8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;text-align:right;font-weight:bold;color:#333;font-size:1em;">
                     <span class="precio-editable" contenteditable="true" spellcheck="false" data-precio="${i.precio}" oninput="recalcularTotal()" style="display:inline-block;border:1.5px dashed #c9a0dc;border-radius:6px;padding:2px 8px;cursor:pointer;color:#8e44ad;min-width:60px;">${formatMoney(i.precio)}</span>
@@ -6126,6 +6174,7 @@ table{width:100%;border-collapse:collapse}
   </div>
 </div>
 <div class="total-bloque">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed #e8d5f5;color:#8e44ad;font-weight:900;"><span>Cantidad de prendas</span><span>${cantidadTotalPrendas}</span></div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed #e8d5f5;">
     <span style="font-size:0.82em;color:#888;text-transform:uppercase;letter-spacing:1px;">Subtotal productos</span>
     <span id="subtotal-productos" data-sub="${ped.tot}" style="font-size:1em;font-weight:700;color:#555;">${formatMoney(ped.tot)}</span>
@@ -6304,7 +6353,7 @@ table{width:100%;border-collapse:collapse}
                         let imgBase = i.imagen || (prodImg && prodImg.imagenes && prodImg.imagenes[0]);
                         let thumb = imgBase ? imgBase.replace('/image/upload/', '/image/upload/f_auto,q_auto,w_100/') : '';
                         let imgTag = thumb ? `<img src="${thumb}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'">` : `<div style="width:44px;height:44px;border-radius:6px;background:#f5e6fb;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2em;">👗</div>`;
-                        return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${i.nom}</div><div style="font-size:0.72em;color:#888;">Talla: ${i.talla || 'Única'} · REF: ${i.cod || 'S/N'}</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(i.precio)}</span></div>`;
+                        return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${Math.max(1, parseInt(i.cant || i.cantidad, 10) || 1) > 1 ? '(' + Math.max(1, parseInt(i.cant || i.cantidad, 10) || 1) + ') ' : ''}${i.nom}</div><div style="font-size:0.72em;color:#888;">Talla: ${i.talla || 'Única'} · REF: ${i.cod || 'S/N'}</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(i.precio)}</span></div>`;
                     }).join('');
                     const numFact = String(ped.numFactura || ped.num).padStart(6, '0');
                     cont.innerHTML += `<div class="tarjeta-pedido-cb" style="border:1.5px solid #f7c1c1;opacity:0.85;">
@@ -6335,7 +6384,7 @@ table{width:100%;border-collapse:collapse}
                     let imgTag = thumb
                         ? `<img src="${thumb}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'">`
                         : `<div style="width:44px;height:44px;border-radius:6px;background:#f5e6fb;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2em;">👗</div>`;
-                    return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${i.nom}</div><div style="font-size:0.72em;color:#888;">Talla: ${i.talla || 'Única'} · REF: ${i.cod || 'S/N'}</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(i.precio)}</span><button class="tp-btn-del-prod" title="Eliminar producto" onclick="eliminarProductoDePedido(${ped.num}, ${iIdx})">🗑️</button></div>`;
+                    return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${Math.max(1, parseInt(i.cant || i.cantidad, 10) || 1) > 1 ? '(' + Math.max(1, parseInt(i.cant || i.cantidad, 10) || 1) + ') ' : ''}${i.nom}</div><div style="font-size:0.72em;color:#888;">Talla: ${i.talla || 'Única'} · REF: ${i.cod || 'S/N'}</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(i.precio)}</span><button class="tp-btn-del-prod" title="Eliminar producto" onclick="eliminarProductoDePedido(${ped.num}, ${iIdx})">🗑️</button></div>`;
                 }).join('');
 
                 const numFact = ped.numOrden || ('SK' + String(ped.numFactura || ped.num).padStart(5, '0'));
@@ -6637,7 +6686,8 @@ table{width:100%;border-collapse:collapse}
             const pedido = historialPedidos[pedIndex];
 
             try {
-                Object.assign(pedido, await anularPedidoEnServidor(pedido));
+                await devolverStockPedido(pedido);
+                pedido.estado = 'cancelado';
             } catch (error) {
                 alert(error.message || 'No se pudo devolver el stock. La factura no fue anulada.');
                 return;

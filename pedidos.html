@@ -1795,10 +1795,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Tipo de venta<select id="rv-tipo" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todos</option><option>Contraentrega</option><option>Contado</option><option>Recaudo</option><option>Pago Wompi</option></select></label>
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Asesora<select id="rv-asesora" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todas</option><option>Yohana</option><option>Gina</option><option>Bibiana</option></select></label>
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Buscar referencia<input id="rv-ref" type="search" placeholder="Ej: 2000038" oninput="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"></label>
+                        <label style="font-size:.78em;font-weight:800;color:#475467;">Buscar guía<input id="rv-guia" type="search" placeholder="Número o sin guía" oninput="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"></label>
                     </div>
                     <div id="rv-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px;margin-bottom:14px;"></div>
                     <div id="rv-detalle-ref" style="display:none;margin-bottom:14px;"></div>
-                    <div id="rv-tabla-general" style="overflow:auto;border:1.5px solid #ccebd7;border-radius:11px;background:white;"><table style="width:100%;border-collapse:collapse;font-size:.82em;min-width:720px;"><thead style="background:#eaf8ef;color:#187548;"><tr><th style="padding:10px;text-align:left;">Fecha</th><th>Ventas</th><th>Prendas</th><th style="text-align:right;">Venta bruta</th><th style="text-align:right;">Descuentos</th><th style="text-align:right;padding-right:12px;">Venta neta</th></tr></thead><tbody id="rv-tbody"></tbody></table></div>
+                    <div id="rv-tabla-general" style="overflow:auto;border:1.5px solid #ccebd7;border-radius:11px;background:white;"><table style="width:100%;border-collapse:collapse;font-size:.82em;min-width:940px;"><thead style="background:#eaf8ef;color:#187548;"><tr><th style="padding:10px;text-align:left;">Fecha</th><th style="text-align:left;">N.º pedido</th><th style="text-align:left;">N.º guía</th><th>Prendas</th><th style="text-align:right;">Venta bruta</th><th style="text-align:right;">Descuentos</th><th style="text-align:right;padding-right:12px;">Venta neta</th></tr></thead><tbody id="rv-tbody"></tbody></table></div>
                     <p id="rv-vacio" style="display:none;text-align:center;color:#98a2b3;font-weight:800;padding:22px;">No hay ventas finalizadas en las fechas elegidas.</p>
                 </div>
             </div>
@@ -4525,7 +4526,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const grupos = [];
             const indice = {};
             (items || []).forEach(function(item) {
-                const clave = String(item.id_prod || item.cod || item.nom || Math.random());
+                const clave = String(item.cod || item.codigo || item.id_prod || item.nom || Math.random());
+                const cantidadItem = Math.max(1, parseInt(item.cant || item.cantidad, 10) || 1);
+                const tallaItem = item.talla || 'Única';
                 if (!indice.hasOwnProperty(clave)) {
                     indice[clave] = grupos.length;
                     grupos.push({
@@ -4533,16 +4536,24 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         cod: item.cod,
                         nom: item.nom,
                         imagen: item.imagen,
-                        tallas: [item.talla || 'Única'],
-                        totalPrecio: parseInt(item.precio, 10) || 0,
-                        cantidad: 1
+                        tallas: [],
+                        cantidadesPorTalla: {},
+                        totalPrecio: (parseInt(item.precio, 10) || 0) * cantidadItem,
+                        cantidad: cantidadItem
                     });
+                    grupos[grupos.length - 1].cantidadesPorTalla[tallaItem] = cantidadItem;
                 } else {
                     const g = grupos[indice[clave]];
-                    g.tallas.push(item.talla || 'Única');
-                    g.totalPrecio += parseInt(item.precio, 10) || 0;
-                    g.cantidad += 1;
+                    g.cantidadesPorTalla[tallaItem] = (g.cantidadesPorTalla[tallaItem] || 0) + cantidadItem;
+                    g.totalPrecio += (parseInt(item.precio, 10) || 0) * cantidadItem;
+                    g.cantidad += cantidadItem;
                 }
+            });
+            grupos.forEach(function(g) {
+                g.tallas = Object.keys(g.cantidadesPorTalla).map(function(talla) {
+                    const cantidad = g.cantidadesPorTalla[talla];
+                    return cantidad > 1 ? talla + ' (' + cantidad + ')' : talla;
+                });
             });
             return grupos;
         }
@@ -4854,6 +4865,41 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
+        async function cargarProductoCompletoParaStock(item) {
+            item = item || {};
+            const ids = [item.id_prod, item.id].filter(Boolean).map(String);
+            const codigo = String(item.cod ?? item.codigo ?? '').trim();
+            let existente = productosDB.find(p =>
+                ids.includes(String(p.id)) || ids.includes(String(p._firebaseId || '')) ||
+                (codigo && String(p.codigo || '').trim() === codigo)
+            );
+            if (existente) return existente;
+            const { doc, getDoc, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+            let documento = null;
+            for (const id of ids) {
+                const snap = await getDoc(doc(db, 'productos', id));
+                if (snap.exists()) { documento = snap; break; }
+            }
+            if (!documento && codigo) {
+                const snapCodigo = await getDocs(query(collection(db, 'productos'), where('codigo', '==', codigo)));
+                if (!snapCodigo.empty) documento = snapCodigo.docs[0];
+                if (!documento && /^\d+$/.test(codigo)) {
+                    const snapCodigoNumero = await getDocs(query(collection(db, 'productos'), where('codigo', '==', Number(codigo))));
+                    if (!snapCodigoNumero.empty) documento = snapCodigoNumero.docs[0];
+                }
+            }
+            if (!documento) return null;
+            const datos = documento.data();
+            const producto = Object.assign({}, datos, {
+                id: datos.id || documento.id,
+                _firebaseId: documento.id
+            });
+            productosDB.push(producto);
+            window.productosDB = productosDB;
+            localStorage.setItem('productosV36', JSON.stringify(productosDB));
+            return producto;
+        }
+
         async function devolverStockPedido(pedido) {
             if (!pedido || pedido.stockDevuelto) return;
             // Los pedidos contraentrega también descuentan inventario y deben
@@ -4870,20 +4916,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 porProducto[clave].push(item);
             });
             try {
-                const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 await Promise.all(Object.keys(porProducto).map(async idProd => {
-                    const snapshot = await getDoc(doc(db, 'productos', idProd));
-                    if (!snapshot.exists()) return;
-                    const actual = snapshot.data();
-                    const existente = productosDB.find(producto =>
-                        String(producto.id) === String(idProd) ||
-                        String(producto._firebaseId || '') === String(idProd)
-                    );
-                    if (existente) {
-                        Object.assign(existente, actual, { _firebaseId: idProd });
-                    } else {
-                        productosDB.push({ ...actual, id: idProd, _firebaseId: idProd });
-                    }
+                    const item = (porProducto[idProd] || [])[0] || { id_prod: idProd };
+                    await cargarProductoCompletoParaStock(item);
                 }));
             } catch (error) {
                 throw new Error('No se pudo consultar el stock actual: ' + (error.message || error));
@@ -5893,12 +5928,21 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (typeof renderStockActual === 'function') renderStockActual();
         }
 
-        function buscarProductoParaPedido(valor) {
+        async function buscarProductoParaPedido(valor) {
             const q = String(valor || '').trim().toLowerCase();
             const cont = document.getElementById('resultados-agregar-pedido');
             if (!cont) return;
             if (q.length < 2) { cont.innerHTML = ''; return; }
-            const resultados = productosDB.filter(p => [p.codigo,p.nombre,p.categoria].join(' ').toLowerCase().includes(q)).slice(0,20);
+            let resultados = productosDB.filter(p => [p.codigo,p.nombre,p.categoria].join(' ').toLowerCase().includes(q)).slice(0,20);
+            if (!resultados.length) {
+                try {
+                    const recuperado = await cargarProductoCompletoParaStock({ codigo: String(valor || '').trim() });
+                    if (recuperado) resultados = [recuperado];
+                } catch (error) {
+                    console.log('No se pudo buscar la referencia agotada en Firestore:', error.message);
+                }
+            }
+            if (document.getElementById('buscar-agregar-pedido').value !== valor) return;
             cont.innerHTML = resultados.map(prod => {
                 const tallas = (prod.tallasObj || []).filter(t => (parseInt(t.stock,10)||0) > 0).map(t => '<button onclick="agregarProductoAPedidoDesdeEditor(\''+prod.id+'\',\''+encodeURIComponent(t.nombre)+'\')" style="border:1px solid #a8e6c1;background:#eefaf2;color:#176b3a;border-radius:16px;padding:5px 9px;font-weight:800;cursor:pointer;">+ '+escapeHtml(t.nombre)+' ('+(parseInt(t.stock,10)||0)+')</button>').join(' ');
                 return '<div style="padding:9px;border:1px solid #ead8f3;border-radius:9px;margin-bottom:7px;"><strong>'+escapeHtml(prod.nombre || '')+'</strong><div style="font-size:.75em;color:#777;margin:2px 0 6px;">REF: '+escapeHtml(prod.codigo || 'S/N')+' · '+formatMoney(prod.precio)+'</div><div style="display:flex;flex-wrap:wrap;gap:5px;">'+(tallas || '<span style="color:#b33;font-size:.8em;">Sin existencias</span>')+'</div></div>';
@@ -5950,10 +5994,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 const tallaItem = normalizarTallaValor(item.talla);
                 let tObj = (prod.tallasObj || []).find(t => normalizarTallaValor(t.nombre) === tallaItem);
                 if (tObj) {
-                    tObj.stock = (parseInt(tObj.stock, 10) || 0) + (parseInt(item.cant, 10) || 1);
-                    prod.stockTotal = (prod.tallasObj || []).reduce((s, t) => s + (parseInt(t.stock, 10) || 0), 0);
                     stockDevueltoItem = true;
-                    localStorage.setItem('productosV36', JSON.stringify(productosDB));
                 } else {
                     console.warn('No se encontro la talla para devolver stock:', item.talla, item);
                 }
@@ -5964,12 +6005,28 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
 
             try {
-                const { collection, query, where, getDocs, updateDoc, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const { collection, query, where, getDocs, updateDoc, doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 if (stockDevueltoItem && prod) {
-                    await setDoc(doc(db, 'productos', prod.id), Object.assign({}, prod, {
-                        stockTotal: (prod.tallasObj||[]).reduce((s,t)=>s+(parseInt(t.stock,10)||0),0),
-                        actualizadoEn: new Date().toISOString()
-                    }), { merge: true });
+                    const idDocumento = String(prod._firebaseId || prod.id);
+                    const actualizado = await runTransaction(db, async function(transaction) {
+                        const refProducto = doc(db, 'productos', idDocumento);
+                        const snapshot = await transaction.get(refProducto);
+                        if (!snapshot.exists()) throw new Error('No se encontró el producto en Firebase');
+                        const datos = snapshot.data();
+                        const tallas = Array.isArray(datos.tallasObj) ? datos.tallasObj.map(t => Object.assign({}, t)) : [];
+                        const talla = tallas.find(t => normalizarTallaValor(t.nombre) === normalizarTallaValor(item.talla));
+                        if (!talla) throw new Error('No se encontró la talla para devolverla al stock');
+                        talla.stock = (parseInt(talla.stock, 10) || 0) + (parseInt(item.cant, 10) || 1);
+                        const cambios = {
+                            tallasObj: tallas,
+                            stockTotal: tallas.reduce((s,t)=>s+(parseInt(t.stock,10)||0),0),
+                            actualizadoEn: new Date().toISOString()
+                        };
+                        transaction.update(refProducto, cambios);
+                        return Object.assign({}, datos, cambios, { id: prod.id, _firebaseId: idDocumento });
+                    });
+                    Object.assign(prod, actualizado);
+                    localStorage.setItem('productosV36', JSON.stringify(productosDB));
                 }
                 const q = query(collection(db, 'pedidos'), where('num', '==', ped.num));
                 const snap = await getDocs(q);
@@ -5978,7 +6035,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 await Promise.all(updates);
                 console.log(stockDevueltoItem ? 'Stock devuelto y pedido actualizado en Firebase' : 'Pedido actualizado; no aplicaba devolucion de stock');
             } catch(e) {
-                console.log('Error sync Firebase al eliminar producto:', e);
+                ped.items.splice(itemIdx, 0, item);
+                recalcularTotalPedidoConEnvio(ped);
+                localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+                renderItemsEditorPedido(ped);
+                renderizarPedidosPanel();
+                alert('No se eliminó la prenda porque no fue posible devolverla al stock: ' + (e.message || e));
+                return;
             }
 
             await registrarActividadGestionDirecta('eliminar_prenda_pedido','pedido',ped.num,{
@@ -6167,11 +6230,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     // ningún listener puede volver a tratarlo como pedido nuevo
                     // mientras se está devolviendo su inventario.
                     localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                    const resultadoAnulacion = await anularPedidoEnServidor(pedido);
-                    Object.assign(pedido, resultadoAnulacion);
-                    // El servidor ya confirmó la anulación y devolvió el stock.
-                    // No dejar que el objeto devuelto (que puede traer el estado
-                    // previo a la anulación) sobrescriba el "cancelado" recién aplicado.
+                    await devolverStockPedido(pedido);
                     pedido.estado = 'cancelado';
                 } catch (error) {
                     pedido.estado = estadoAnterior;
@@ -6265,7 +6324,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (!confirm(`¿Mover el pedido #SK-${numPed} a la papelera durante 30 días?`)) return;
             const pedido = historialPedidos.find(p => p.num === numPed);
             if (pedido && !pedido.stockDevuelto) {
-                Object.assign(pedido, await anularPedidoEnServidor(pedido));
+                await devolverStockPedido(pedido);
+                pedido.estado = 'cancelado';
             }
             await enviarPedidoAPapelera(pedido);
             historialPedidos = historialPedidos.filter(p => p.num !== numPed);
@@ -6390,14 +6450,18 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             });
             htmlProductos = Array.from(gruposFactura.values()).map(function(grupo) {
                 const base = grupo.item;
+                const cantidadReferencia = grupo.lineas.reduce(function(total, linea) {
+                    return total + Math.max(1, parseInt(linea.item.cant || linea.item.cantidad, 10) || 1);
+                }, 0);
                 const prod = productosDB.find(x => x.id === base.id_prod);
                 const imgBase = base.imagen || (prod && prod.imagenes && prod.imagenes[0]);
                 const imgUrl = imgBase ? imgBase.replace('/image/upload/', '/image/upload/f_auto,q_auto,w_160/') : 'https://via.placeholder.com/80x80?text=Sin+foto';
                 return grupo.lineas.map(function(linea, posicion) {
                     const i = linea.item;
                     const foto = posicion === 0 ? `<td rowspan="${grupo.lineas.length}" style="padding:10px 8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;width:98px;"><img src="${imgUrl}" alt="foto" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:block;border:2px solid #e8d5f5;" onerror="this.src='https://via.placeholder.com/80x80?text=Sin+foto'"></td>` : '';
-                    const ref = posicion === 0 ? `<div style="font-size:.76em;color:#777;margin-bottom:3px;">REF: <strong style="color:#8e44ad;">${i.cod || 'S/N'}</strong></div>` : '';
-                    return `<tr>${foto}<td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;font-size:.88em;color:#555;">${ref}<span>Talla: <strong>${i.talla || 'Unica'}</strong></span><button type="button" onclick="quitarPrendaFactura(${linea.indice})" style="margin-left:7px;border:1px solid #efb0b0;background:#fff4f4;color:#b3261e;border-radius:6px;padding:2px 6px;cursor:pointer;font-size:.76em;font-weight:800;">Eliminar</button></td><td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;text-align:right;font-weight:bold;color:#333;font-size:1em;"><span class="precio-editable" contenteditable="true" spellcheck="false" data-precio="${i.precio}" data-cantidad="${Math.max(1, parseInt(i.cant, 10) || 1)}" oninput="recalcularTotal()" style="display:inline-block;border:1.5px dashed #c9a0dc;border-radius:6px;padding:2px 8px;cursor:pointer;color:#8e44ad;min-width:60px;">${formatMoney(i.precio)}</span></td></tr>`;
+                    const cantidadLinea = Math.max(1, parseInt(i.cant || i.cantidad, 10) || 1);
+                    const ref = posicion === 0 ? `<div style="font-weight:800;color:#333;margin-bottom:3px;">${cantidadReferencia > 1 ? '(' + cantidadReferencia + ') ' : ''}${base.nom || ''}</div><div style="font-size:.76em;color:#777;margin-bottom:3px;">REF: <strong style="color:#8e44ad;">${i.cod || 'S/N'}</strong></div>` : '';
+                    return `<tr>${foto}<td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;font-size:.88em;color:#555;">${ref}<span>Talla: <strong>${i.talla || 'Unica'}${cantidadLinea > 1 ? ' (' + cantidadLinea + ')' : ''}</strong></span><button type="button" onclick="quitarPrendaFactura(${linea.indice})" style="margin-left:7px;border:1px solid #efb0b0;background:#fff4f4;color:#b3261e;border-radius:6px;padding:2px 6px;cursor:pointer;font-size:.76em;font-weight:800;">Eliminar</button></td><td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;text-align:right;font-weight:bold;color:#333;font-size:1em;"><span class="precio-editable" contenteditable="true" spellcheck="false" data-precio="${i.precio}" data-cantidad="${cantidadLinea}" oninput="recalcularTotal()" style="display:inline-block;border:1.5px dashed #c9a0dc;border-radius:6px;padding:2px 8px;cursor:pointer;color:#8e44ad;min-width:60px;">${formatMoney(i.precio)}</span></td></tr>`;
                 }).join('');
             }).join('');
 
@@ -6417,7 +6481,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <img src="${imgUrl}" alt="foto" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:block;border:2px solid #e8d5f5;" onerror="this.src='https://via.placeholder.com/80x80?text=Sin+foto'">
                   </td>
                   <td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;font-size:.88em;color:#555;">
-                    <div style="font-weight:700;color:#333;margin-bottom:2px;">${g.nom || ''}${g.cantidad > 1 ? ' (x' + g.cantidad + ')' : ''}</div>
+                    <div style="font-weight:700;color:#333;margin-bottom:2px;">${g.cantidad > 1 ? '(' + g.cantidad + ') ' : ''}${g.nom || ''}</div>
                     <div style="font-size:.92em;color:#777;">Tallas: <strong style="color:#8e44ad;">${tallasTxt}</strong> · REF: ${g.cod || 'S/N'}</div>
                   </td>
                   <td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;text-align:right;font-weight:bold;color:#333;font-size:1em;white-space:nowrap;">
@@ -6433,6 +6497,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const cantidadTotalPrendas = (ped.items || []).reduce(function(total, item) {
                 return total + Math.max(1, parseInt(item.cant || item.cantidad, 10) || 1);
             }, 0);
+            const resumenReferenciasFactura = gruposLimpios.map(function(g) {
+                return '<strong>REF ' + escapeHtml(g.cod || 'S/N') + ':</strong> ' + g.cantidad + ' prenda' + (g.cantidad === 1 ? '' : 's');
+            }).join(' &nbsp;·&nbsp; ');
             const envioInicial = parseInt((ped.valorEnvio || '0').toString().replace(/[^0-9]/g, '')) || 0;
             const numeroArchivoPedido = String(ped.numOrden || ('SK' + ped.num) || 'SK').replace(/[^a-zA-Z0-9_-]/g, '');
             const clienteArchivoPedido = String(ped.nom || 'Cliente').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[<>:"/\\|?*]+/g, '').trim();
@@ -6505,6 +6572,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
   <thead><tr><th>Foto</th><th>Producto</th><th style="text-align:right">Precio</th></tr></thead>
   <tbody>${htmlProductosLimpios}</tbody>
 </table>
+<div style="border:1px solid #e0d0f0;background:#fdfaff;border-radius:7px;padding:7px 10px;margin-bottom:8px;font-size:.78em;color:#555;"><span style="color:#8e44ad;font-weight:900;">Unidades por referencia:</span> ${resumenReferenciasFactura}</div>
 <div class="fila-envio">
   <div><label>🚚 Transportadora</label><input id="fac-transportadora" type="text" value="${ped.transportadora || ''}" placeholder="Ej: Servientrega" oninput="recalcularTotal()"></div>
   <div><label>📋 Guía</label><input id="fac-guia" type="text" value="${ped.guia || ''}" placeholder="892341234"></div>
@@ -6757,7 +6825,7 @@ ${ped.comprobanteUrl ? `
                         ? `<img src="${thumb}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'">`
                         : `<div style="width:44px;height:44px;border-radius:6px;background:#f5e6fb;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2em;">👗</div>`;
                     const tallasTxt = g.tallas.join(', ');
-                    return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.nom}${g.cantidad > 1 ? ' (x' + g.cantidad + ')' : ''}</div><div style="font-size:0.72em;color:#888;">Tallas: ${tallasTxt} · REF: ${g.cod || 'S/N'}</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(g.totalPrecio)}</span><button class="tp-btn-del-prod" title="Eliminar todas las tallas de esta prenda" onclick="eliminarGrupoDePedido(${ped.num}, '${g.id_prod}', '${(g.cod||'').toString().replace(/'/g,"")}')">🗑️</button></div>`;
+                    return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.cantidad > 1 ? '(' + g.cantidad + ') ' : ''}${g.nom}</div><div style="font-size:0.72em;color:#888;">Tallas: ${tallasTxt} · REF: ${g.cod || 'S/N'}</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(g.totalPrecio)}</span><button class="tp-btn-del-prod" title="Eliminar todas las tallas de esta prenda" onclick="eliminarGrupoDePedido(${ped.num}, '${g.id_prod}', '${(g.cod||'').toString().replace(/'/g,"")}')">🗑️</button></div>`;
                 }).join('');
 
                 const numFact = ped.numOrden || ('SK' + String(ped.numFactura || ped.num).padStart(5, '0'));
@@ -6797,6 +6865,9 @@ ${ped.comprobanteUrl ? `
                     ped.ciudad ? '🏙️ '+ped.ciudad : '',
                     ped.observaciones ? '📝 '+ped.observaciones : '',
                 ].filter(Boolean).join('<br>');
+                const unidadesPedidoVista = (ped.items || []).reduce(function(total, item) {
+                    return total + Math.max(1, parseInt(item.cant || item.cantidad, 10) || 1);
+                }, 0);
                 return '<div class="tarjeta-pedido-cb">' +
                     '<div class="tp-estado-ubicacion">Está en: ' + (ESTADOS_PEDIDO.find(e => e.valor === estadoActual) || ESTADOS_PEDIDO[0]).seccion + '</div>' +
                     '<div class="tp-encabezado">' +
@@ -6817,6 +6888,7 @@ ${ped.comprobanteUrl ? `
                         (puedeEditarPrendasPedido() ? '<button type="button" onclick="abrirEditarPrendasPedido(' + ped.num + ')" style="display:block;margin-top:7px;padding:7px 11px;border:1.5px solid #34a66f;border-radius:8px;background:#effaf4;color:#187548;font-family:Nunito,sans-serif;font-size:0.8em;font-weight:900;cursor:pointer;">👗 Editar prendas y tallas</button>' : '') +
                       '</div>' +
                       '<div class="tp-items">' + htmlItems + '</div>' +
+                      '<div style="text-align:right;color:#7e22ce;font-size:.78em;font-weight:900;margin-top:5px;">Total unidades: ' + unidadesPedidoVista + '</div>' +
                       (function() {
                           var promo = calcularDescuentoMamelucosPedido(ped.items || []);
                           var pct = parseFloat(ped.descuentoPorcentaje || 0) || 0;
@@ -8332,22 +8404,36 @@ ${ped.comprobanteUrl ? `
             const despues = mapaCantidades(tallasNuevas);
             const tallasAfectadas = new Set(Object.keys(antes).concat(Object.keys(despues)));
 
+            const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+
             for (const producto of publicados) {
-                sincronizarPrecioEntradaEnProducto(producto, refAntes || refDespues, valor);
-                producto.tallasObj = Array.isArray(producto.tallasObj) ? producto.tallasObj : [];
-                tallasAfectadas.forEach(function(nombreTalla) {
-                    const diferencia = (despues[nombreTalla] || 0) - (antes[nombreTalla] || 0);
-                    if (!diferencia) return;
-                    let tallaProducto = producto.tallasObj.find(t => normalizarTallaValor(t.nombre) === nombreTalla);
-                    if (!tallaProducto && diferencia > 0) {
-                        tallaProducto = { nombre: nombreTalla, stock: 0 };
-                        producto.tallasObj.push(tallaProducto);
-                    }
-                    if (tallaProducto) tallaProducto.stock = Math.max(0, Number(tallaProducto.stock || 0) + diferencia);
+                const idDocumento = String(producto._firebaseId || producto.id);
+                const productoActualizado = await runTransaction(db, async function(transaction) {
+                    const refProducto = doc(db, 'productos', idDocumento);
+                    const snapshot = await transaction.get(refProducto);
+                    if (!snapshot.exists()) throw new Error('No se encontró el producto publicado para ajustar su stock');
+                    const actual = Object.assign({}, producto, snapshot.data(), { id: producto.id, _firebaseId: idDocumento });
+                    sincronizarPrecioEntradaEnProducto(actual, refAntes || refDespues, valor);
+                    actual.tallasObj = Array.isArray(actual.tallasObj) ? actual.tallasObj.map(t => Object.assign({}, t)) : [];
+                    tallasAfectadas.forEach(function(nombreTalla) {
+                        const diferencia = (despues[nombreTalla] || 0) - (antes[nombreTalla] || 0);
+                        if (!diferencia) return;
+                        let tallaProducto = actual.tallasObj.find(t => normalizarTallaValor(t.nombre) === nombreTalla);
+                        if (!tallaProducto && diferencia > 0) {
+                            tallaProducto = { nombre: nombreTalla, stock: 0 };
+                            actual.tallasObj.push(tallaProducto);
+                        }
+                        if (tallaProducto) tallaProducto.stock = Math.max(0, Number(tallaProducto.stock || 0) + diferencia);
+                    });
+                    actual.stockTotal = actual.tallasObj.reduce((s, t) => s + Number(t.stock || 0), 0);
+                    actual.actualizadoEn = new Date().toISOString();
+                    const datosGuardar = Object.assign({}, actual);
+                    delete datosGuardar.id;
+                    delete datosGuardar._firebaseId;
+                    transaction.set(refProducto, datosGuardar, { merge: true });
+                    return actual;
                 });
-                producto.stockTotal = producto.tallasObj.reduce((s, t) => s + Number(t.stock || 0), 0);
-                producto.actualizadoEn = new Date().toISOString();
-                if (window.fbGuardarProducto) await window.fbGuardarProducto(producto);
+                Object.assign(producto, productoActualizado);
             }
             localStorage.setItem('productosV36', JSON.stringify(productosDB));
             if (typeof renderizarCatalogo === 'function') renderizarCatalogo();
@@ -9108,7 +9194,10 @@ ${ped.comprobanteUrl ? `
             const hasta = (document.getElementById('rv-hasta') || {}).value || '';
             const tipo = (document.getElementById('rv-tipo') || {}).value || '';
             const asesora = (document.getElementById('rv-asesora') || {}).value || '';
+            const filtroGuia = String((document.getElementById('rv-guia') || {}).value || '').trim().toLowerCase();
+            const filtroGuiaNormalizado = filtroGuia.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s-]+/g, '');
             const grupos = {};
+            const pedidos = [];
             (historialPedidos || []).forEach(ped => {
                 const estado = String(ped.estado || '').trim().toLowerCase().replace(/\s+/g,'_');
                 if (estado !== 'nuevo' && estado !== 'enviado' && estado !== 'pagado' && estado !== 'entregado') return;
@@ -9118,18 +9207,28 @@ ${ped.comprobanteUrl ? `
                 const iso = fechaISOReporte(fecha);
                 if (desde && iso < desde) return;
                 if (hasta && iso > hasta) return;
+                const guia = String(ped.guia || ped.numeroGuia || ped.numGuia || '').trim();
+                if (filtroGuiaNormalizado) {
+                    const guiaNormalizada = guia.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s-]+/g, '');
+                    if (filtroGuiaNormalizado === 'singuia') {
+                        if (guia) return;
+                    } else if (!guiaNormalizada.includes(filtroGuiaNormalizado)) return;
+                }
                 const envio = parseInt(String(ped.valorEnvio || '0').replace(/[^0-9]/g,''),10) || 0;
                 const bruto = (ped.items || []).reduce((s,i) => s + ((parseInt(i.precio,10)||0) * (parseInt(i.cant,10)||1)), 0);
                 const totalPedido = parseInt(String(ped.tot || '0').replace(/[^0-9]/g,''),10) || 0;
                 const neto = Math.max(0, totalPedido - envio);
                 const prendas = (ped.items || []).reduce((s,i) => s + (parseInt(i.cant,10)||1), 0);
+                const numeroPedido = ped.numOrden || (ped.num != null && ped.num !== '' ? 'SK' + String(ped.num).padStart(5, '0') : 'Sin número');
+                pedidos.push({ fecha:iso, pedido:numeroPedido, guia:guia, prendas:prendas, bruto:bruto, descuentos:Math.max(0, bruto-neto), neto:neto, tipo:String(ped.tipoVenta || ''), asesora:String(ped.asesora || '') });
                 if (!grupos[iso]) grupos[iso] = { fecha:iso, ventas:0, prendas:0, bruto:0, descuentos:0, neto:0 };
                 grupos[iso].ventas++; grupos[iso].prendas += prendas; grupos[iso].bruto += bruto; grupos[iso].neto += neto; grupos[iso].descuentos += Math.max(0, bruto-neto);
             });
+            pedidos.sort((a,b) => a.fecha.localeCompare(b.fecha) || String(a.pedido).localeCompare(String(b.pedido), 'es', {numeric:true}));
             const dias = Object.values(grupos).sort((a,b) => a.fecha.localeCompare(b.fecha));
             const total = dias.reduce((a,d) => ({ ventas:a.ventas+d.ventas, prendas:a.prendas+d.prendas, bruto:a.bruto+d.bruto, descuentos:a.descuentos+d.descuentos, neto:a.neto+d.neto }), {ventas:0,prendas:0,bruto:0,descuentos:0,neto:0});
             total.promedio = total.ventas ? Math.round(total.neto / total.ventas) : 0;
-            return { dias, total, desde, hasta, tipo, asesora };
+            return { pedidos, dias, total, desde, hasta, tipo, asesora, filtroGuia };
         }
 
         function obtenerDetalleReferenciaReporte() {
@@ -9186,23 +9285,23 @@ ${ped.comprobanteUrl ? `
             const exportaciones = document.getElementById('rv-exportaciones');
             if (exportaciones) exportaciones.style.display = buscandoReferencia ? 'none' : 'flex';
             const tbody = document.getElementById('rv-tbody');
-            if (tbody) tbody.innerHTML = data.dias.map(d => '<tr style="border-bottom:1px solid #e8f3ec;"><td style="padding:10px;font-weight:800;">'+d.fecha.split('-').reverse().join('/')+'</td><td style="text-align:center;">'+d.ventas+'</td><td style="text-align:center;">'+d.prendas+'</td><td style="text-align:right;">'+formatMoney(d.bruto)+'</td><td style="text-align:right;color:#b06b00;">−'+formatMoney(d.descuentos)+'</td><td style="text-align:right;padding-right:12px;font-weight:900;color:#187548;">'+formatMoney(d.neto)+'</td></tr>').join('');
-            const vacio = document.getElementById('rv-vacio'); if (vacio) vacio.style.display = buscandoReferencia || data.dias.length ? 'none' : 'block';
+            if (tbody) tbody.innerHTML = data.pedidos.map(p => '<tr style="border-bottom:1px solid #e8f3ec;"><td style="padding:10px;font-weight:800;">'+p.fecha.split('-').reverse().join('/')+'</td><td style="font-weight:900;color:#187548;">'+escapeHtml(p.pedido)+'</td><td style="font-weight:800;color:'+(p.guia ? '#344054' : '#b42318')+';">'+escapeHtml(p.guia || 'Sin guía')+'</td><td style="text-align:center;">'+p.prendas+'</td><td style="text-align:right;">'+formatMoney(p.bruto)+'</td><td style="text-align:right;color:#b06b00;">−'+formatMoney(p.descuentos)+'</td><td style="text-align:right;padding-right:12px;font-weight:900;color:#187548;">'+formatMoney(p.neto)+'</td></tr>').join('');
+            const vacio = document.getElementById('rv-vacio'); if (vacio) vacio.style.display = buscandoReferencia || data.pedidos.length ? 'none' : 'block';
         }
 
         function exportarReporteVentasCSV() {
             const d = obtenerDatosReporteVentas();
-            const filas = [['Fecha','Ventas','Prendas','Venta bruta','Descuentos','Venta neta']].concat(d.dias.map(x => [x.fecha,x.ventas,x.prendas,x.bruto,x.descuentos,x.neto]));
-            filas.push(['TOTAL',d.total.ventas,d.total.prendas,d.total.bruto,d.total.descuentos,d.total.neto]);
+            const filas = [['Fecha','Número de pedido','Número de guía','Tipo de venta','Asesora','Prendas','Venta bruta','Descuentos','Venta neta']].concat(d.pedidos.map(x => [x.fecha,x.pedido,x.guia || 'Sin guía',x.tipo,x.asesora,x.prendas,x.bruto,x.descuentos,x.neto]));
+            filas.push(['TOTAL',d.total.ventas+' ventas','','','',d.total.prendas,d.total.bruto,d.total.descuentos,d.total.neto]);
             const csv = '\uFEFF' + filas.map(f => f.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');
             const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='reporte-ventas-'+(d.desde||'inicio')+'-'+(d.hasta||'hoy')+'.csv'; a.click(); URL.revokeObjectURL(a.href);
         }
 
         function imprimirReporteVentas() {
             const d = obtenerDatosReporteVentas();
-            const filas = d.dias.map(x => '<tr><td>'+x.fecha.split('-').reverse().join('/')+'</td><td>'+x.ventas+'</td><td>'+x.prendas+'</td><td>'+formatMoney(x.bruto)+'</td><td>−'+formatMoney(x.descuentos)+'</td><td><strong>'+formatMoney(x.neto)+'</strong></td></tr>').join('');
+            const filas = d.pedidos.map(x => '<tr><td>'+x.fecha.split('-').reverse().join('/')+'</td><td>'+escapeHtml(x.pedido)+'</td><td>'+escapeHtml(x.guia || 'Sin guía')+'</td><td>'+x.prendas+'</td><td>'+formatMoney(x.bruto)+'</td><td>−'+formatMoney(x.descuentos)+'</td><td><strong>'+formatMoney(x.neto)+'</strong></td></tr>').join('');
             const vent = abrirFacturaEnApp();
-            vent.document.write('<!doctype html><html><head><meta charset="UTF-8"><title>Reporte ventas</title><style>body{font-family:Segoe UI,sans-serif;max-width:900px;margin:auto;padding:25px;color:#26332b}h1{color:#187548}table{width:100%;border-collapse:collapse}th{background:#187548;color:white;padding:9px}td{padding:9px;border-bottom:1px solid #ddd;text-align:right}td:first-child{text-align:left}.total{background:#eaf8ef;font-weight:900}.btn{margin:18px auto;display:block;padding:11px 24px;border:0;border-radius:9px;background:#8e44ad;color:white;font-weight:900}@media print{.btn{display:none}}</style></head><body><h1>Reporte de ventas</h1><p>Periodo: '+(d.desde||'Inicio')+' a '+(d.hasta||'Hoy')+' · Enviados, pagados y entregados · Sin envíos</p><table><thead><tr><th>Fecha</th><th>Ventas</th><th>Prendas</th><th>Bruta</th><th>Descuentos</th><th>Neta</th></tr></thead><tbody>'+filas+'<tr class="total"><td>TOTAL</td><td>'+d.total.ventas+'</td><td>'+d.total.prendas+'</td><td>'+formatMoney(d.total.bruto)+'</td><td>−'+formatMoney(d.total.descuentos)+'</td><td>'+formatMoney(d.total.neto)+'</td></tr></tbody></table><button class="btn" onclick="print()">Guardar como PDF</button></body></html>');
+            vent.document.write('<!doctype html><html><head><meta charset="UTF-8"><title>Reporte ventas</title><style>body{font-family:Segoe UI,sans-serif;max-width:1100px;margin:auto;padding:25px;color:#26332b}h1{color:#187548}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#187548;color:white;padding:8px}td{padding:8px;border-bottom:1px solid #ddd;text-align:right}td:first-child,td:nth-child(2),td:nth-child(3){text-align:left}.total{background:#eaf8ef;font-weight:900}.btn{margin:18px auto;display:block;padding:11px 24px;border:0;border-radius:9px;background:#8e44ad;color:white;font-weight:900}@media print{.btn{display:none}}</style></head><body><h1>Reporte de ventas</h1><p>Periodo: '+(d.desde||'Inicio')+' a '+(d.hasta||'Hoy')+' · Enviados, pagados y entregados · Sin envíos</p><table><thead><tr><th>Fecha</th><th>N.º pedido</th><th>N.º guía</th><th>Prendas</th><th>Bruta</th><th>Descuentos</th><th>Neta</th></tr></thead><tbody>'+filas+'<tr class="total"><td>TOTAL</td><td>'+d.total.ventas+' ventas</td><td></td><td>'+d.total.prendas+'</td><td>'+formatMoney(d.total.bruto)+'</td><td>−'+formatMoney(d.total.descuentos)+'</td><td>'+formatMoney(d.total.neto)+'</td></tr></tbody></table><button class="btn" onclick="print()">Guardar como PDF</button></body></html>');
             vent.document.close();
         }
 
