@@ -9499,14 +9499,27 @@ ${ped.comprobanteUrl ? `
             if (mensaje) { mensaje.style.display = 'block'; mensaje.style.background = '#f3e8ff'; mensaje.style.color = '#6b21a8'; mensaje.textContent = 'Consultando inventario nuevo, catálogo y ventas...'; }
             try {
                 const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                async function leerColeccionInventario(nombre) {
+                    try {
+                        const snap = await getDocs(collection(db, nombre));
+                        return { datos: snap.docs.map(d => Object.assign({ _docId:d.id }, d.data())), error:null };
+                    } catch (error) {
+                        console.log('Inventario personal: sin lectura directa de ' + nombre, error.message);
+                        return { datos:[], error:error };
+                    }
+                }
                 const resultados = await Promise.all([
-                    getDocs(collection(db, 'inventario_mercancia')),
-                    getDocs(collection(db, 'inventario_salidas')),
-                    getDocs(collection(db, 'productos'))
+                    leerColeccionInventario('inventario_mercancia'),
+                    leerColeccionInventario('inventario_salidas')
                 ]);
-                const entradas = resultados[0].docs.map(d => Object.assign({ _docId:d.id }, d.data()));
-                const salidas = resultados[1].docs.map(d => Object.assign({ _docId:d.id }, d.data()));
-                const catalogo = resultados[2].docs.map(d => Object.assign({ _docId:d.id }, d.data()));
+                const entradas = resultados[0].datos;
+                const salidas = resultados[1].datos;
+                // Gestión ya carga el catálogo autorizado desde catalogo-publico.
+                // Usarlo evita que una regla de Firestore sobre /productos bloquee todo el cruce.
+                const catalogo = Array.isArray(window.productosDB) && window.productosDB.length
+                    ? window.productosDB.slice()
+                    : (Array.isArray(productosDB) ? productosDB.slice() : []);
+                if (resultados[0].error) throw new Error('Tu sesión no tiene permiso para leer las entradas del inventario nuevo.');
                 const mapa = new Map();
                 const primeraEntradaRef = {};
                 function fila(ref, talla) {
@@ -9573,7 +9586,13 @@ ${ped.comprobanteUrl ? `
                     return f;
                 }).sort((a,b) => a.ref.localeCompare(b.ref, 'es', {numeric:true}) || a.talla.localeCompare(b.talla, 'es', {numeric:true}));
                 renderizarInventarioPersonal();
-                if (mensaje) { mensaje.style.background = '#ecfdf3'; mensaje.style.color = '#187548'; mensaje.textContent = 'Cruce actualizado. Las ventas se cuentan desde la primera entrada nueva de cada referencia.'; }
+                if (mensaje) {
+                    mensaje.style.background = resultados[1].error ? '#fffaeb' : '#ecfdf3';
+                    mensaje.style.color = resultados[1].error ? '#9a6700' : '#187548';
+                    mensaje.textContent = resultados[1].error
+                        ? 'Cruce actualizado. No fue posible leer salidas manuales; esa columna aparece en cero.'
+                        : 'Cruce actualizado. Las ventas se cuentan desde la primera entrada nueva de cada referencia.';
+                }
             } catch (error) {
                 if (mensaje) { mensaje.style.background = '#fff1f2'; mensaje.style.color = '#b42318'; mensaje.textContent = 'No se pudo completar el cruce: ' + (error.message || error); }
             } finally {
