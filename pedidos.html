@@ -1761,7 +1761,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <div id="ip-mensaje" style="display:none;padding:11px;border-radius:9px;margin-bottom:11px;font-size:.84em;font-weight:800;"></div>
                     <div style="overflow:auto;border:1.5px solid #e5d5f4;border-radius:11px;background:white;max-height:650px;">
                         <table style="width:100%;border-collapse:collapse;font-size:.79em;min-width:1050px;">
-                            <thead style="position:sticky;top:0;background:#f3e8ff;color:#6b21a8;z-index:1;"><tr><th style="padding:10px;text-align:left;">Referencia</th><th style="text-align:left;">Prenda</th><th>Talla</th><th>Entradas nuevas</th><th>Ventas desde entrada</th><th>Salidas</th><th>Esperado</th><th>Catálogo</th><th>Diferencia</th><th style="text-align:left;">Estado</th></tr></thead>
+                            <thead style="position:sticky;top:0;background:#f3e8ff;color:#6b21a8;z-index:1;"><tr><th style="padding:10px;text-align:left;">Referencia</th><th style="text-align:left;">Prenda</th><th>Talla</th><th>Entradas nuevas</th><th>Ventas activas</th><th>Esperado</th><th>Catálogo</th><th>Diferencia</th><th style="text-align:left;">Estado</th></tr></thead>
                             <tbody id="ip-tbody"></tbody>
                         </table>
                     </div>
@@ -9509,11 +9509,9 @@ ${ped.comprobanteUrl ? `
                     }
                 }
                 const resultados = await Promise.all([
-                    leerColeccionInventario('inventario_mercancia'),
-                    leerColeccionInventario('inventario_salidas')
+                    leerColeccionInventario('inventario_mercancia')
                 ]);
                 const entradas = resultados[0].datos;
-                const salidas = resultados[1].datos;
                 // Gestión ya carga el catálogo autorizado desde catalogo-publico.
                 // Usarlo evita que una regla de Firestore sobre /productos bloquee todo el cruce.
                 const catalogo = Array.isArray(window.productosDB) && window.productosDB.length
@@ -9525,7 +9523,7 @@ ${ped.comprobanteUrl ? `
                 function fila(ref, talla) {
                     ref = _ipNormalizar(ref) || 'SIN-REF'; talla = _ipNormalizar(talla) || 'ÚNICA';
                     const clave = ref + '|' + talla;
-                    if (!mapa.has(clave)) mapa.set(clave, { ref, talla, nombre:'', entradas:0, ventas:0, salidas:0, catalogo:0, tieneEntrada:false });
+                    if (!mapa.has(clave)) mapa.set(clave, { ref, talla, nombre:'', entradas:0, ventas:0, catalogo:0, tieneEntrada:false });
                     return mapa.get(clave);
                 }
                 entradas.forEach(e => {
@@ -9563,20 +9561,8 @@ ${ped.comprobanteUrl ? `
                         if (!f.nombre) f.nombre = item.nom || item.nombre || '';
                     });
                 });
-                salidas.forEach(e => {
-                    const ref = _ipNormalizar(e.ref || e.codigo);
-                    if (!ref) return;
-                    const inicio = primeraEntradaRef[ref] || 0;
-                    const ts = _ipTimestamp(e.timestamp, e.fecha);
-                    if (inicio && ts && ts < inicio) return;
-                    (e.tallas || []).forEach(t => {
-                        const f = fila(ref, t.talla || t.nombre);
-                        f.salidas += Math.max(0, parseInt(t.cantidad != null ? t.cantidad : t.stock, 10) || 0);
-                        if (!f.nombre) f.nombre = e.desc || e.nombre || '';
-                    });
-                });
                 _inventarioPersonalFilas = Array.from(mapa.values()).map(f => {
-                    f.esperado = f.tieneEntrada ? f.entradas - f.ventas - f.salidas : null;
+                    f.esperado = f.tieneEntrada ? f.entradas - f.ventas : null;
                     f.diferencia = f.esperado == null ? null : f.catalogo - f.esperado;
                     if (!f.tieneEntrada) f.estado = 'Sin inventario nuevo';
                     else if (f.esperado < 0) f.estado = 'Ventas superan entradas';
@@ -9587,11 +9573,9 @@ ${ped.comprobanteUrl ? `
                 }).sort((a,b) => a.ref.localeCompare(b.ref, 'es', {numeric:true}) || a.talla.localeCompare(b.talla, 'es', {numeric:true}));
                 renderizarInventarioPersonal();
                 if (mensaje) {
-                    mensaje.style.background = resultados[1].error ? '#fffaeb' : '#ecfdf3';
-                    mensaje.style.color = resultados[1].error ? '#9a6700' : '#187548';
-                    mensaje.textContent = resultados[1].error
-                        ? 'Cruce actualizado. No fue posible leer salidas manuales; esa columna aparece en cero.'
-                        : 'Cruce actualizado. Las ventas se cuentan desde la primera entrada nueva de cada referencia.';
+                    mensaje.style.background = '#ecfdf3';
+                    mensaje.style.color = '#187548';
+                    mensaje.textContent = 'Cruce actualizado: entradas nuevas menos ventas activas. Los pedidos anulados no se descuentan.';
                 }
             } catch (error) {
                 if (mensaje) { mensaje.style.background = '#fff1f2'; mensaje.style.color = '#b42318'; mensaje.textContent = 'No se pudo completar el cruce: ' + (error.message || error); }
@@ -9613,7 +9597,7 @@ ${ped.comprobanteUrl ? `
             tbody.innerHTML = filas.map(f => {
                 const color = f.estado === 'Cuadra' ? '#187548' : (f.estado === 'Sin inventario nuevo' ? '#9a6700' : '#b42318');
                 const fondo = f.estado === 'Cuadra' ? '#ecfdf3' : (f.estado === 'Sin inventario nuevo' ? '#fffaeb' : '#fff1f2');
-                return '<tr style="border-bottom:1px solid #eee;"><td style="padding:9px;font-weight:900;color:#6b21a8;">'+escapeHtml(f.ref)+'</td><td>'+escapeHtml(f.nombre || 'Sin nombre')+'</td><td style="text-align:center;font-weight:800;">'+escapeHtml(f.talla)+'</td><td style="text-align:center;">'+f.entradas+'</td><td style="text-align:center;">'+f.ventas+'</td><td style="text-align:center;">'+f.salidas+'</td><td style="text-align:center;font-weight:900;">'+(f.esperado == null ? '—' : f.esperado)+'</td><td style="text-align:center;font-weight:900;">'+f.catalogo+'</td><td style="text-align:center;font-weight:900;color:'+color+';">'+(f.diferencia == null ? '—' : (f.diferencia > 0 ? '+' : '') + f.diferencia)+'</td><td><span style="display:inline-block;background:'+fondo+';color:'+color+';border-radius:14px;padding:4px 8px;font-weight:900;white-space:nowrap;">'+f.estado+'</span></td></tr>';
+                return '<tr style="border-bottom:1px solid #eee;"><td style="padding:9px;font-weight:900;color:#6b21a8;">'+escapeHtml(f.ref)+'</td><td>'+escapeHtml(f.nombre || 'Sin nombre')+'</td><td style="text-align:center;font-weight:800;">'+escapeHtml(f.talla)+'</td><td style="text-align:center;">'+f.entradas+'</td><td style="text-align:center;">'+f.ventas+'</td><td style="text-align:center;font-weight:900;">'+(f.esperado == null ? '—' : f.esperado)+'</td><td style="text-align:center;font-weight:900;">'+f.catalogo+'</td><td style="text-align:center;font-weight:900;color:'+color+';">'+(f.diferencia == null ? '—' : (f.diferencia > 0 ? '+' : '') + f.diferencia)+'</td><td><span style="display:inline-block;background:'+fondo+';color:'+color+';border-radius:14px;padding:4px 8px;font-weight:900;white-space:nowrap;">'+f.estado+'</span></td></tr>';
             }).join('');
             const vacio = document.getElementById('ip-vacio'); if (vacio) vacio.style.display = filas.length ? 'none' : 'block';
             const conEntrada = _inventarioPersonalFilas.filter(f => f.tieneEntrada);
