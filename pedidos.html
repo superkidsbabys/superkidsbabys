@@ -4985,10 +4985,20 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             try {
                 const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 await runTransaction(db, async transaction => {
-                    for (const [idDocumento, prod] of productosModificados) {
+                    // FASE 1: todas las lecturas primero (requisito de Firestore).
+                    const refsPorDocumento = new Map();
+                    const snapshotsPorDocumento = new Map();
+                    for (const idDocumento of productosModificados.keys()) {
                         const refProducto = doc(db, 'productos', idDocumento);
+                        refsPorDocumento.set(idDocumento, refProducto);
                         const snapshot = await transaction.get(refProducto);
                         if (!snapshot.exists()) throw new Error('No se encontró el producto para devolver el stock');
+                        snapshotsPorDocumento.set(idDocumento, snapshot);
+                    }
+                    // FASE 2: calcular cambios y escribir todo después de leer todo.
+                    for (const [idDocumento, prod] of productosModificados) {
+                        const snapshot = snapshotsPorDocumento.get(idDocumento);
+                        const refProducto = refsPorDocumento.get(idDocumento);
                         const actual = snapshot.data();
                         const tallas = Array.isArray(actual.tallasObj)
                             ? actual.tallasObj.map(talla => ({ ...talla }))
