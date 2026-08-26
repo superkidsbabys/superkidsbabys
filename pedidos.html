@@ -5698,6 +5698,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 productosDB[indice] = actualizado;
                 window.productosDB = productosDB;
                 localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                // Publicar la misma actualización que acaba de guardarse en
+                // Gestión. Así el catálogo no queda dependiendo de que la
+                // edición la haga una usuaria concreta ni de una recarga.
+                if (typeof window.sincronizarCatalogoPublico === 'function') {
+                    await window.sincronizarCatalogoPublico();
+                }
                 renderStockActual(); renderizarCatalogo();
                 msg.style.color='#27ae60'; msg.textContent='✅ Prenda y catálogo actualizados';
                 setTimeout(cerrarEditarStockGina, 700);
@@ -9991,7 +9997,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function instalarWrappers(){
     envolver('procesarYAgregarProducto','crear_producto','producto',()=> 'nuevo',true);
     envolver('eliminarProducto','eliminar_producto','producto',a=>a[0],true);
-    envolver('guardarEdicionStockGina','editar_stock_producto','producto',()=>String(window.stockGinaEditandoId||''),true);
+    envolver('guardarEdicionStockGina','editar_stock_producto','producto',()=>String(window.stockGinaEditandoId||''),false);
     envolver('guardarEntradaInventario','entrada_inventario','inventario',()=> 'entrada',true);
     envolver('guardarEdicionEntrada','editar_entrada','inventario',()=> 'entrada',true);
     envolver('eliminarEntradaInventario','eliminar_entrada','inventario',a=>a[0],true);

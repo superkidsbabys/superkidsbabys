@@ -2536,13 +2536,17 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 }
             }, 8000);
 
-            // Mostrar inmediatamente el catálogo embebido. Los visitantes ya
-            // no leen los 579 documentos de Firestore uno por uno.
-            renderizarCatalogo();
+            // El contenido integrado es solo un respaldo. No lo mostramos
+            // primero: puede pertenecer a una exportación anterior y enseñar
+            // cantidades distintas a las de Gestión mientras llega el stock
+            // vigente desde el catálogo público.
 
             // Cargar una sola copia pública desde Cloudflare.
             try {
-                const respuestaCatalogo = await fetch('https://superkids-pagos-api.superkids-babys.workers.dev/catalogo-publico', { cache: 'no-cache' });
+                const respuestaCatalogo = await fetch(
+                    'https://superkids-pagos-api.superkids-babys.workers.dev/catalogo-publico?t=' + Date.now(),
+                    { cache: 'no-store' }
+                );
                 if (respuestaCatalogo.ok) {
                     const datosCatalogo = await respuestaCatalogo.json();
                     if (Array.isArray(datosCatalogo.productos) && datosCatalogo.productos.length) {
