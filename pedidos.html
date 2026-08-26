@@ -86,6 +86,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
       await signOut(auth);
       usuarioActual = null;
       window.usuarioActual = null;
+      if (typeof window.actualizarAccesoReporteConteo === 'function') window.actualizarAccesoReporteConteo();
       if (window._setModoEdicion) window._setModoEdicion(false);
       ocultarPanelAdmin();
     } catch(e) {
@@ -118,6 +119,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         if (window.registrarActividadEquipo) window.registrarActividadEquipo('iniciar_sesion','sesion','',{});
       }, 1200);
       setTimeout(function(){ if (typeof mostrarBuscadorRef === 'function') mostrarBuscadorRef(); }, 500);
+      setTimeout(function(){ if (typeof window.actualizarAccesoReporteConteo === 'function') window.actualizarAccesoReporteConteo(); }, 500);
       document.getElementById('login-overlay') && (document.getElementById('login-overlay').style.display = 'none');
 
       if (usuarioActual) {
@@ -1667,6 +1669,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <h3 style="color:#8e44ad;margin:0;">📊 Stock Actual</h3>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
                             <button onclick="abrirConteoRapido()" style="background:linear-gradient(135deg,#168d55,#27ae60);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:900;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(22,141,85,.25);">📦 Conteo rápido</button>
+                            <button id="btn-reporte-conteo-rapido" onclick="exportarReporteConteoRapido()" style="display:none;background:linear-gradient(135deg,#b7791f,#d69e2e);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:900;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(183,121,31,.25);">📋 Reporte de conteos</button>
                             <button onclick="exportarStockActualPDF()" style="background:linear-gradient(135deg,#8e44ad,#9b59b6);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(142,68,173,0.3);">🖨️ Exportar PDF</button>
                         </div>
                     </div>
@@ -5622,6 +5625,79 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             return !!(window.usuarioActual && (window.usuarioActual.uid === UID_GINA || window.usuarioActual.uid === UID_BIBIANA || window.usuarioActual.rol === 'admin'));
         }
 
+        function esYohanaParaReporteConteo() {
+            return !!(window.usuarioActual && window.usuarioActual.uid === UID_YOHANA);
+        }
+
+        window.actualizarAccesoReporteConteo = function() {
+            const boton = document.getElementById('btn-reporte-conteo-rapido');
+            if (boton) boton.style.display = esYohanaParaReporteConteo() ? 'inline-block' : 'none';
+        };
+
+        function cambiosDeTallasConteo(antes, despues) {
+            const mapaAntes = new Map((antes || []).map(function(t) { return [normalizarTallaValor(t.nombre), { nombre: t.nombre, stock: Number(t.stock) || 0 }]; }));
+            const mapaDespues = new Map((despues || []).map(function(t) { return [normalizarTallaValor(t.nombre), { nombre: t.nombre, stock: Number(t.stock) || 0 }]; }));
+            const llaves = new Set([].concat(Array.from(mapaAntes.keys()), Array.from(mapaDespues.keys())));
+            return Array.from(llaves).sort().map(function(llave) {
+                const vieja = mapaAntes.get(llave), nueva = mapaDespues.get(llave);
+                const antesStock = vieja ? vieja.stock : 0, despuesStock = nueva ? nueva.stock : 0;
+                return {
+                    talla: (nueva || vieja).nombre,
+                    antes: antesStock,
+                    despues: despuesStock,
+                    cambio: antesStock === despuesStock ? 'Sin cambio' : (antesStock + ' → ' + despuesStock)
+                };
+            }).filter(function(cambio) { return cambio.antes !== cambio.despues; });
+        }
+
+        async function registrarRevisionConteoRapido(antes, despues) {
+            const cambiosTallas = cambiosDeTallasConteo(antes.tallasObj, despues.tallasObj);
+            const cambioCodigo = String(antes.codigo || '') !== String(despues.codigo || '');
+            const cambioNombre = String(antes.nombre || '') !== String(despues.nombre || '');
+            const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+            await addDoc(collection(db, 'conteos_rapidos'), {
+                tipo: 'revision_conteo_rapido',
+                fecha: new Date().toISOString(),
+                estado: (cambiosTallas.length || cambioCodigo || cambioNombre) ? 'modificado' : 'sin_cambios',
+                productoId: despues.id,
+                codigo: despues.codigo || '',
+                codigoAnterior: antes.codigo || '',
+                nombre: despues.nombre || '',
+                usuarioUid: window.usuarioActual ? window.usuarioActual.uid : '',
+                usuario: window.usuarioActual ? window.usuarioActual.nombre : 'Desconocido',
+                cambiosTallas: cambiosTallas,
+                cambioCodigo: cambioCodigo,
+                cambioNombre: cambioNombre
+            });
+        }
+
+        window.exportarReporteConteoRapido = async function() {
+            if (!esYohanaParaReporteConteo()) return alert('Este reporte es exclusivo de Yohana.');
+            const ventana = window.open('', '_blank', 'width=1100,height=760');
+            if (!ventana) return alert('Permite las ventanas emergentes para abrir el reporte.');
+            ventana.document.write('<p style="font-family:Arial;padding:24px">Cargando reporte de conteos…</p>');
+            try {
+                const { collection, getDocs, query, orderBy } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const snap = await getDocs(query(collection(db, 'conteos_rapidos'), orderBy('fecha', 'desc')));
+                const esc = function(v) { const d = document.createElement('div'); d.textContent = String(v == null ? '' : v); return d.innerHTML; };
+                const filas = snap.docs.map(function(docu) {
+                    const r = docu.data();
+                    const fecha = r.fecha ? new Date(r.fecha).toLocaleString('es-CO') : 'Sin fecha';
+                    const detalle = (r.cambiosTallas || []).length
+                        ? r.cambiosTallas.map(function(c) { return '<li><b>' + esc(c.talla) + '</b>: ' + esc(c.antes) + ' → ' + esc(c.despues) + '</li>'; }).join('')
+                        : '<span style="color:#26734d;font-weight:700">Sin cambios en tallas</span>';
+                    const extras = [r.cambioCodigo ? 'Código: ' + esc(r.codigoAnterior) + ' → ' + esc(r.codigo) : '', r.cambioNombre ? 'Nombre modificado' : ''].filter(Boolean).join('<br>');
+                    return '<tr><td>' + esc(fecha) + '</td><td><b>' + esc(r.codigo || 'S/N') + '</b><br><span>' + esc(r.nombre || '') + '</span></td><td><span class="estado ' + (r.estado === 'modificado' ? 'mod' : 'igual') + '">' + (r.estado === 'modificado' ? 'Modificado' : 'Sin cambios') + '</span></td><td><ul>' + detalle + '</ul>' + extras + '</td><td>' + esc(r.usuario || '') + '</td></tr>';
+                }).join('') || '<tr><td colspan="5" style="text-align:center;padding:28px">Aún no hay revisiones registradas desde Conteo rápido.</td></tr>';
+                ventana.document.open();
+                ventana.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Reporte de conteos rápidos</title><style>body{font-family:Arial,sans-serif;color:#25324a;margin:28px}h1{color:#168d55;margin-bottom:4px}.sub{color:#667085;margin-bottom:22px}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#168d55;color:#fff;text-align:left;padding:10px}td{border:1px solid #dbe7df;padding:9px;vertical-align:top}tr:nth-child(even){background:#f7fcf8}ul{margin:0;padding-left:18px}.estado{display:inline-block;padding:4px 8px;border-radius:12px;font-weight:bold}.mod{background:#fff1d6;color:#9a5d00}.igual{background:#e1f5e8;color:#16703e}@media print{body{margin:12px}.no-print{display:none}}</style></head><body><button class="no-print" onclick="window.print()" style="float:right;padding:9px 13px;border:0;border-radius:7px;background:#168d55;color:white;font-weight:bold;cursor:pointer">Imprimir / Guardar PDF</button><h1>Reporte de conteos rápidos</h1><div class="sub">Revisiones por código · Generado por Yohana el ' + esc(new Date().toLocaleString('es-CO')) + '</div><table><thead><tr><th>Fecha</th><th>Código / prenda</th><th>Resultado</th><th>Detalle de tallas</th><th>Revisado por</th></tr></thead><tbody>' + filas + '</tbody></table></body></html>');
+                ventana.document.close();
+            } catch(e) {
+                ventana.close();
+                alert('No se pudo generar el reporte: ' + e.message);
+            }
+        };
+
         // Conteo físico: busca una referencia y abre su editor de tallas sin
         // obligar a Gina a navegar por el catálogo ni crearla de nuevo.
         window.abrirConteoRapido = async function() {
@@ -5741,6 +5817,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (!tallasObj.length) { msg.style.display='block'; msg.style.color='#e74c3c'; msg.textContent='Agrega al menos una talla.'; return; }
             const indice = productosDB.findIndex(p => p.id === id);
             if (indice < 0) return;
+            const productoAntesConteo = JSON.parse(JSON.stringify(productosDB[indice]));
+            const fueConteoRapido = !!window._conteoRapidoActivo;
             const tallasFinales = tallasObj.map(function(tallaNueva) {
                 const existente = (productosDB[indice].tallasObj || []).find(t => normalizarTallaValor(t.nombre) === normalizarTallaValor(tallaNueva.nombre));
                 return Object.assign({}, existente || {}, tallaNueva);
@@ -5771,11 +5849,22 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 if (typeof window.sincronizarCatalogoPublico === 'function') {
                     catalogoSincronizado = (await window.sincronizarCatalogoPublico()) !== null;
                 }
+                if (fueConteoRapido) {
+                    try {
+                        await registrarRevisionConteoRapido(productoAntesConteo, actualizado);
+                    } catch (errorRevision) {
+                        console.warn('No se pudo registrar la revisión del conteo:', errorRevision.message);
+                        msg.style.color = '#b54708';
+                        msg.textContent = '⚠️ Stock guardado, pero no se pudo registrar la revisión. Avísale a Yohana.';
+                    }
+                }
                 renderStockActual(); renderizarCatalogo();
-                msg.style.color = catalogoSincronizado ? '#27ae60' : '#b54708';
-                msg.textContent = catalogoSincronizado
-                    ? '✅ Stock y catálogo actualizados'
-                    : '⚠️ Stock guardado en Firebase; el catálogo público quedó pendiente. Avísale a Yohana.';
+                if (!(fueConteoRapido && msg.textContent.indexOf('no se pudo registrar') >= 0)) {
+                    msg.style.color = catalogoSincronizado ? '#27ae60' : '#b54708';
+                    msg.textContent = catalogoSincronizado
+                        ? '✅ Stock y catálogo actualizados'
+                        : '⚠️ Stock guardado en Firebase; el catálogo público quedó pendiente. Avísale a Yohana.';
+                }
                 setTimeout(function() {
                     cerrarEditarStockGina();
                     if (window._conteoRapidoActivo) { window._conteoRapidoActivo = false; abrirConteoRapido(); }
