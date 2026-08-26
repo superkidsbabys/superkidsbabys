@@ -2726,6 +2726,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     if (typeof invalidarPendientesCatalogo === 'function') invalidarPendientesCatalogo();
                     renderizarFiltroTallas();
                     renderizarCatalogo();
+                    if (typeof renderStockActual === 'function') renderStockActual();
                     catalogoCompletoCargado = true;
                 }
             } catch(e) { console.warn('Carga completa desde Firebase:', e.message); }
@@ -2750,6 +2751,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 if (typeof invalidarPendientesCatalogo === 'function') invalidarPendientesCatalogo();
                 renderizarFiltroTallas();
                 renderizarCatalogo();
+                if (typeof renderStockActual === 'function') renderStockActual();
                 if (!window._ordenPublicoCargado && typeof cargarOrdenDesdeFirebase === 'function') {
                     window._ordenPublicoCargado = true;
                     cargarOrdenDesdeFirebase();
