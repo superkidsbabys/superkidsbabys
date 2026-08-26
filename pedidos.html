@@ -29,6 +29,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     'F2SHGFQYSuMWlkbQKV8yrKAXgaH3': { nombre: 'Yohana',  rol: 'admin',   whatsapp: '573025451526' },
     'yI067cx29zbmiBOd9wyKcwp0HpF2':  { nombre: 'Gina',    rol: 'asesora', whatsapp: '573025451526' },
     'MtQpryHLGYab5v3UjhRZw88CAD63':  { nombre: 'Bibiana', rol: 'asesora', whatsapp: '15512627086', editarPrecio: true },
+    'IEB65uKdgldevmgRuenCj7pPwc12':  { nombre: 'Ángela',  rol: 'consulta', whatsapp: '' },
   };
 
   let usuarioActual = null;
@@ -212,6 +213,33 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
       document.querySelectorAll('.btn-tab-inventario-personal').forEach(b => {
         b.style.display = (window.usuarioActual && window.usuarioActual.uid === UID_YOHANA) ? 'inline-block' : 'none';
       });
+
+      if (rol === 'consulta') {
+        // Ángela: acceso estrictamente de lectura. Solo puede revisar pedidos,
+        // clientes y stock; la tienda se abre como consulta en otra pestaña.
+        const pestañasPermitidas = ['pedidos', 'inventario', 'clientes', 'ver tienda', 'cerrar sesión'];
+        document.querySelectorAll('.btn-tab').forEach(function(btn) {
+          const texto = btn.textContent.trim().toLowerCase();
+          btn.style.display = pestañasPermitidas.includes(texto) ? 'inline-block' : 'none';
+        });
+        const panel = document.getElementById('panel-admin');
+        if (panel) {
+          // Se mantienen únicamente búsquedas, filtros y navegación. Los
+          // demás botones y campos de edición quedan fuera de su alcance.
+          panel.querySelectorAll('button').forEach(function(btn) {
+            if (btn.classList.contains('btn-tab') || btn.classList.contains('btn-filtro-ped')) return;
+            btn.style.display = 'none';
+          });
+          panel.querySelectorAll('input, select, textarea').forEach(function(campo) {
+            const id = String(campo.id || '').toLowerCase();
+            const esBusquedaOFiltro = id.includes('buscar') || id.includes('filtro');
+            if (!esBusquedaOFiltro) {
+              campo.disabled = true;
+              campo.readOnly = true;
+            }
+          });
+        }
+      }
 
       if (rol === 'asesora') {
         // Ocultar tab de Diseño, Publicar y botones de agregar/exportar
