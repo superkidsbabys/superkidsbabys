@@ -10007,6 +10007,32 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   window.sincronizarCatalogoPublico=sincronizarCatalogoDespuesDeCambio;
+  async function restaurarReferenciasFaltantes(){
+    const mensaje='Se restaurarán únicamente las referencias que falten en Firebase desde el respaldo de index.html. Las referencias existentes, sus tallas y su stock no se modificarán. ¿Continuar?';
+    if(!confirm(mensaje)) return;
+    const origen=new URL('index.html',location.href).toString();
+    const respuesta=await fetch(origen+'?respaldo='+Date.now(),{cache:'no-store'});
+    if(!respuesta.ok) throw new Error('No se pudo leer el respaldo index.html');
+    const html=await respuesta.text();
+    const encontrado=html.match(/window\.productosQ\s*=\s*(\[[\s\S]*?\])\s*;\s*window\.pedidosQ/);
+    if(!encontrado) throw new Error('El respaldo no contiene productos legibles');
+    const respaldo=JSON.parse(encontrado[1]).filter(p=>p&&p.id);
+    if(respaldo.length<100) throw new Error('El respaldo parece incompleto; se canceló la restauración');
+    const {collection,getDocs,doc,setDoc}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const actuales=await getDocs(collection(window.db,'productos'));
+    const idsActuales=new Set(actuales.docs.map(d=>d.id));
+    const faltantes=respaldo.filter(p=>!idsActuales.has(p.id));
+    if(!faltantes.length){ alert('No hay referencias faltantes para restaurar.'); return; }
+    const estado=document.getElementById('estado-auditoria');
+    for(let i=0;i<faltantes.length;i+=20){
+      const lote=faltantes.slice(i,i+20);
+      await Promise.all(lote.map(p=>setDoc(doc(window.db,'productos',p.id),JSON.parse(JSON.stringify(p)))));
+      if(estado) estado.textContent='Restaurando '+Math.min(i+lote.length,faltantes.length)+' de '+faltantes.length+' referencias…';
+    }
+    if(estado) estado.textContent='✅ Se restauraron '+faltantes.length+' referencias. Recarga Gestión para ver el inventario completo.';
+    await window.registrarActividadEquipo('restaurar_referencias','productos','respaldo-index',{restauradas:faltantes.length},'exitoso');
+    alert('Listo: se restauraron '+faltantes.length+' referencias faltantes sin cambiar las existentes. Recarga la página.');
+  }
   function envolver(nombre,accion,recurso,idFn,sincronizaCatalogo){
     const original=window[nombre];if(typeof original!=='function'||original.__audit)return;
     const fn=async function(){const args=[...arguments],id=idFn?idFn(args):'';try{const r=await original.apply(this,args);await window.registrarActividadEquipo(accion,recurso,id,{argumentos:args.slice(0,4)});if(sincronizaCatalogo)await sincronizarCatalogoDespuesDeCambio();return r}catch(e){await window.registrarActividadEquipo(accion,recurso,id,{error:e.message},'error');throw e}};fn.__audit=true;window[nombre]=fn;
@@ -10025,10 +10051,10 @@ document.addEventListener('DOMContentLoaded', function() {
   function crearPanel(){
     if(document.getElementById('auditoria-equipo'))return;
     const btn=document.createElement('button');btn.id='btn-auditoria-equipo';btn.textContent='🛡️ Actividad del equipo';btn.style.cssText='position:fixed;left:18px;bottom:18px;z-index:10001;background:#7c2d6b;color:white;border:0;border-radius:24px;padding:12px 18px;font-weight:900;cursor:pointer;box-shadow:0 5px 18px #0003';document.body.appendChild(btn);
-    const panel=document.createElement('div');panel.id='auditoria-equipo';panel.style.cssText='display:none;position:fixed;inset:0;z-index:10002;background:#0008;padding:3vh 3vw;overflow:auto';panel.innerHTML='<div style="max-width:1150px;margin:auto;background:white;border-radius:18px;padding:20px"><div style="display:flex;justify-content:space-between;gap:10px"><h2 style="margin:0;color:#7c2d6b">🛡️ Actividad del equipo</h2><button id="cerrar-auditoria">✕</button></div><div style="display:flex;gap:8px;margin:14px 0"><button id="recargar-auditoria">Actualizar</button><button id="reconstruir-catalogo">Reconstruir catálogo público</button></div><div id="estado-auditoria" style="padding:10px;background:#f8edf5;border-radius:10px">Cargando…</div><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;margin-top:12px"><thead><tr><th>Fecha</th><th>Usuaria</th><th>Acción</th><th>Recurso</th><th>Resultado</th><th>Detalle</th></tr></thead><tbody id="filas-auditoria"></tbody></table></div></div>';document.body.appendChild(panel);
+    const panel=document.createElement('div');panel.id='auditoria-equipo';panel.style.cssText='display:none;position:fixed;inset:0;z-index:10002;background:#0008;padding:3vh 3vw;overflow:auto';panel.innerHTML='<div style="max-width:1150px;margin:auto;background:white;border-radius:18px;padding:20px"><div style="display:flex;justify-content:space-between;gap:10px"><h2 style="margin:0;color:#7c2d6b">🛡️ Actividad del equipo</h2><button id="cerrar-auditoria">✕</button></div><div style="display:flex;gap:8px;margin:14px 0"><button id="recargar-auditoria">Actualizar</button><button id="restaurar-referencias" style="background:#1a7a4a;color:white;border:0;border-radius:8px;padding:8px 12px;font-weight:800;cursor:pointer">Restaurar referencias faltantes</button><button id="reconstruir-catalogo">Reconstruir catálogo público</button></div><div id="estado-auditoria" style="padding:10px;background:#f8edf5;border-radius:10px">Cargando…</div><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;margin-top:12px"><thead><tr><th>Fecha</th><th>Usuaria</th><th>Acción</th><th>Recurso</th><th>Resultado</th><th>Detalle</th></tr></thead><tbody id="filas-auditoria"></tbody></table></div></div>';document.body.appendChild(panel);
     function textoSeguro(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
     async function cargar(){const est=document.getElementById('estado-auditoria');try{est.textContent='Cargando actividad…';const d=await api('/auditoria');document.getElementById('filas-auditoria').innerHTML=(d.eventos||[]).map(e=>{const detalle=e.detalle&&Object.keys(e.detalle).length?textoSeguro(JSON.stringify(e.detalle,null,2)).slice(0,6000):'';return '<tr><td style="padding:8px;border-bottom:1px solid #eee">'+new Date(e.fecha||e.timestamp).toLocaleString('es-CO')+'</td><td>'+textoSeguro(e.usuaria||'')+'</td><td>'+textoSeguro(e.accion||'')+'</td><td>'+textoSeguro(e.recurso||'')+' '+textoSeguro(e.recursoId||'')+'</td><td>'+textoSeguro(e.resultado||'')+'</td><td>'+(detalle?'<details><summary style="cursor:pointer;color:#7c2d6b;font-weight:800">Ver detalle</summary><pre style="white-space:pre-wrap;max-width:360px;font-size:11px">'+detalle+'</pre></details>':'—')+'</td></tr>'}).join('');est.textContent=(d.eventos||[]).length+' eventos recientes'}catch(e){est.textContent='Error: '+e.message}}
-    btn.onclick=()=>{panel.style.display='block';cargar()};document.getElementById('cerrar-auditoria').onclick=()=>panel.style.display='none';document.getElementById('recargar-auditoria').onclick=cargar;document.getElementById('reconstruir-catalogo').onclick=async()=>{const est=document.getElementById('estado-auditoria');try{est.textContent='Reconstruyendo catálogo…';const d=await api('/catalogo-publico',{method:'POST',body:'{}'});est.textContent='Catálogo actualizado: '+d.total+' prendas'}catch(e){est.textContent='Error: '+e.message}};
+    btn.onclick=()=>{panel.style.display='block';cargar()};document.getElementById('cerrar-auditoria').onclick=()=>panel.style.display='none';document.getElementById('recargar-auditoria').onclick=cargar;document.getElementById('restaurar-referencias').onclick=async()=>{const est=document.getElementById('estado-auditoria');try{if(est)est.textContent='Preparando restauración…';await restaurarReferenciasFaltantes()}catch(e){if(est)est.textContent='Error: '+e.message}};document.getElementById('reconstruir-catalogo').onclick=async()=>{const est=document.getElementById('estado-auditoria');try{est.textContent='Reconstruyendo catálogo…';const d=await api('/catalogo-publico',{method:'POST',body:'{}'});est.textContent='Catálogo actualizado: '+d.total+' prendas'}catch(e){est.textContent='Error: '+e.message}};
   }
   let intentos=0,timer=setInterval(()=>{instalarWrappers();const u=window.usuarioActual;if(u&&u.uid===UID_YOHANA){crearPanel();clearInterval(timer)}if(++intentos>80)clearInterval(timer)},250);
 })();
