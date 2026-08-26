@@ -5734,36 +5734,26 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             } finally { btn.disabled = false; }
         }
 
-        window.exportarStockActualPDF = function() {
-            // El PDF se genera desde la tabla ya dibujada, no vuelve a leer
-            // ni recalcula productos. Así conserva exactamente la vista: sus
-            // colores, agrupaciones, chips de tallas y los filtros aplicados.
-            var tablaVisible = document.getElementById('stock-thead');
-            tablaVisible = tablaVisible ? tablaVisible.closest('table') : null;
-            var resumenVisible = document.getElementById('stock-resumen');
-            if (!tablaVisible || !tablaVisible.tBodies.length) {
-                alert('Abre la vista Stock Actual antes de exportar.');
+        window.exportarStockActualPDF = async function() {
+            // Leer Firebase justo al exportar: el PDF no depende de la vista
+            // temporal ni de la caché que pudo dejar productos ocultos.
+            var vent = window.open('', '_blank', 'width=1000,height=700');
+            if (!vent) { alert('Permite las ventanas emergentes para generar el PDF.'); return; }
+            try {
+                const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const snapStock = await getDocs(collection(db, 'productos'));
+                const productosParaReporte = snapStock.docs.map(function(d) {
+                    return Object.assign({ id: d.id }, d.data());
+                });
+                if (productosParaReporte.length) {
+                    productosDB = productosParaReporte;
+                    window.productosDB = productosParaReporte;
+                    if (typeof renderStockActual === 'function') renderStockActual();
+                }
+            } catch (e) {
+                alert('No se pudo leer el inventario completo: ' + e.message);
                 return;
             }
-            var hoyVisible = new Date().toLocaleDateString('es-CO', {day:'2-digit',month:'2-digit',year:'numeric'});
-            var filtroVisible = document.getElementById('stock-filtro-cat');
-            var detalleFiltro = filtroVisible && filtroVisible.value ? ' · Categoría: ' + filtroVisible.options[filtroVisible.selectedIndex].text : '';
-            var ventanaStock = window.open('', '_blank', 'width=1100,height=750');
-            if (!ventanaStock) { alert('Permite las ventanas emergentes para generar el PDF.'); return; }
-            ventanaStock.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Stock Actual — SuperKids&Babys</title><style>'+
-                'body{font-family:Nunito,Arial,sans-serif;padding:24px;color:#222;background:#fff}'+
-                '.encabezado{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:5px}'+
-                'h1{margin:0;color:#7e22ce;font-size:1.45em}.sub{color:#777;font-size:.88em;margin:8px 0 16px}'+
-                'button{background:#7e22ce;color:#fff;border:0;border-radius:9px;padding:10px 17px;font-weight:800;cursor:pointer}'+
-                '#stock-resumen{display:flex!important;gap:12px;flex-wrap:wrap;margin:0 0 15px}'+
-                'table{width:100%;border-collapse:collapse;font-size:.84em}th{background:#7e22ce!important;color:#fff!important;padding:9px 12px!important}td{vertical-align:middle}'+
-                '@media print{body{padding:8px}.no-imprimir{display:none!important}table{font-size:.78em}thead{display:table-header-group}}'+
-                '</style></head><body><div class="encabezado"><h1>📊 Stock Actual — SuperKids&Babys</h1><button class="no-imprimir" onclick="window.print()">🖨️ Imprimir / PDF</button></div><div class="sub">Fecha: '+hoyVisible+' · Fuente: vista actual'+detalleFiltro+'</div>'+
-                '<div id="stock-resumen">'+(resumenVisible ? resumenVisible.innerHTML : '')+'</div>'+tablaVisible.outerHTML+
-                '<p style="margin-top:16px;color:#999;font-size:.75em;text-align:center">SuperKids&Babys · Reporte generado el '+hoyVisible+'</p></body></html>');
-            ventanaStock.document.close();
-            return;
-
             var prods = window.productosDB || (typeof productosDB !== 'undefined' ? productosDB : []);
             if (!prods.length) { alert('No hay productos cargados aún.'); return; }
 
@@ -5831,7 +5821,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 });
             });
 
-            var vent = window.open('','_blank','width=1000,height=700');
+            vent = vent || window.open('','_blank','width=1000,height=700');
             vent.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Stock Actual — SuperKids&Babys</title><style>'+
                 'body{font-family:Nunito,Arial,sans-serif;padding:24px;color:#222;}'+
                 'h1{color:#7e22ce;font-size:1.3em;margin:0;}'+
