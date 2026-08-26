@@ -7136,7 +7136,15 @@ ${ped.comprobanteUrl ? `
             if (telefono.length < 10) return alert('El teléfono de este cliente no es válido.');
             const consecutivo = pedido.numOrden || ('SK' + String(pedido.num || '').padStart(5, '0'));
             const mensaje = 'Hola ' + (pedido.nom || '') + ', te escribimos de SuperKids & Babys para darte novedades sobre tu pedido ' + consecutivo + '. 😊';
-            window.open('https://wa.me/' + telefono + '?text=' + encodeURIComponent(mensaje), '_blank', 'noopener');
+            const enlaceWhatsApp = 'https://wa.me/' + telefono + '?text=' + encodeURIComponent(mensaje);
+            // En Android se dirige expresamente a WhatsApp Business (línea de
+            // SuperKids). En computador se conserva la apertura normal web.
+            if (/Android/i.test(navigator.userAgent || '')) {
+                const intentBusiness = 'intent://send?phone=' + telefono + '&text=' + encodeURIComponent(mensaje) + '#Intent;scheme=whatsapp;package=com.whatsapp.w4b;S.browser_fallback_url=' + encodeURIComponent(enlaceWhatsApp) + ';end';
+                window.location.href = intentBusiness;
+            } else {
+                window.open(enlaceWhatsApp, '_blank', 'noopener');
+            }
         };
 
         function renderizarPedidosPanel() {
