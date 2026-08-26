@@ -2708,10 +2708,27 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             renderizarPedidosPanel();
             inicializarAutorrellenoClientes();
 
-            // Cargar los productos desde la copia pública de Cloudflare.
-            // Evita abrir una escucha permanente de los 579 documentos de
-            // Firestore cada vez que una integrante entra a Gestión.
+            // Gestión necesita el inventario completo. La copia pública puede
+            // estar incompleta durante una reconstrucción, por eso Firebase
+            // es la fuente principal para este panel.
+            let catalogoCompletoCargado = false;
             try {
+                const snapProductos = await getDocs(collection(db, 'productos'));
+                const productosCompletos = snapProductos.docs.map(d => Object.assign({ id: d.id }, d.data()));
+                if (productosCompletos.length >= 100) {
+                    productosDB = aplicarOrdenGuardadoLocal(filtrarProductosEliminados(productosCompletos));
+                    window.productosDB = productosDB;
+                    ordenarProductosPorOrdenVisual(productosDB, generoActual);
+                    localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                    if (typeof invalidarPendientesCatalogo === 'function') invalidarPendientesCatalogo();
+                    renderizarFiltroTallas();
+                    renderizarCatalogo();
+                    catalogoCompletoCargado = true;
+                }
+            } catch(e) { console.warn('Carga completa desde Firebase:', e.message); }
+
+            // Respaldo únicamente si Firebase no está disponible.
+            if (!catalogoCompletoCargado) try {
                 const respuestaCatalogo = await fetch(
                     'https://superkids-pagos-api.superkids-babys.workers.dev/catalogo-publico?t=' + Date.now(),
                     { cache: 'no-store' }

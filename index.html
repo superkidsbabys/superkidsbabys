@@ -2541,8 +2541,27 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             // cantidades distintas a las de Gestión mientras llega el stock
             // vigente desde el catálogo público.
 
-            // Cargar una sola copia pública desde Cloudflare.
+            // Firebase conserva el inventario completo. Solo aceptamos la
+            // copia pública como respaldo: una copia parcial no puede ocultar
+            // cientos de referencias del catálogo.
+            let inventarioCompletoCargado = false;
             try {
+                const snapProductos = await getDocs(collection(db, 'productos'));
+                const productosCompletos = snapProductos.docs.map(d => Object.assign({ id: d.id }, d.data()));
+                if (productosCompletos.length >= 100) {
+                    productosFirebaseListos = true;
+                    if (temporizadorRespaldoCatalogo) clearTimeout(temporizadorRespaldoCatalogo);
+                    productosDB = aplicarOrdenGuardadoLocal(filtrarProductosEliminados(productosCompletos));
+                    ordenarProductosPorOrdenVisual(productosDB, generoActual);
+                    localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                    renderizarFiltroTallas();
+                    renderizarCatalogo();
+                    inventarioCompletoCargado = true;
+                }
+            } catch(e) { console.warn('Inventario completo Firebase:', e.message); }
+
+            // Cargar la copia pública solo cuando Firebase no esté disponible.
+            if (!inventarioCompletoCargado) try {
                 const respuestaCatalogo = await fetch(
                     'https://superkids-pagos-api.superkids-babys.workers.dev/catalogo-publico?t=' + Date.now(),
                     { cache: 'no-store' }
