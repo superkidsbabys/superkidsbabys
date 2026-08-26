@@ -5903,6 +5903,40 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             } finally { btn.disabled = false; }
         }
 
+        // Conserva el mismo orden del catálogo en los reportes: género,
+        // categoría/subcategoría y finalmente el orden visual de las prendas.
+        function agruparStockParaReporte(productos) {
+            const ordenGeneros = (typeof GENEROS_ORDEN_VISUAL !== 'undefined' ? GENEROS_ORDEN_VISUAL : ['Niñas','Niños','Junior Niñas','Junior Niños','Accesorios']);
+            const porGenero = {};
+            (productos || []).forEach(function(p) {
+                const genero = (p.genero || 'Sin género').toString().trim() || 'Sin género';
+                const categoria = (typeof obtenerSubcategoriaCatalogo === 'function' ? obtenerSubcategoriaCatalogo(p) : (p.categoria || 'Otros'));
+                if (!porGenero[genero]) porGenero[genero] = {};
+                if (!porGenero[genero][categoria]) porGenero[genero][categoria] = [];
+                porGenero[genero][categoria].push(p);
+            });
+            const generos = Object.keys(porGenero).sort(function(a,b) {
+                const ia=ordenGeneros.indexOf(a), ib=ordenGeneros.indexOf(b);
+                if (ia !== -1 || ib !== -1) return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+                return a.localeCompare(b, 'es');
+            });
+            const grupos = [];
+            generos.forEach(function(genero) {
+                const categorias = Object.keys(porGenero[genero]);
+                const ordenadas = typeof ordenarCategoriasVisuales === 'function'
+                    ? ordenarCategoriasVisuales(categorias, genero)
+                    : categorias.sort(function(a,b){ return a.localeCompare(b, 'es'); });
+                ordenadas.forEach(function(categoria) {
+                    const items = porGenero[genero][categoria].slice().sort(function(a,b) {
+                        if (typeof compararOrdenVisual === 'function') return compararOrdenVisual(a, b, genero);
+                        return String(a.codigo || '').localeCompare(String(b.codigo || ''), 'es', {numeric:true});
+                    });
+                    grupos.push({ genero: genero, categoria: categoria, items: items });
+                });
+            });
+            return grupos;
+        }
+
         window.exportarStockActualExcel = async function() {
             // El perfil de consulta puede ver el stock, pero no descargarlo.
             try {
@@ -5915,16 +5949,26 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 }))));
                 const esc = function(valor) { return String(valor == null ? '' : valor).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
                 const encabezados = ['Código', 'Nombre', 'Género', 'Categoría'].concat(tallas).concat(['Total']);
-                const filas = productos.slice().sort(function(a,b) { return String(a.codigo || '').localeCompare(String(b.codigo || ''), undefined, {numeric:true}); }).map(function(p) {
+                let generoActualExcel = '';
+                const filas = agruparStockParaReporte(productos).map(function(grupo) {
+                    let bloque = '';
+                    if (grupo.genero !== generoActualExcel) {
+                        generoActualExcel = grupo.genero;
+                        bloque += '<tr><td class="genero" colspan="' + encabezados.length + '">' + esc(grupo.genero) + '</td></tr>';
+                    }
+                    bloque += '<tr><td class="categoria" colspan="' + encabezados.length + '">▸ ' + esc(grupo.categoria) + ' · ' + grupo.items.length + ' referencias</td></tr>';
+                    bloque += grupo.items.map(function(p) {
                     const mapa = {};
                     (p.tallasObj || []).forEach(function(t) { mapa[normalizarTallaValor(t.nombre)] = Number(t.stock) || 0; });
-                    const celdas = [p.codigo || '', p.nombre || '', p.genero || '', p.categoria || '']
+                    const celdas = [p.codigo || '', p.nombre || '', p.genero || '', grupo.categoria]
                         .concat(tallas.map(function(t) { return mapa[normalizarTallaValor(t)] || 0; }))
                         .concat([(p.tallasObj || []).reduce(function(s,t) { return s + (Number(t.stock) || 0); }, 0)]);
                     return '<tr>' + celdas.map(function(c, i) { return '<td class="' + (i >= 4 ? 'num' : '') + '">' + esc(c) + '</td>'; }).join('') + '</tr>';
+                    }).join('');
+                    return bloque;
                 }).join('');
                 const fecha = new Date().toLocaleDateString('es-CO').replace(/\//g, '-');
-                const tabla = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>table{border-collapse:collapse;font-family:Arial,sans-serif;font-size:11pt}th{background:#7e22ce;color:#fff;font-weight:bold;text-align:center;border:1px solid #d8b4fe;padding:7px;white-space:nowrap}td{border:1px solid #e9d5ff;padding:6px;vertical-align:top}td.num{text-align:center;mso-number-format:"0"}tr:nth-child(even) td{background:#faf5ff}.titulo{font-size:16pt;font-weight:bold;color:#7e22ce;border:none;padding:10px 0}.subtitulo{color:#666;border:none;padding:0 0 10px}</style></head><body><table><tr><td class="titulo" colspan="' + encabezados.length + '">Stock actual — SuperKids &amp; Babys</td></tr><tr><td class="subtitulo" colspan="' + encabezados.length + '">Exportado el ' + esc(new Date().toLocaleString('es-CO')) + ' · Una columna por talla</td></tr><tr>' + encabezados.map(function(h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr>' + filas + '</table></body></html>';
+                const tabla = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>table{border-collapse:collapse;font-family:Arial,sans-serif;font-size:11pt}th{background:#7e22ce;color:#fff;font-weight:bold;text-align:center;border:1px solid #d8b4fe;padding:7px;white-space:nowrap}td{border:1px solid #e9d5ff;padding:6px;vertical-align:top}td.num{text-align:center;mso-number-format:"0"}.genero{background:#7e22ce;color:#fff;font-size:13pt;font-weight:bold;padding:8px}.categoria{background:#eadcff;color:#54208a;font-weight:bold;padding:7px}.titulo{font-size:16pt;font-weight:bold;color:#7e22ce;border:none;padding:10px 0}.subtitulo{color:#666;border:none;padding:0 0 10px}</style></head><body><table><tr><td class="titulo" colspan="' + encabezados.length + '">Stock actual — SuperKids &amp; Babys</td></tr><tr><td class="subtitulo" colspan="' + encabezados.length + '">Exportado el ' + esc(new Date().toLocaleString('es-CO')) + ' · Organizado como el catálogo · Una columna por talla</td></tr><tr>' + encabezados.map(function(h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr>' + filas + '</table></body></html>';
                 const blob = new Blob(['\ufeff', tabla], { type:'application/vnd.ms-excel;charset=utf-8' });
                 const enlace = document.createElement('a'); enlace.href = URL.createObjectURL(blob); enlace.download = 'stock-actual-' + fecha + '.xls';
                 document.body.appendChild(enlace); enlace.click(); enlace.remove(); URL.revokeObjectURL(enlace.href);
@@ -5979,21 +6023,17 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 {bg:'#ffedd5',border:'#fdba74',txt:'#7c2d12'},
             ];
 
-            // Agrupar por género + categoría para el PDF
-            var grupos = {};
-            var ordenGrupos = [];
-            filtrados.forEach(function(p) {
-                var llave = (p.genero||'Sin género') + ' › ' + (p.categoria||'Sin categoría');
-                if (!grupos[llave]) { grupos[llave] = []; ordenGrupos.push(llave); }
-                grupos[llave].push(p);
-            });
-
             var filas = '';
-            ordenGrupos.forEach(function(llave) {
-                var items = grupos[llave];
+            var ultimoGeneroPDF = '';
+            agruparStockParaReporte(filtrados).forEach(function(grupo) {
+                var items = grupo.items;
                 var unidsCat = items.reduce(function(s,p){ return s+(p.tallasObj||[]).reduce(function(ss,t){return ss+(t.stock||0);},0); },0);
+                if (grupo.genero !== ultimoGeneroPDF) {
+                    ultimoGeneroPDF = grupo.genero;
+                    filas += '<tr><td colspan="3" style="background:#54208a;color:white;padding:10px 12px;font-weight:900;font-size:1em;text-transform:uppercase;">'+grupo.genero+'</td></tr>';
+                }
                 filas += '<tr><td colspan="3" style="background:linear-gradient(135deg,#7e22ce,#9333ea);color:white;padding:7px 12px;font-weight:800;font-size:0.85em;">'+
-                    '📁 '+llave+'<span style="float:right;font-weight:600;opacity:0.9;">'+items.length+' ref · '+unidsCat+' und</span></td></tr>';
+                    '📁 '+grupo.categoria+'<span style="float:right;font-weight:600;opacity:0.9;">'+items.length+' ref · '+unidsCat+' und</span></td></tr>';
                 items.forEach(function(p, idx) {
                     var stockMap = {};
                     (p.tallasObj||[]).forEach(function(t){ stockMap[t.nombre] = t.stock||0; });
@@ -7086,6 +7126,19 @@ ${ped.comprobanteUrl ? `
             return TRANSP_KEY_MAP[low] || val.trim();
         }
 
+        window.abrirWhatsAppPedido = function(numPedido) {
+            const pedido = (historialPedidos || []).find(function(p) { return Number(p.num) === Number(numPedido); });
+            if (!pedido || !pedido.tel) return alert('Este pedido no tiene un teléfono registrado.');
+            let telefono = String(pedido.tel).replace(/\D/g, '');
+            if (telefono.length === 10 && telefono.charAt(0) === '3') telefono = '57' + telefono;
+            else if (telefono.length === 10) telefono = '57' + telefono;
+            else if (telefono.length === 12 && telefono.indexOf('57') === 0) telefono = telefono;
+            if (telefono.length < 10) return alert('El teléfono de este cliente no es válido.');
+            const consecutivo = pedido.numOrden || ('SK' + String(pedido.num || '').padStart(5, '0'));
+            const mensaje = 'Hola ' + (pedido.nom || '') + ', te escribimos de SuperKids & Babys para darte novedades sobre tu pedido ' + consecutivo + '. 😊';
+            window.open('https://wa.me/' + telefono + '?text=' + encodeURIComponent(mensaje), '_blank', 'noopener');
+        };
+
         function renderizarPedidosPanel() {
             const cont = document.getElementById('contenedor-historial-pedidos'); if (!cont) return;
             cont.innerHTML = "";
@@ -7139,7 +7192,7 @@ ${ped.comprobanteUrl ? `
                 const datosCliente = [
                     ped.nom ? '👤 <strong>'+ped.nom+'</strong>' : '',
                     ped.cc ? '🪪 CC: '+ped.cc : '',
-                    ped.tel ? '📞 '+ped.tel : '',
+                    ped.tel ? '📞 '+ped.tel+' <button type="button" onclick="abrirWhatsAppPedido('+ped.num+')" title="Escribir por WhatsApp" aria-label="Escribir por WhatsApp" style="margin-left:5px;padding:1px 5px;border:0;border-radius:50%;background:#25D366;color:white;font-size:.92em;line-height:1.45;cursor:pointer;vertical-align:middle;">💬</button>' : '',
                     ped.correo ? '✉️ '+ped.correo : '',
                     ped.dir ? '📍 '+ped.dir : '',
                     ped.barrio ? '🏘️ Barrio: '+ped.barrio : '',
