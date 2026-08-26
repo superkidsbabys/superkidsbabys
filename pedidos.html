@@ -227,7 +227,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
           // Se mantienen únicamente búsquedas, filtros y navegación. Los
           // demás botones y campos de edición quedan fuera de su alcance.
           panel.querySelectorAll('button').forEach(function(btn) {
-            if (btn.classList.contains('btn-tab') || btn.classList.contains('btn-filtro-ped')) return;
+            if (btn.classList.contains('btn-tab') || btn.classList.contains('btn-filtro-ped') || btn.id === 'btn-exportar-stock-excel' || btn.id === 'btn-exportar-stock-pdf') return;
             btn.style.display = 'none';
           });
           panel.querySelectorAll('input, select, textarea').forEach(function(campo) {
@@ -1698,8 +1698,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
                             <button onclick="abrirConteoRapido()" style="background:linear-gradient(135deg,#168d55,#27ae60);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:900;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(22,141,85,.25);">📦 Conteo rápido</button>
                             <button id="btn-reporte-conteo-rapido" onclick="exportarReporteConteoRapido()" style="display:none;background:linear-gradient(135deg,#b7791f,#d69e2e);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:900;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(183,121,31,.25);">📋 Reporte de conteos</button>
-                            <button onclick="exportarStockActualExcel()" style="background:linear-gradient(135deg,#1d8f4e,#29b765);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(29,143,78,.3);">📊 Exportar Excel</button>
-                            <button onclick="exportarStockActualPDF()" style="background:linear-gradient(135deg,#8e44ad,#9b59b6);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(142,68,173,0.3);">🖨️ Exportar PDF</button>
+                            <button id="btn-exportar-stock-excel" onclick="exportarStockActualExcel()" style="background:linear-gradient(135deg,#1d8f4e,#29b765);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(29,143,78,.3);">📊 Exportar Excel</button>
+                            <button id="btn-exportar-stock-pdf" onclick="exportarStockActualPDF()" style="background:linear-gradient(135deg,#8e44ad,#9b59b6);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(142,68,173,0.3);">🖨️ Exportar PDF</button>
                         </div>
                     </div>
 
@@ -5905,7 +5905,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         window.exportarStockActualExcel = async function() {
             // El perfil de consulta puede ver el stock, pero no descargarlo.
-            if (window.usuarioActual && window.usuarioActual.rol === 'consulta') return alert('Tu acceso permite consultar el stock, pero no exportarlo.');
             try {
                 const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const snap = await getDocs(collection(db, 'productos'));
