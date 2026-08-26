@@ -5767,11 +5767,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 // Publicar la misma actualización que acaba de guardarse en
                 // Gestión. Así el catálogo no queda dependiendo de que la
                 // edición la haga una usuaria concreta ni de una recarga.
+                let catalogoSincronizado = true;
                 if (typeof window.sincronizarCatalogoPublico === 'function') {
-                    await window.sincronizarCatalogoPublico();
+                    catalogoSincronizado = (await window.sincronizarCatalogoPublico()) !== null;
                 }
                 renderStockActual(); renderizarCatalogo();
-                msg.style.color='#27ae60'; msg.textContent='✅ Prenda y catálogo actualizados';
+                msg.style.color = catalogoSincronizado ? '#27ae60' : '#b54708';
+                msg.textContent = catalogoSincronizado
+                    ? '✅ Stock y catálogo actualizados'
+                    : '⚠️ Stock guardado en Firebase; el catálogo público quedó pendiente. Avísale a Yohana.';
                 setTimeout(function() {
                     cerrarEditarStockGina();
                     if (window._conteoRapidoActivo) { window._conteoRapidoActivo = false; abrirConteoRapido(); }
