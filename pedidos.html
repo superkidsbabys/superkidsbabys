@@ -2716,7 +2716,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 const snapProductos = await getDocs(collection(db, 'productos'));
                 const productosCompletos = snapProductos.docs.map(d => Object.assign({ id: d.id }, d.data()));
                 if (productosCompletos.length >= 100) {
-                    productosDB = aplicarOrdenGuardadoLocal(filtrarProductosEliminados(productosCompletos));
+                    // Firebase ya es la lista vigente. No aplicar aquí la
+                    // papelera local: puede contener IDs antiguos y ocultar
+                    // prendas que sí existen en el inventario.
+                    productosDB = aplicarOrdenGuardadoLocal(productosCompletos);
                     window.productosDB = productosDB;
                     ordenarProductosPorOrdenVisual(productosDB, generoActual);
                     localStorage.setItem('productosV36', JSON.stringify(productosDB));

@@ -2551,7 +2551,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (productosCompletos.length >= 100) {
                     productosFirebaseListos = true;
                     if (temporizadorRespaldoCatalogo) clearTimeout(temporizadorRespaldoCatalogo);
-                    productosDB = aplicarOrdenGuardadoLocal(filtrarProductosEliminados(productosCompletos));
+                    // Al usar Firebase, sus documentos son el catálogo
+                    // vigente; la lista local de eliminados no debe ocultarlos.
+                    productosDB = aplicarOrdenGuardadoLocal(productosCompletos);
                     ordenarProductosPorOrdenVisual(productosDB, generoActual);
                     localStorage.setItem('productosV36', JSON.stringify(productosDB));
                     renderizarFiltroTallas();
