@@ -4662,7 +4662,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         window.eliminarGrupoDePedido = async function(numPed, idProd, cod) {
-            if (!confirm('¿Eliminar todas las tallas de esta prenda del pedido? Se devolverá el stock correspondiente.')) return;
+            // Función conservada solo para compatibilidad con sesiones antiguas.
+            // Ya no hay acceso visual a ella porque altera una factura y retorna
+            // stock. Si una corrección excepcional es necesaria, únicamente
+            // Yohana puede continuar y debe escribir la frase de seguridad.
+            if (!(window.usuarioActual && window.usuarioActual.uid === UID_YOHANA)) {
+                return alert('Por seguridad no se pueden eliminar prendas de una factura desde esta tarjeta. Usa el editor de prendas o consulta a Yohana.');
+            }
+            const claveSeguridad = prompt('Esta acción quita la prenda de la factura y DEVUELVE su stock. Escribe: DEVOLVER STOCK');
+            if (claveSeguridad !== 'DEVOLVER STOCK') return;
             let pedIdx = historialPedidos.findIndex(p => String(p.num) === String(numPed));
             if (pedIdx === -1) return;
             let ped = historialPedidos[pedIdx];
@@ -4712,6 +4720,78 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             renderizarPedidosPanel();
             if (typeof renderStockActual === 'function') renderStockActual();
             if (typeof renderizarCatalogo === 'function') renderizarCatalogo();
+        };
+
+        // Reparación puntual documentada: SK00059 / REF 1000104 / talla 6T.
+        // La factura conserva seis tallas, pero una eliminación accidental dejó
+        // el pedido con cinco y retornó 6T al inventario. Esta rutina solo se
+        // ofrece a Yohana y es idempotente: si ya quedó corregido, no toca nada.
+        window.corregirSK00059Ref1000104 = async function() {
+            if (!(window.usuarioActual && window.usuarioActual.uid === UID_YOHANA)) return alert('Esta corrección solo puede realizarla Yohana.');
+            const pedido = (historialPedidos || []).find(function(p) { return String(p.num) === '59' || String(p.numOrden || '').replace(/[^0-9]/g,'') === '00059'; });
+            if (!pedido) return alert('No se encontró el pedido SK00059 en esta sesión. Recarga el panel e inténtalo de nuevo.');
+            const yaExiste = (pedido.items || []).some(function(i) { return String(i.cod || i.codigo || '') === '1000104' && normalizarTallaValor(i.talla) === '6T'; });
+            if (yaExiste) return alert('La talla 6T ya está incluida en SK00059. No se realizó ningún cambio.');
+            const base = (pedido.items || []).find(function(i) { return String(i.cod || i.codigo || '') === '1000104'; });
+            const producto = (productosDB || []).find(function(p) { return String(p.codigo || '') === '1000104'; });
+            if (!base || !producto) return alert('No se encontró la referencia 1000104 completa para hacer la corrección.');
+            const confirmar = confirm('Corregir SK00059: se agregará la talla 6T a la factura y se descontará 1 unidad 6T del stock. ¿Continuar?');
+            if (!confirmar) return;
+            try {
+                const { collection, query, where, getDocs, doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                let refsPedido = [];
+                if (pedido._firebaseId) refsPedido = [doc(db, 'pedidos', pedido._firebaseId)];
+                else {
+                    const snapPedidos = await getDocs(query(collection(db, 'pedidos'), where('num', '==', pedido.num)));
+                    refsPedido = snapPedidos.docs.map(function(d) { return d.ref; });
+                }
+                if (!refsPedido.length) throw new Error('No se encontró la factura en Firebase');
+                const refProducto = doc(db, 'productos', producto._firebaseId || producto.id);
+                await runTransaction(db, async function(tx) {
+                    const snapProducto = await tx.get(refProducto);
+                    if (!snapProducto.exists()) throw new Error('No se encontró la referencia 1000104 en inventario');
+                    const snapsPedido = [];
+                    for (const refPedido of refsPedido) snapsPedido.push({ ref: refPedido, snap: await tx.get(refPedido) });
+                    const datosProducto = snapProducto.data();
+                    const tallas = (datosProducto.tallasObj || []).map(function(t) { return Object.assign({}, t); });
+                    const talla6T = tallas.find(function(t) { return normalizarTallaValor(t.nombre) === '6T'; });
+                    if (!talla6T) throw new Error('La referencia 1000104 no tiene la talla 6T registrada');
+                    if ((parseInt(talla6T.stock, 10) || 0) < 1) throw new Error('El stock actual de 6T no permite descontar la unidad pendiente');
+                    let requiereAjuste = false;
+                    const pedidosActualizados = [];
+                    snapsPedido.forEach(function(registro) {
+                        if (!registro.snap.exists()) return;
+                        const datosPedido = registro.snap.data();
+                        const items = (datosPedido.items || []).map(function(i) { return Object.assign({}, i); });
+                        const existe6T = items.some(function(i) { return String(i.cod || i.codigo || '') === '1000104' && normalizarTallaValor(i.talla) === '6T'; });
+                        if (!existe6T) {
+                            const modelo = items.find(function(i) { return String(i.cod || i.codigo || '') === '1000104'; });
+                            if (!modelo) throw new Error('La factura no contiene una base válida de la referencia 1000104');
+                            const nuevoItem = Object.assign({}, modelo, { talla: talla6T.nombre, cant: 1, cantidad: 1, imagen: (producto.imagenes || [])[0] || modelo.imagen || '' });
+                            items.push(nuevoItem); requiereAjuste = true;
+                            const pedidoCalculado = Object.assign({}, datosPedido, { items: items });
+                            recalcularTotalPedidoConEnvio(pedidoCalculado);
+                            pedidosActualizados.push({ ref: registro.ref, items: items, tot: pedidoCalculado.tot, subtotalBruto: pedidoCalculado.subtotalBruto || 0, cantidadPromoMamelucos: pedidoCalculado.cantidadPromoMamelucos || 0, descuentoPromocion: pedidoCalculado.descuentoPromocion || 0, descuentoPorcentajeValor: pedidoCalculado.descuentoPorcentajeValor || 0 });
+                        }
+                    });
+                    if (!requiereAjuste) return;
+                    talla6T.stock = (parseInt(talla6T.stock, 10) || 0) - 1;
+                    tx.update(refProducto, { tallasObj: tallas, stockTotal: tallas.reduce(function(s,t) { return s + (parseInt(t.stock,10) || 0); }, 0), actualizadoEn: new Date().toISOString() });
+                    pedidosActualizados.forEach(function(p) { tx.update(p.ref, { items: p.items, tot: p.tot, subtotalBruto: p.subtotalBruto, cantidadPromoMamelucos: p.cantidadPromoMamelucos, descuentoPromocion: p.descuentoPromocion, descuentoPorcentajeValor: p.descuentoPorcentajeValor, actualizadoEn: new Date().toISOString() }); });
+                });
+                const localItem = Object.assign({}, base, { talla: '6T', cant: 1, cantidad: 1, imagen: (producto.imagenes || [])[0] || base.imagen || '' });
+                pedido.items.push(localItem);
+                const tallaLocal = (producto.tallasObj || []).find(function(t) { return normalizarTallaValor(t.nombre) === '6T'; });
+                if (tallaLocal) tallaLocal.stock = Math.max(0, (parseInt(tallaLocal.stock, 10) || 0) - 1);
+                producto.stockTotal = (producto.tallasObj || []).reduce(function(s,t) { return s + (parseInt(t.stock,10) || 0); }, 0);
+                recalcularTotalPedidoConEnvio(pedido);
+                localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+                localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                await registrarActividadGestionDirecta('correccion_stock_factura','pedido',pedido.num,{ referencia:'1000104', talla:'6T', motivo:'Restauración de talla eliminada por error; se descontó nuevamente del stock.' });
+                if (window.sincronizarCatalogoPublico) await window.sincronizarCatalogoPublico();
+                renderizarPedidosPanel(); if (typeof renderStockActual === 'function') renderStockActual(); if (typeof renderizarCatalogo === 'function') renderizarCatalogo();
+                alert('✅ Corregido: la talla 6T volvió a SK00059 y se descontó una unidad del inventario.');
+            } catch(e) { alert('No se realizó la corrección: ' + (e.message || e)); }
         };
 
         function normalizarTallaValor(talla) {
@@ -7151,6 +7231,14 @@ ${ped.comprobanteUrl ? `
             const cont = document.getElementById('contenedor-historial-pedidos'); if (!cont) return;
             cont.innerHTML = "";
             const esGina = window.usuarioActual && window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2';
+            const esYohana = window.usuarioActual && window.usuarioActual.uid === UID_YOHANA;
+            const pedido59Pendiente = (historialPedidos || []).find(function(p) {
+                const es59 = String(p.num) === '59' || String(p.numOrden || '').replace(/[^0-9]/g,'') === '00059';
+                return es59 && !(p.items || []).some(function(i) { return String(i.cod || i.codigo || '') === '1000104' && normalizarTallaValor(i.talla) === '6T'; });
+            });
+            if (esYohana && pedido59Pendiente) {
+                cont.innerHTML = '<div style="grid-column:1/-1;background:#fff7df;border:1.5px solid #f1c75b;color:#74530a;border-radius:12px;padding:12px 14px;font-size:.84em;font-weight:700;line-height:1.45;">⚠️ <b>Corrección pendiente SK00059:</b> falta la talla 6T de la referencia 1000104 en el pedido, aunque la factura la incluye. <button type="button" onclick="corregirSK00059Ref1000104()" style="margin:7px 0 0 7px;background:#b7791f;color:white;border:0;border-radius:8px;padding:7px 10px;font-weight:900;cursor:pointer;">Corregir pedido y stock</button></div>';
+            }
 
             // ── Helper: renderizar una tarjeta de pedido individual ──
             function _htmlTarjetaPedido(ped) {
@@ -7167,7 +7255,10 @@ ${ped.comprobanteUrl ? `
                         ? `<img src="${thumb}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;" onerror="this.style.display='none'">`
                         : `<div style="width:44px;height:44px;border-radius:6px;background:#f5e6fb;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2em;">👗</div>`;
                     const tallasTxt = g.tallas.join(', ');
-                    return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.cantidad > 1 ? '(' + g.cantidad + ') ' : ''}${g.nom}</div><div style="font-size:0.72em;color:#888;">Tallas: ${tallasTxt} · REF: ${g.cod || 'S/N'}</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(g.totalPrecio)}</span><button class="tp-btn-del-prod" title="Eliminar todas las tallas de esta prenda" onclick="eliminarGrupoDePedido(${ped.num}, '${g.id_prod}', '${(g.cod||'').toString().replace(/'/g,"")}')">🗑️</button></div>`;
+                    // Las prendas facturadas no se eliminan desde la tarjeta:
+                    // ese botón devolvía stock y podía descuadrar una curva por
+                    // un toque accidental. Los ajustes se hacen en el editor.
+                    return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.cantidad > 1 ? '(' + g.cantidad + ') ' : ''}${g.nom}</div><div style="font-size:0.72em;color:#888;">Tallas: ${tallasTxt} · REF: ${g.cod || 'S/N'}</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(g.totalPrecio)}</span></div>`;
                 }).join('');
 
                 const numFact = ped.numOrden || ('SK' + String(ped.numFactura || ped.num).padStart(5, '0'));
