@@ -7752,11 +7752,8 @@ document.addEventListener('DOMContentLoaded', function() {
       const eleccion=await solicitud.userChoice;
       if(eleccion&&eleccion.outcome==='accepted') return;
     }
-    if(/iphone|ipad|ipod/i.test(navigator.userAgent)) {
-      alert('Para instalarla en iPhone o iPad: toca el botón Compartir del navegador y luego “Agregar a pantalla de inicio”.');
-      return;
-    }
-    alert('Abre el menú de tu navegador y elige “Instalar aplicación” o “Agregar a pantalla de inicio”.');
+    const guia=window.open('./instalar.html','_blank');
+    if(!guia) location.href='./instalar.html';
   };
   function segEscape(valor) {
     return String(valor == null ? '' : valor).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});

@@ -1,7 +1,8 @@
-const CACHE_VERSION = 'superkids-pwa-v1';
+const CACHE_VERSION = 'superkids-pwa-v2';
 const ARCHIVOS_BASE = [
   './',
   './index.html',
+  './instalar.html',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png'

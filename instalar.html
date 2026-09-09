@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f5d6ed">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <title>Instalar SuperKids & Babys</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;padding:24px 16px;background:linear-gradient(145deg,#fff4fb,#f6eaff);font-family:Arial,sans-serif;color:#493744;display:flex;align-items:center;justify-content:center}
+    .tarjeta{width:min(460px,100%);background:#fff;border-radius:26px;padding:26px 22px;box-shadow:0 20px 60px rgba(104,43,84,.18);text-align:center}
+    .icono{width:92px;height:92px;border-radius:25px;box-shadow:0 8px 24px rgba(217,79,174,.22)}
+    h1{margin:16px 0 7px;color:#762858;font-size:1.45rem}p{margin:0;color:#756a72;line-height:1.5;font-size:.91rem}
+    .instalar{width:100%;margin:20px 0 14px;border:0;border-radius:14px;padding:14px;background:linear-gradient(135deg,#f34fae,#d94fae);color:#fff;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:0 8px 20px rgba(217,79,174,.25)}
+    .guia{margin-top:13px;text-align:left;background:#fff7fc;border:1px solid #f0d2e5;border-radius:16px;padding:16px}.guia h2{margin:0 0 10px;color:#813664;font-size:1rem}.paso{display:flex;gap:10px;align-items:flex-start;margin:10px 0;font-size:.87rem;line-height:1.4}.numero{width:25px;height:25px;flex:0 0 25px;border-radius:50%;background:#ed56af;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
+    .volver{display:inline-block;margin-top:17px;border:0;background:transparent;color:#8c3b70;font-weight:800;text-decoration:underline;cursor:pointer;font-size:.88rem}.oculto{display:none}.nota{margin-top:12px;font-size:.76rem;color:#8a7d86}
+  </style>
+</head>
+<body>
+  <main class="tarjeta">
+    <img class="icono" src="./icons/icon-192.png" alt="SuperKids & Babys">
+    <h1>Instala SuperKids & Babys</h1>
+    <p>Guarda la tienda en tu pantalla de inicio y entra fácilmente al seguimiento de tus pedidos.</p>
+    <button id="btn-instalar" class="instalar" type="button">📲 Instalar aplicación</button>
+
+    <section id="guia-android" class="guia">
+      <h2>Si no aparece la instalación en Android</h2>
+      <div class="paso"><span class="numero">1</span><span>Toca los tres puntos <strong>⋮</strong> de la parte superior del navegador.</span></div>
+      <div class="paso"><span class="numero">2</span><span>Elige <strong>Instalar aplicación</strong> o <strong>Agregar a pantalla de inicio</strong>.</span></div>
+      <div class="paso"><span class="numero">3</span><span>Confirma tocando <strong>Instalar</strong>.</span></div>
+    </section>
+
+    <section id="guia-ios" class="guia oculto">
+      <h2>Instalar en iPhone o iPad</h2>
+      <div class="paso"><span class="numero">1</span><span>Abre esta página en <strong>Safari</strong>.</span></div>
+      <div class="paso"><span class="numero">2</span><span>Toca el botón <strong>Compartir</strong> de Safari.</span></div>
+      <div class="paso"><span class="numero">3</span><span>Elige <strong>Agregar a pantalla de inicio</strong> y confirma.</span></div>
+    </section>
+
+    <div class="nota">No necesitas descargar archivos APK ni permitir aplicaciones desconocidas.</div>
+    <button class="volver" type="button" onclick="history.length>1?history.back():location.href='./index.html'">← Regresar a mi pedido</button>
+  </main>
+  <script>
+    let eventoInstalacion=null;
+    const esIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    const instalada=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+    if(esIOS){document.getElementById('guia-android').classList.add('oculto');document.getElementById('guia-ios').classList.remove('oculto');}
+    if(instalada){const b=document.getElementById('btn-instalar');b.textContent='✅ Aplicación instalada';b.disabled=true;}
+    addEventListener('beforeinstallprompt',function(e){e.preventDefault();eventoInstalacion=e;});
+    addEventListener('appinstalled',function(){eventoInstalacion=null;const b=document.getElementById('btn-instalar');b.textContent='✅ Aplicación instalada';b.disabled=true;});
+    document.getElementById('btn-instalar').addEventListener('click',async function(){
+      if(instalada)return;
+      if(eventoInstalacion){const e=eventoInstalacion;eventoInstalacion=null;await e.prompt();await e.userChoice;return;}
+      document.getElementById(esIOS?'guia-ios':'guia-android').scrollIntoView({behavior:'smooth',block:'center'});
+    });
+    if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('./sw.js').catch(function(){});
+  </script>
+</body>
+</html>
