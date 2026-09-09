@@ -7668,6 +7668,10 @@ document.addEventListener('DOMContentLoaded', function() {
   .seguimiento-codigo-fila{display:flex;gap:8px}.seguimiento-codigo{flex:1;min-width:0;border:1.5px solid #edc9e2;border-radius:12px;padding:11px 12px;font-family:Nunito,sans-serif;font-size:.9rem;outline:none}.seguimiento-codigo:focus{border-color:#ed56af;box-shadow:0 0 0 3px rgba(237,86,175,.12)}
   .seguimiento-buscar{border:0;border-radius:12px;padding:10px 15px;background:#8d3672;color:#fff;font-family:Nunito,sans-serif;font-weight:900;cursor:pointer}
   .seguimiento-privacidad{margin-top:16px;padding:11px 12px;border-radius:12px;background:#f8f5f7;color:#786d75;font-size:.76rem;line-height:1.45;text-align:left}
+  .seg-instalar-box{margin-top:16px;padding:14px;border:1px solid #f2c8e3;border-radius:16px;background:linear-gradient(135deg,#fff3fa,#faf0ff);text-align:center}
+  .seg-instalar-btn{width:100%;border:0;border-radius:12px;padding:12px 14px;background:linear-gradient(135deg,#f34fae,#d94fae);color:#fff;font-family:Nunito,sans-serif;font-size:.9rem;font-weight:950;cursor:pointer;box-shadow:0 7px 18px rgba(217,79,174,.24);transition:transform .18s ease,box-shadow .18s ease}
+  .seg-instalar-btn:hover{transform:translateY(-1px);box-shadow:0 9px 22px rgba(217,79,174,.3)}
+  .seg-instalar-ayuda{display:block;margin-top:8px;color:#786d75;font-size:.73rem;line-height:1.4}
   .seguimiento-demo{margin-top:10px;border:0;background:transparent;color:#9b3d7a;font-family:Nunito,sans-serif;font-weight:900;text-decoration:underline;cursor:pointer}
   .seg-estado{display:flex;gap:11px;align-items:center;padding:14px;border-radius:16px;background:#eefaf2;border:1px solid #c9ecd5}.seg-estado-icono{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:#27ae60;color:#fff;font-size:1.25rem;flex:0 0 auto}.seg-estado strong{display:block;color:#176d3d}.seg-estado span{display:block;margin-top:2px;color:#557060;font-size:.78rem;line-height:1.35}
   .seg-numero{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:16px 0 10px}.seg-numero strong{font-size:1.06rem;color:#762858}.seg-numero span{font-size:.72rem;color:#777;background:#f6f1f5;border-radius:999px;padding:5px 9px}
@@ -7720,6 +7724,40 @@ document.addEventListener('DOMContentLoaded', function() {
   const SEGUIMIENTO_API = 'https://superkids-pagos-api.superkids-babys.workers.dev';
   let seguimientoTokenActivo = '';
   let seguimientoActualizador = null;
+  let solicitudInstalacionPWA = null;
+  function aplicacionInstalada() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+  function htmlInstalarAplicacion() {
+    const instalada=aplicacionInstalada();
+    return '<div class="seg-instalar-box"><button type="button" class="seg-instalar-btn" onclick="instalarAplicacionSeguimiento()">'+(instalada?'✅ Aplicación instalada':'📲 Instalar nuestra aplicación')+'</button><span class="seg-instalar-ayuda">Conserva tu historial y entra fácilmente para ver las actualizaciones de tu pedido.</span></div>';
+  }
+  window.addEventListener('beforeinstallprompt',function(event){
+    event.preventDefault();
+    solicitudInstalacionPWA=event;
+  });
+  window.addEventListener('appinstalled',function(){
+    solicitudInstalacionPWA=null;
+    alert('¡Listo! SuperKids & Babys quedó instalada en tu dispositivo.');
+  });
+  window.instalarAplicacionSeguimiento = async function() {
+    if(aplicacionInstalada()) {
+      alert('SuperKids & Babys ya está instalada. Puedes abrirla desde la pantalla de inicio de tu dispositivo.');
+      return;
+    }
+    if(solicitudInstalacionPWA) {
+      const solicitud=solicitudInstalacionPWA;
+      solicitudInstalacionPWA=null;
+      await solicitud.prompt();
+      const eleccion=await solicitud.userChoice;
+      if(eleccion&&eleccion.outcome==='accepted') return;
+    }
+    if(/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+      alert('Para instalarla en iPhone o iPad: toca el botón Compartir del navegador y luego “Agregar a pantalla de inicio”.');
+      return;
+    }
+    alert('Abre el menú de tu navegador y elige “Instalar aplicación” o “Agregar a pantalla de inicio”.');
+  };
   function segEscape(valor) {
     return String(valor == null ? '' : valor).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
   }
@@ -7748,7 +7786,7 @@ document.addEventListener('DOMContentLoaded', function() {
       '<div class="seg-numero"><strong>Pedido #'+segEscape(p.numOrden||p.num)+'</strong><span>'+segEscape(p.fecha||'')+'</span></div>'+ 
       '<div class="seg-datos">👤 '+segEscape(p.nombre)+'<br>📍 '+segEscape([p.direccion,p.barrio,p.ciudad,p.departamento].filter(Boolean).join(' · '))+(p.telefonoFinal?'<br>📞 Teléfono terminado en '+segEscape(p.telefonoFinal):'')+(p.guia?'<br>🔎 Guía: '+segEscape(p.guia):'')+'</div>'+items+
       '<div class="seg-resumen"><div class="seg-resumen-fila"><span>Transportadora</span><strong>'+segEscape(p.transportadora||'Por asignar')+'</strong></div><div class="seg-resumen-fila"><span>Prendas</span><strong>'+formatMoney(p.totalPrendas||0)+'</strong></div><div class="seg-resumen-fila"><span>Envío</span><strong>'+(p.valorEnvio?formatMoney(p.valorEnvio):'Por calcular')+'</strong></div><div class="seg-resumen-fila seg-resumen-total"><span>Total</span><strong>'+formatMoney(p.total||0)+'</strong></div></div>'+confirmado+
-      '<div class="seguimiento-privacidad">📲 Instala nuestra aplicación para conservar tu acceso y recibir las próximas actualizaciones de tu pedido.</div><button type="button" class="seg-volver" onclick="restaurarBuscadorSeguimiento()">← Consultar otro pedido</button>';
+      htmlInstalarAplicacion()+'<button type="button" class="seg-volver" onclick="restaurarBuscadorSeguimiento()">← Consultar otro pedido</button>';
   }
   async function consultarTokenSeguimiento(token, silencioso) {
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) { if(!silencioso) alert('El código o enlace privado no es válido.'); return; }
@@ -7790,7 +7828,7 @@ document.addEventListener('DOMContentLoaded', function() {
     abrirMisPedidos();
     const cont=document.getElementById('seguimiento-contenido');
     if(!cont) return;
-    cont.innerHTML='<div class="seguimiento-vacio"><div class="seguimiento-vacio-icono">✅</div><h3>¡Pedido recibido!</h3><p>Guardamos tu pedido <strong>#'+segEscape((pedido&&pedido.numOrden)||'')+'</strong>. Conserva este enlace privado para ver cada actualización.</p><button type="button" class="seguimiento-buscar" style="width:100%;padding:12px" onclick="consultarTokenSeguimiento(seguimientoTokenActivo,false)">Ver seguimiento de mi pedido</button><button type="button" class="seg-volver" onclick="copiarEnlaceSeguimiento()">🔗 Copiar enlace privado</button><div class="seguimiento-privacidad">📲 Instala nuestra aplicación para conservar el historial y recibir actualizaciones de tu pedido.</div></div>';
+    cont.innerHTML='<div class="seguimiento-vacio"><div class="seguimiento-vacio-icono">✅</div><h3>¡Pedido recibido!</h3><p>Guardamos tu pedido <strong>#'+segEscape((pedido&&pedido.numOrden)||'')+'</strong>. Conserva este enlace privado para ver cada actualización.</p><button type="button" class="seguimiento-buscar" style="width:100%;padding:12px" onclick="consultarTokenSeguimiento(seguimientoTokenActivo,false)">Ver seguimiento de mi pedido</button><button type="button" class="seg-volver" onclick="copiarEnlaceSeguimiento()">🔗 Copiar enlace privado</button>'+htmlInstalarAplicacion()+'</div>';
   };
   window.copiarEnlaceSeguimiento = async function() {
     if(!window.seguimientoUrlActivo) return;
@@ -7808,6 +7846,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="seg-producto"><div class="seg-producto-img">🧸</div><div><div class="seg-producto-nombre">Mameluco algodón</div><div class="seg-producto-detalle">Talla 6M · REF 3314</div></div><div class="seg-producto-precio">$25.000</div></div>
       <div class="seg-resumen"><div class="seg-resumen-fila"><span>Transportadora</span><strong>Interrapidísimo</strong></div><div class="seg-resumen-fila"><span>Prendas</span><strong>$97.000</strong></div><div class="seg-resumen-fila"><span>Envío</span><strong>$18.500</strong></div><div class="seg-resumen-fila seg-resumen-total"><span>Total</span><strong>$115.500</strong></div></div>
       <div class="seg-confirmacion"><strong>¿Ya recibiste tu pedido?</strong><div class="seg-confirmacion-botones"><button type="button" onclick="alert('En la versión real quedará registrado como recibido.')">Sí, lo recibí</button><button type="button" onclick="alert('En la versión real avisaremos al equipo que aún no llegó.')">No todavía</button></div></div>
+      ${htmlInstalarAplicacion()}
       <button type="button" class="seg-volver" onclick="restaurarBuscadorSeguimiento()">← Volver</button>`;
   };
   window.restaurarBuscadorSeguimiento = function() {
