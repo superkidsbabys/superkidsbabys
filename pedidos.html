@@ -1829,7 +1829,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <div class="seccion-admin-sub" style="background:#fbf9ff;border:1.5px solid #d8b4fe;border-radius:14px;padding:17px;">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
                         <div><h3 style="margin:0;color:#7e22ce;">🔐 Mi inventario conciliado</h3><p style="margin:4px 0 0;color:#667085;font-size:.85em;">Cruza inventario nuevo, ventas activas y catálogo por referencia y talla. Visible únicamente para Yohana.</p></div>
-                        <button id="ip-btn-actualizar" onclick="cargarInventarioPersonal(true)" style="border:0;background:#7e22ce;color:white;border-radius:9px;padding:9px 14px;font-weight:900;cursor:pointer;">Actualizar cruce</button>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                            <button id="btn-respaldo-pedidos-excel" onclick="exportarRespaldoPedidosExcel()" style="display:none;border:0;background:#168653;color:white;border-radius:9px;padding:9px 14px;font-weight:900;cursor:pointer;">📊 Respaldar pedidos en Excel</button>
+                            <button id="ip-btn-actualizar" onclick="cargarInventarioPersonal(true)" style="border:0;background:#7e22ce;color:white;border-radius:9px;padding:9px 14px;font-weight:900;cursor:pointer;">Actualizar cruce</button>
+                        </div>
                     </div>
                     <div id="ip-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px;margin-bottom:13px;"></div>
                     <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
@@ -5780,6 +5783,102 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         window.actualizarAccesoReporteConteo = function() {
             const boton = document.getElementById('btn-reporte-conteo-rapido');
             if (boton) boton.style.display = esYohanaParaReporteConteo() ? 'inline-block' : 'none';
+            const botonRespaldoPedidos = document.getElementById('btn-respaldo-pedidos-excel');
+            if (botonRespaldoPedidos) botonRespaldoPedidos.style.display = esYohanaParaReporteConteo() ? 'inline-block' : 'none';
+        };
+
+        function limpiarDatosSinFotos(valor) {
+            if (Array.isArray(valor)) return valor.map(limpiarDatosSinFotos);
+            if (!valor || typeof valor !== 'object') return valor;
+            const limpio = {};
+            Object.keys(valor).forEach(function(clave) {
+                if (/imagen|foto|comprobante/i.test(clave)) return;
+                limpio[clave] = limpiarDatosSinFotos(valor[clave]);
+            });
+            return limpio;
+        }
+
+        window.exportarRespaldoPedidosExcel = async function() {
+            if (!esYohanaParaReporteConteo()) return alert('Este respaldo es exclusivo de Yohana.');
+            const boton = document.getElementById('btn-respaldo-pedidos-excel');
+            const textoOriginal = boton ? boton.innerHTML : '';
+            if (boton) { boton.disabled = true; boton.innerHTML = 'Preparando respaldo…'; }
+            try {
+                const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const snap = await getDocs(collection(db, 'pedidos'));
+                const pedidos = depurarPedidosDuplicados(snap.docs.map(function(docu) {
+                    const pedido = Object.assign({ _firebaseId: docu.id }, docu.data());
+                    pedido.estado = normalizarEstadoPedido(pedido.estado || 'nuevo');
+                    return pedido;
+                })).sort(compararPedidosRecientes);
+                if (!pedidos.length) return alert('No hay pedidos para respaldar.');
+
+                const esc = function(valor) {
+                    return String(valor == null ? '' : valor)
+                        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                };
+                const numero = function(valor) {
+                    const n = Number(valor);
+                    return Number.isFinite(n) ? n : 0;
+                };
+                const fechaIso = function(pedido) {
+                    const ts = Number(pedido.timestampPedido || pedido.timestamp || 0);
+                    if (ts) return new Date(ts).toISOString();
+                    const d = new Date(pedido.fecha || '');
+                    return Number.isNaN(d.getTime()) ? '' : d.toISOString();
+                };
+                const encabezados = [
+                    'N.º pedido','Número interno','Fecha registrada','Fecha ISO','Estado','Tipo de venta','Asesora','Transportadora','N.º guía',
+                    'Cliente','Cédula','Teléfono','Correo','Dirección','Barrio/Sector','Ciudad','Observaciones',
+                    'Ítem','Referencia','Producto','Talla','Cantidad','Precio unitario','Total línea','ID producto',
+                    'Subtotal bruto','Descuento promoción','Descuento %','Valor descuento %','Valor envío','Total pedido',
+                    'Stock descontado','Confirmación cliente','ID Firebase','Otros datos del pedido','Otros datos de la prenda'
+                ];
+                const filas = [];
+                pedidos.forEach(function(pedido) {
+                    const items = Array.isArray(pedido.items) && pedido.items.length ? pedido.items : [{}];
+                    const clavesPedidoOmitidas = new Set([
+                        'items','num','numOrden','fecha','timestampPedido','timestamp','estado','tipoVenta','asesora','transportadora','guia','numeroGuia',
+                        'nom','nombre','cc','tel','telefono','correo','dir','direccion','barrio','ciudad','observaciones','obs','subtotalBruto',
+                        'descuentoPromocion','descuentoPorcentaje','descuentoPorcentajeValor','valorEnvio','tot','total','stockDescontado','confirmacionCliente','_firebaseId'
+                    ]);
+                    const otrosPedido = {};
+                    Object.keys(pedido).forEach(function(k) { if (!clavesPedidoOmitidas.has(k) && !/imagen|foto|comprobante/i.test(k)) otrosPedido[k] = limpiarDatosSinFotos(pedido[k]); });
+                    items.forEach(function(item, indice) {
+                        const cant = Math.max(1, parseInt(item.cant || item.cantidad, 10) || 1);
+                        const precio = numero(item.precio || item.valor || item.precioUnitario);
+                        const clavesItemOmitidas = new Set(['cod','codigo','ref','referencia','nom','nombre','talla','cant','cantidad','precio','valor','precioUnitario','id_prod','idProducto','id']);
+                        const otrosItem = {};
+                        Object.keys(item).forEach(function(k) { if (!clavesItemOmitidas.has(k) && !/imagen|foto|comprobante/i.test(k)) otrosItem[k] = limpiarDatosSinFotos(item[k]); });
+                        filas.push([
+                            pedido.numOrden || formatoNumeroPedido(pedido.num), pedido.num || '', pedido.fecha || '', fechaIso(pedido), normalizarEstadoPedido(pedido.estado), pedido.tipoVenta || '', pedido.asesora || '', pedido.transportadora || '', pedido.guia || pedido.numeroGuia || '',
+                            pedido.nom || pedido.nombre || '', pedido.cc || '', pedido.tel || pedido.telefono || '', pedido.correo || '', pedido.dir || pedido.direccion || '', pedido.barrio || '', pedido.ciudad || '', pedido.observaciones || pedido.obs || '',
+                            indice + 1, item.cod || item.codigo || item.ref || item.referencia || '', item.nom || item.nombre || '', item.talla || '', cant, precio, cant * precio, item.id_prod || item.idProducto || item.id || '',
+                            numero(pedido.subtotalBruto), numero(pedido.descuentoPromocion), numero(pedido.descuentoPorcentaje), numero(pedido.descuentoPorcentajeValor), numero(pedido.valorEnvio), numero(pedido.tot || pedido.total),
+                            pedido.stockDescontado ? 'Sí' : 'No', pedido.confirmacionCliente || '', pedido._firebaseId || '', Object.keys(otrosPedido).length ? JSON.stringify(otrosPedido) : '', Object.keys(otrosItem).length ? JSON.stringify(otrosItem) : ''
+                        ]);
+                    });
+                });
+
+                const columnasNumericas = new Set([17,21,22,23,25,26,27,28,29,30]);
+                const columnasTexto = new Set([0,1,8,10,11,18,24,33]);
+                const htmlFilas = filas.map(function(fila) {
+                    return '<tr>' + fila.map(function(celda, indice) {
+                        const clase = columnasTexto.has(indice) ? ' class="texto"' : (columnasNumericas.has(indice) ? ' class="num"' : '');
+                        return '<td' + clase + '>' + esc(celda) + '</td>';
+                    }).join('') + '</tr>';
+                }).join('');
+                const tabla = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>table{border-collapse:collapse;font-family:Arial,sans-serif;font-size:10pt}th{background:#168653;color:#fff;font-weight:bold;text-align:center;border:1px solid #b7dfc9;padding:7px;white-space:nowrap}td{border:1px solid #dcece3;padding:6px;vertical-align:top;white-space:nowrap}td.num{text-align:right;mso-number-format:"0"}td.texto{mso-number-format:"\\@"}.titulo{font-size:16pt;font-weight:bold;color:#168653;border:none;padding:10px 0}.subtitulo{color:#555;border:none;padding:0 0 10px}</style></head><body><table><tr><td class="titulo" colspan="' + encabezados.length + '">Respaldo completo de pedidos — SuperKids &amp; Babys</td></tr><tr><td class="subtitulo" colspan="' + encabezados.length + '">Generado por Yohana el ' + esc(new Date().toLocaleString('es-CO')) + ' · ' + pedidos.length + ' pedidos · ' + filas.length + ' prendas · Sin fotografías</td></tr><tr>' + encabezados.map(function(h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr>' + htmlFilas + '</table></body></html>';
+                const blob = new Blob(['\ufeff', tabla], { type:'application/vnd.ms-excel;charset=utf-8' });
+                const enlace = document.createElement('a');
+                enlace.href = URL.createObjectURL(blob);
+                enlace.download = 'respaldo-pedidos-' + new Date().toISOString().slice(0, 10) + '.xls';
+                document.body.appendChild(enlace); enlace.click(); enlace.remove(); URL.revokeObjectURL(enlace.href);
+            } catch(e) {
+                alert('No se pudo crear el respaldo de pedidos: ' + e.message);
+            } finally {
+                if (boton) { boton.disabled = false; boton.innerHTML = textoOriginal; }
+            }
         };
 
         function cambiosDeTallasConteo(antes, despues) {
