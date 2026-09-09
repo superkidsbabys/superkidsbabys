@@ -7858,6 +7858,11 @@ document.addEventListener('DOMContentLoaded', function() {
   document.addEventListener('DOMContentLoaded',function(){
     const token=new URLSearchParams(location.search).get('seguimiento')||'';
     if(/^[A-Za-z0-9_-]{43}$/.test(token)) setTimeout(abrirMisPedidos,250);
+    if('serviceWorker' in navigator && location.protocol==='https:') {
+      navigator.serviceWorker.register('./sw.js').catch(function(error){
+        console.warn('No fue posible activar la instalación de la aplicación.',error);
+      });
+    }
   });
 </script>
 </body></html>

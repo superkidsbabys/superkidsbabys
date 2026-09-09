@@ -1,16 +1,16 @@
 {
   "id": "/",
-  "name": "SuperKids&Babys",
+  "name": "SuperKids & Babys",
   "short_name": "SuperKids",
-  "description": "Catalogo SuperKids&Babys",
+  "description": "Catálogo, compras y seguimiento de pedidos de SuperKids & Babys.",
   "lang": "es-CO",
-  "dir": "ltr",
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#fbeaf8",
+  "orientation": "portrait-primary",
+  "background_color": "#fff7fc",
   "theme_color": "#f5d6ed",
+  "categories": ["shopping", "kids"],
   "icons": [
     {
       "src": "./icons/icon-192.png",
