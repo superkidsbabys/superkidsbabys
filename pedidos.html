@@ -6290,6 +6290,42 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             return '<div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:7px;"><span style="font-size:.76em;font-weight:800;color:#7e22ce;">Asesora:</span><select onchange="cambiarAsesoraPedido(' + Number(ped.num) + ',this.value)" style="padding:6px 8px;border:1.5px solid #d8b4fe;border-radius:8px;background:white;color:#7e22ce;font-weight:900;">' + opciones + '</select></div>';
         }
 
+        function htmlConfirmacionCliente(ped) {
+            if (ped.confirmacionCliente === 'recibido') {
+                return '<div style="margin-top:8px;padding:8px 10px;border-radius:9px;background:#eaf8ef;color:#187548;font-size:.78em;font-weight:900;">✅ El cliente confirmó que recibió el pedido.</div>';
+            }
+            if (ped.confirmacionCliente === 'no_recibido') {
+                return '<div style="margin-top:8px;padding:8px 10px;border-radius:9px;background:#fff3dc;color:#8a5b00;font-size:.78em;font-weight:900;">⚠️ El cliente informó que todavía no recibió el pedido.</div>';
+            }
+            return '';
+        }
+
+        function htmlBotonSeguimientoPedido(ped) {
+            if (!(window.usuarioActual && window.usuarioActual.uid === UID_YOHANA)) return '';
+            return '<button type="button" onclick="generarEnlaceSeguimientoPedido(' + Number(ped.num) + ')" style="width:100%;margin-top:8px;padding:8px;border:1.5px solid #d9b6d0;border-radius:9px;background:#fff7fc;color:#853565;font-size:.78em;font-weight:900;cursor:pointer;">🔗 ' + (ped.seguimientoHash ? 'Renovar enlace del cliente' : 'Crear enlace del cliente') + '</button>';
+        }
+
+        async function generarEnlaceSeguimientoPedido(numero) {
+            const pedido = (historialPedidos || []).find(function(p){ return Number(p.num) === Number(numero); });
+            if (pedido && pedido.seguimientoHash && !confirm('Esto invalidará el enlace anterior del cliente. ¿Deseas continuar?')) return;
+            try {
+                const token = await window.obtenerTokenSesion();
+                if (!token) throw new Error('Tu sesión venció. Inicia sesión nuevamente.');
+                const respuesta = await fetch('https://superkids-pagos-api.superkids-babys.workers.dev/seguimiento/admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({ num: Number(numero) })
+                });
+                const datos = await respuesta.json().catch(function(){ return {}; });
+                if (!respuesta.ok || !datos.seguimientoUrl) throw new Error(datos.error || 'No fue posible generar el enlace.');
+                try { await navigator.clipboard.writeText(datos.seguimientoUrl); alert('Enlace privado copiado. Ya puedes enviarlo al cliente.'); }
+                catch(_) { prompt('Copia el enlace privado del cliente:', datos.seguimientoUrl); }
+            } catch(error) {
+                alert(error.message || 'No fue posible generar el enlace.');
+            }
+        }
+        window.generarEnlaceSeguimientoPedido = generarEnlaceSeguimientoPedido;
+
         async function cambiarAsesoraPedido(numPed, nombre) {
             if (!(window.usuarioActual && window.usuarioActual.rol === 'admin')) return alert('Solo Yohana puede cambiar la asesora de un pedido.');
             if (!Object.prototype.hasOwnProperty.call(window.ASESORAS_WHATSAPP, nombre)) return alert('Asesora inválida.');
@@ -7398,6 +7434,8 @@ ${ped.comprobanteUrl ? `
                       })() + '</div>' +
                       (puedeEditarPrendasPedido() ? '<div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:7px;"><span style="font-size:.76em;font-weight:800;color:#7e22ce;">Descuento especial:</span><select onchange="cambiarDescuentoPedido(' + ped.num + ',this.value)" style="padding:6px 8px;border:1.5px solid #d8b4fe;border-radius:8px;background:white;color:#7e22ce;font-weight:900;"><option value="0"'+(!(ped.descuentoPorcentaje>0)?' selected':'')+'>Sin descuento</option><option value="5"'+(Number(ped.descuentoPorcentaje)===5?' selected':'')+'>5%</option><option value="10"'+(Number(ped.descuentoPorcentaje)===10?' selected':'')+'>10%</option><option value="15"'+(Number(ped.descuentoPorcentaje)===15?' selected':'')+'>15%</option></select></div>' : '') +
                       htmlSelectorAsesoraPedido(ped) +
+                      htmlConfirmacionCliente(ped) +
+                      htmlBotonSeguimientoPedido(ped) +
                       htmlComprobante +
                       btnAnular +
                     '</div>' +

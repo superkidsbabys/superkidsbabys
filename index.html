@@ -1624,7 +1624,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         </div>
         <h1 class="titulo-tienda" id="titulo-header">SuperKids&amp;Babys</h1>
         <p class="descripcion-tienda" id="desc-header">¡La ropa que tu bebé merece! Carter's y otras marcas importadas.<br>Tallas desde 0 meses hasta 10 años. <br>Enviamos a todo el país con pago contra entrega. <br>¡Compra segura y sin riesgo! </p>
-        <a href="https://wa.me/573025451526" target="_blank" class="whatsapp-tienda" id="wa-header" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;cursor:pointer;">📱 3025451526</a>
+        <div class="accesos-cliente-banner">
+            <a href="https://wa.me/573025451526" target="_blank" class="whatsapp-tienda" id="wa-header" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;cursor:pointer;">📱 3025451526</a>
+            <button type="button" class="btn-mis-pedidos" onclick="abrirMisPedidos()">📦 Mis pedidos</button>
+        </div>
         <div class="redes-sociales">
             <a href="https://www.instagram.com/superkidsbabys?igsh=MTd0d2huazFha3UzOQ==" target="_blank" class="red-social-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="ig" x1="0" y1="24" x2="24" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#f09433"/><stop offset="25%" stop-color="#e6683c"/><stop offset="50%" stop-color="#dc2743"/><stop offset="75%" stop-color="#cc2366"/><stop offset="100%" stop-color="#bc1888"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="5" fill="url(#ig)"/><path d="M12 7a5 5 0 100 10A5 5 0 0012 7zm0 8a3 3 0 110-6 3 3 0 010 6zm5.2-8.8a1.2 1.2 0 100 2.4 1.2 1.2 0 000-2.4z" fill="white"/></svg>
@@ -4740,6 +4743,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 pedidoPendiente.subtotalBruto = promo.bruto;
                 pedidoPendiente.cantidadPromoMamelucos = promo.cantidadPromo;
                 pedidoPendiente.descuentoPromocion = promo.descuentoPromocion;
+                pedidoPendiente.seguimientoToken = String(firma.seguimientoToken || '');
+                pedidoPendiente.seguimientoUrl = String(firma.seguimientoUrl || '');
+                if (pedidoPendiente.seguimientoToken) guardarTokenSeguimiento(pedidoPendiente.seguimientoToken);
                 pedidoPendiente.items = (firma.items || []).map(function(item) {
                     return {
                         id_prod: item.id,
@@ -4793,7 +4799,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                             carrito = [];
                             renderCarrito();
                             limpiarFormularioCheckoutDespuesDeEnviar();
-                            alert('¡Pago aprobado!\nID de transacción: ' + verificacion.id + '\n\nTu pedido será registrado automáticamente. Gracias por comprar en SuperKids&Babys.');
+                            mostrarPedidoRecibido(
+                                pedidoPendiente,
+                                pedidoPendiente.seguimientoToken,
+                                pedidoPendiente.seguimientoUrl
+                            );
                         } else {
                             alert('El pago termino en estado ' + verificacion.status + '.\nNo se creo ningun pedido ni se desconto inventario.');
                         }
@@ -5544,6 +5554,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     mensajeWA += `\nPROMOCION MAMELUCOS: -${formatMoney(objetoOrdenSeguro.descuentoPromocion)}`;
                 }
                 mensajeWA += `\nTOTAL: ${formatMoney(objetoOrdenSeguro.tot)}`;
+                if (datos.seguimientoUrl) {
+                    mensajeWA += `\n\nSEGUIMIENTO PRIVADO DEL CLIENTE:\n${datos.seguimientoUrl}`;
+                }
 
                 cerrarModalCheckout();
                 carrito = [];
@@ -5553,6 +5566,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     'https://wa.me/' + window.obtenerWhatsappAsesora(objetoOrdenSeguro.asesora || window.obtenerAsesoraSeleccionada()) + '?text=' + encodeURIComponent(mensajeWA),
                     '_blank'
                 );
+                if (datos.seguimientoToken && datos.seguimientoUrl) {
+                    setTimeout(function() {
+                        mostrarPedidoRecibido(objetoOrdenSeguro, datos.seguimientoToken, datos.seguimientoUrl);
+                    }, 250);
+                }
                 setTimeout(function() { imprimirFactura(numeroSeguro); }, 500);
             } catch(e) {
                 alert(e && e.message
@@ -7632,5 +7650,175 @@ document.addEventListener('DOMContentLoaded', function() {
   var me = document.getElementById('modal-editar-producto');
   if (me) obs.observe(me, { attributes: true, attributeFilter: ['style'] });
 });
+</script>
+
+<style>
+  .accesos-cliente-banner{display:flex;align-items:center;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:4px}
+  .btn-mis-pedidos{border:1px solid rgba(255,255,255,.72);border-radius:999px;padding:8px 14px;background:rgba(255,255,255,.84);color:#7b285d;font-family:Nunito,sans-serif;font-size:.86rem;font-weight:900;cursor:pointer;box-shadow:0 5px 16px rgba(89,37,72,.14);backdrop-filter:blur(7px);transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+  .btn-mis-pedidos:hover{transform:translateY(-2px);background:#fff;box-shadow:0 8px 20px rgba(89,37,72,.2)}
+  .seguimiento-overlay{position:fixed;inset:0;z-index:100050;background:rgba(30,22,28,.68);display:none;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;backdrop-filter:blur(5px)}
+  .seguimiento-overlay.abierto{display:flex}
+  .seguimiento-panel{width:min(470px,100%);max-height:88vh;overflow:auto;background:#fff;border-radius:24px;box-shadow:0 24px 70px rgba(0,0,0,.3);font-family:Nunito,sans-serif;color:#3f3440}
+  .seguimiento-cabecera{position:relative;padding:22px 58px 19px 22px;background:linear-gradient(135deg,#ff55b5,#ef72c8);color:#fff;border-radius:24px 24px 0 0}
+  .seguimiento-cabecera h2{margin:0;font-size:1.3rem;font-weight:950}.seguimiento-cabecera p{margin:4px 0 0;font-size:.86rem;opacity:.94}
+  .seguimiento-cerrar{position:absolute;right:16px;top:16px;width:36px;height:36px;border:0;border-radius:50%;background:rgba(255,255,255,.22);color:#fff;font-size:1.25rem;font-weight:900;cursor:pointer}
+  .seguimiento-contenido{padding:22px}
+  .seguimiento-vacio{text-align:center;padding:10px 4px 4px}.seguimiento-vacio-icono{width:74px;height:74px;margin:0 auto 13px;border-radius:22px;background:#fff0f8;display:flex;align-items:center;justify-content:center;font-size:2rem}
+  .seguimiento-vacio h3{margin:0 0 7px;color:#762858;font-size:1.08rem}.seguimiento-vacio p{margin:0 auto 17px;max-width:340px;color:#716871;font-size:.88rem;line-height:1.5}
+  .seguimiento-codigo-fila{display:flex;gap:8px}.seguimiento-codigo{flex:1;min-width:0;border:1.5px solid #edc9e2;border-radius:12px;padding:11px 12px;font-family:Nunito,sans-serif;font-size:.9rem;outline:none}.seguimiento-codigo:focus{border-color:#ed56af;box-shadow:0 0 0 3px rgba(237,86,175,.12)}
+  .seguimiento-buscar{border:0;border-radius:12px;padding:10px 15px;background:#8d3672;color:#fff;font-family:Nunito,sans-serif;font-weight:900;cursor:pointer}
+  .seguimiento-privacidad{margin-top:16px;padding:11px 12px;border-radius:12px;background:#f8f5f7;color:#786d75;font-size:.76rem;line-height:1.45;text-align:left}
+  .seguimiento-demo{margin-top:10px;border:0;background:transparent;color:#9b3d7a;font-family:Nunito,sans-serif;font-weight:900;text-decoration:underline;cursor:pointer}
+  .seg-estado{display:flex;gap:11px;align-items:center;padding:14px;border-radius:16px;background:#eefaf2;border:1px solid #c9ecd5}.seg-estado-icono{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:#27ae60;color:#fff;font-size:1.25rem;flex:0 0 auto}.seg-estado strong{display:block;color:#176d3d}.seg-estado span{display:block;margin-top:2px;color:#557060;font-size:.78rem;line-height:1.35}
+  .seg-numero{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:16px 0 10px}.seg-numero strong{font-size:1.06rem;color:#762858}.seg-numero span{font-size:.72rem;color:#777;background:#f6f1f5;border-radius:999px;padding:5px 9px}
+  .seg-datos{font-size:.82rem;line-height:1.55;color:#645c62;padding:11px 12px;background:#faf8fa;border-radius:12px}
+  .seg-producto{display:grid;grid-template-columns:54px 1fr auto;gap:10px;align-items:center;padding:13px 0;border-bottom:1px solid #f1e5ed}.seg-producto-img{width:54px;height:54px;border-radius:12px;background:linear-gradient(145deg,#ffe3f3,#f3ddff);display:flex;align-items:center;justify-content:center;font-size:1.45rem}.seg-producto-nombre{font-size:.83rem;font-weight:900;color:#463b43}.seg-producto-detalle{font-size:.72rem;color:#887d85;margin-top:3px}.seg-producto-precio{font-size:.82rem;font-weight:900;color:#943f78;white-space:nowrap}
+  .seg-resumen{margin-top:10px}.seg-resumen-fila{display:flex;justify-content:space-between;gap:12px;padding:4px 0;color:#6f646c;font-size:.8rem}.seg-resumen-total{margin-top:6px;padding-top:9px;border-top:1px dashed #e3c6d9;font-size:1rem;font-weight:950;color:#762858}
+  .seg-confirmacion{margin-top:17px;padding:14px;border-radius:15px;background:#fff7dc;border:1px solid #f0d889;text-align:center}.seg-confirmacion strong{display:block;color:#785d08;font-size:.88rem;margin-bottom:9px}.seg-confirmacion-botones{display:flex;gap:8px}.seg-confirmacion button{flex:1;border-radius:10px;padding:9px;border:1px solid #d9bd62;background:#fff;color:#725b14;font-family:Nunito,sans-serif;font-weight:900;cursor:pointer}.seg-confirmacion button:first-child{background:#805b10;color:#fff;border-color:#805b10}
+  .seg-volver{width:100%;margin-top:13px;padding:10px;border:0;border-radius:11px;background:#f5edf3;color:#843567;font-family:Nunito,sans-serif;font-weight:900;cursor:pointer}
+  @media(max-width:560px){.accesos-cliente-banner{gap:6px}.btn-mis-pedidos,.accesos-cliente-banner .whatsapp-tienda{font-size:.78rem!important;padding:7px 10px!important}.seguimiento-overlay{padding:10px;align-items:flex-end}.seguimiento-panel{max-height:92vh;border-radius:22px 22px 12px 12px}.seguimiento-cabecera{border-radius:22px 22px 0 0}.seguimiento-codigo-fila{flex-direction:column}.seguimiento-buscar{width:100%;padding:12px}}
+</style>
+
+<div id="modal-mis-pedidos" class="seguimiento-overlay" role="dialog" aria-modal="true" aria-labelledby="seguimiento-titulo" onclick="if(event.target===this) cerrarMisPedidos()">
+  <section class="seguimiento-panel">
+    <header class="seguimiento-cabecera">
+      <button type="button" class="seguimiento-cerrar" onclick="cerrarMisPedidos()" aria-label="Cerrar">×</button>
+      <h2 id="seguimiento-titulo">📦 Mis pedidos</h2>
+      <p>Consulta el estado y la entrega de tu compra</p>
+    </header>
+    <div class="seguimiento-contenido" id="seguimiento-contenido">
+      <div class="seguimiento-vacio">
+        <div class="seguimiento-vacio-icono">🛍️</div>
+        <h3>Encuentra tu pedido</h3>
+        <p>Abre el enlace privado que recibiste al comprar o pega aquí tu código de seguimiento.</p>
+        <div class="seguimiento-codigo-fila">
+          <input id="seguimiento-codigo" class="seguimiento-codigo" type="text" autocomplete="off" placeholder="Código privado de seguimiento">
+          <button type="button" class="seguimiento-buscar" onclick="buscarPedidoCliente()">Consultar</button>
+        </div>
+        <button type="button" class="seguimiento-demo" onclick="mostrarEjemploSeguimiento()">Ver ejemplo de la tarjeta</button>
+        <div class="seguimiento-privacidad">🔒 Tu número de pedido, teléfono o cédula no bastan para entrar. Solo el enlace privado permite consultar la compra.</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  window.abrirMisPedidos = function() {
+    const modal = document.getElementById('modal-mis-pedidos');
+    if (!modal) return;
+    modal.classList.add('abierto');
+    document.body.style.overflow = 'hidden';
+    const tokenUrl=new URLSearchParams(location.search).get('seguimiento')||'';
+    if(/^[A-Za-z0-9_-]{43}$/.test(tokenUrl)) consultarTokenSeguimiento(tokenUrl,false);
+    setTimeout(function(){ const campo=document.getElementById('seguimiento-codigo'); if(campo) campo.focus(); },120);
+  };
+  window.cerrarMisPedidos = function() {
+    const modal = document.getElementById('modal-mis-pedidos');
+    if (modal) modal.classList.remove('abierto');
+    document.body.style.overflow = '';
+  };
+  const SEGUIMIENTO_API = 'https://superkids-pagos-api.superkids-babys.workers.dev';
+  let seguimientoTokenActivo = '';
+  let seguimientoActualizador = null;
+  function segEscape(valor) {
+    return String(valor == null ? '' : valor).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
+  }
+  function extraerTokenSeguimiento(valor) {
+    const limpio = String(valor || '').trim();
+    if (/^[A-Za-z0-9_-]{43}$/.test(limpio)) return limpio;
+    try { return new URL(limpio, location.href).searchParams.get('seguimiento') || ''; } catch(_) { return ''; }
+  }
+  function guardarTokenSeguimiento(token) {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return;
+    let tokens=[]; try { tokens=JSON.parse(localStorage.getItem('superkidsSeguimientos')||'[]'); } catch(_) {}
+    tokens=[token].concat((Array.isArray(tokens)?tokens:[]).filter(function(t){return t!==token;})).slice(0,20);
+    localStorage.setItem('superkidsSeguimientos',JSON.stringify(tokens));
+  }
+  function htmlPedidoSeguimiento(p) {
+    const estado=p.estado||{};
+    const icono=estado.clave==='enviado'?'🚚':(estado.clave==='entregado'?'✅':(estado.clave==='anulado'?'🚫':'🛍️'));
+    const items=(p.items||[]).map(function(i){
+      const imagen=i.imagen?'<img src="'+segEscape(i.imagen)+'" alt="" style="width:54px;height:54px;object-fit:cover;border-radius:12px" onerror="this.parentElement.textContent=\'👗\'">':'👗';
+      return '<div class="seg-producto"><div class="seg-producto-img">'+imagen+'</div><div><div class="seg-producto-nombre">'+segEscape(i.nombre)+'</div><div class="seg-producto-detalle">'+segEscape(i.talla?('Talla '+i.talla):'')+(i.referencia?' · REF '+segEscape(i.referencia):'')+(i.cantidad>1?' · '+i.cantidad+' unidades':'')+'</div></div><div class="seg-producto-precio">'+formatMoney(Number(i.precio||0)*Number(i.cantidad||1))+'</div></div>';
+    }).join('');
+    const puedeConfirmar=estado.clave==='enviado'||estado.clave==='entregado';
+    const confirmado=p.confirmacionCliente==='recibido'?'<div class="seg-confirmacion"><strong>✅ Confirmaste que recibiste este pedido. ¡Gracias!</strong></div>':
+      (puedeConfirmar?'<div class="seg-confirmacion"><strong>¿Ya recibiste tu pedido?</strong><div class="seg-confirmacion-botones"><button type="button" onclick="confirmarRecepcionCliente(true)">Sí, lo recibí</button><button type="button" onclick="confirmarRecepcionCliente(false)">No todavía</button></div></div>':'');
+    return '<div class="seg-estado"><div class="seg-estado-icono">'+icono+'</div><div><strong>'+segEscape(estado.titulo||'Pedido recibido')+'</strong><span>'+segEscape(estado.mensaje||'')+'</span></div></div>'+ 
+      '<div class="seg-numero"><strong>Pedido #'+segEscape(p.numOrden||p.num)+'</strong><span>'+segEscape(p.fecha||'')+'</span></div>'+ 
+      '<div class="seg-datos">👤 '+segEscape(p.nombre)+'<br>📍 '+segEscape([p.direccion,p.barrio,p.ciudad,p.departamento].filter(Boolean).join(' · '))+(p.telefonoFinal?'<br>📞 Teléfono terminado en '+segEscape(p.telefonoFinal):'')+(p.guia?'<br>🔎 Guía: '+segEscape(p.guia):'')+'</div>'+items+
+      '<div class="seg-resumen"><div class="seg-resumen-fila"><span>Transportadora</span><strong>'+segEscape(p.transportadora||'Por asignar')+'</strong></div><div class="seg-resumen-fila"><span>Prendas</span><strong>'+formatMoney(p.totalPrendas||0)+'</strong></div><div class="seg-resumen-fila"><span>Envío</span><strong>'+(p.valorEnvio?formatMoney(p.valorEnvio):'Por calcular')+'</strong></div><div class="seg-resumen-fila seg-resumen-total"><span>Total</span><strong>'+formatMoney(p.total||0)+'</strong></div></div>'+confirmado+
+      '<div class="seguimiento-privacidad">📲 Instala nuestra aplicación para conservar tu acceso y recibir las próximas actualizaciones de tu pedido.</div><button type="button" class="seg-volver" onclick="restaurarBuscadorSeguimiento()">← Consultar otro pedido</button>';
+  }
+  async function consultarTokenSeguimiento(token, silencioso) {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) { if(!silencioso) alert('El código o enlace privado no es válido.'); return; }
+    const cont=document.getElementById('seguimiento-contenido');
+    if(cont&&!silencioso) cont.innerHTML='<div class="seguimiento-vacio"><div class="seguimiento-vacio-icono">⏳</div><h3>Consultando tu pedido…</h3></div>';
+    try {
+      const respuesta=await fetch(SEGUIMIENTO_API+'/seguimiento?t='+encodeURIComponent(token),{headers:{Accept:'application/json'},cache:'no-store'});
+      const datos=await respuesta.json().catch(function(){return {};});
+      if(!respuesta.ok||!datos.pedido) throw new Error(datos.error||'No encontramos el pedido.');
+      seguimientoTokenActivo=token; guardarTokenSeguimiento(token);
+      if(cont) cont.innerHTML=htmlPedidoSeguimiento(datos.pedido);
+      clearInterval(seguimientoActualizador);
+      seguimientoActualizador=setInterval(function(){ if(document.getElementById('modal-mis-pedidos').classList.contains('abierto')) consultarTokenSeguimiento(token,true); },30000);
+    } catch(error) { if(!silencioso&&cont){restaurarBuscadorSeguimiento(); alert(error.message||'No fue posible consultar el pedido.');} }
+  }
+  window.buscarPedidoCliente = function() {
+    const campo = document.getElementById('seguimiento-codigo');
+    const codigo = extraerTokenSeguimiento(campo && campo.value);
+    if (!codigo) {
+      if (campo) { campo.focus(); campo.style.borderColor='#e74c3c'; setTimeout(function(){campo.style.borderColor='';},1200); }
+      return;
+    }
+    consultarTokenSeguimiento(codigo,false);
+  };
+  window.confirmarRecepcionCliente = async function(recibido) {
+    if(!seguimientoTokenActivo) return;
+    if(!confirm(recibido?'¿Confirmas que ya recibiste tu pedido?':'¿Confirmas que todavía no lo recibiste?')) return;
+    try {
+      const respuesta=await fetch(SEGUIMIENTO_API+'/seguimiento/confirmar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:seguimientoTokenActivo,recibido:recibido})});
+      const datos=await respuesta.json().catch(function(){return {};});
+      if(!respuesta.ok) throw new Error(datos.error||'No fue posible guardar tu respuesta.');
+      await consultarTokenSeguimiento(seguimientoTokenActivo,false);
+    } catch(error) { alert(error.message||'No fue posible guardar tu respuesta.'); }
+  };
+  window.mostrarPedidoRecibido = function(pedido, token, url) {
+    seguimientoTokenActivo=token||'';
+    window.seguimientoUrlActivo=String(url||'');
+    if(token) guardarTokenSeguimiento(token);
+    abrirMisPedidos();
+    const cont=document.getElementById('seguimiento-contenido');
+    if(!cont) return;
+    cont.innerHTML='<div class="seguimiento-vacio"><div class="seguimiento-vacio-icono">✅</div><h3>¡Pedido recibido!</h3><p>Guardamos tu pedido <strong>#'+segEscape((pedido&&pedido.numOrden)||'')+'</strong>. Conserva este enlace privado para ver cada actualización.</p><button type="button" class="seguimiento-buscar" style="width:100%;padding:12px" onclick="consultarTokenSeguimiento(seguimientoTokenActivo,false)">Ver seguimiento de mi pedido</button><button type="button" class="seg-volver" onclick="copiarEnlaceSeguimiento()">🔗 Copiar enlace privado</button><div class="seguimiento-privacidad">📲 Instala nuestra aplicación para conservar el historial y recibir actualizaciones de tu pedido.</div></div>';
+  };
+  window.copiarEnlaceSeguimiento = async function() {
+    if(!window.seguimientoUrlActivo) return;
+    try { await navigator.clipboard.writeText(window.seguimientoUrlActivo); alert('Enlace copiado'); }
+    catch(_) { prompt('Copia tu enlace privado:',window.seguimientoUrlActivo); }
+  };
+  window.mostrarEjemploSeguimiento = function() {
+    const cont = document.getElementById('seguimiento-contenido');
+    if (!cont) return;
+    cont.innerHTML = `
+      <div class="seg-estado"><div class="seg-estado-icono">🚚</div><div><strong>Tu pedido fue enviado</strong><span>Lo recibirás aproximadamente entre 1 y 3 días hábiles.</span></div></div>
+      <div class="seg-numero"><strong>Pedido #SK00125</strong><span>Actualizado ahora</span></div>
+      <div class="seg-datos">👤 María Ejemplo<br>📍 Bogotá · Barrio Quirigua<br>📞 Teléfono terminado en 1526</div>
+      <div class="seg-producto"><div class="seg-producto-img">👗</div><div><div class="seg-producto-nombre">Conjunto para bebé</div><div class="seg-producto-detalle">Talla 12M · REF 220103</div></div><div class="seg-producto-precio">$72.000</div></div>
+      <div class="seg-producto"><div class="seg-producto-img">🧸</div><div><div class="seg-producto-nombre">Mameluco algodón</div><div class="seg-producto-detalle">Talla 6M · REF 3314</div></div><div class="seg-producto-precio">$25.000</div></div>
+      <div class="seg-resumen"><div class="seg-resumen-fila"><span>Transportadora</span><strong>Interrapidísimo</strong></div><div class="seg-resumen-fila"><span>Prendas</span><strong>$97.000</strong></div><div class="seg-resumen-fila"><span>Envío</span><strong>$18.500</strong></div><div class="seg-resumen-fila seg-resumen-total"><span>Total</span><strong>$115.500</strong></div></div>
+      <div class="seg-confirmacion"><strong>¿Ya recibiste tu pedido?</strong><div class="seg-confirmacion-botones"><button type="button" onclick="alert('En la versión real quedará registrado como recibido.')">Sí, lo recibí</button><button type="button" onclick="alert('En la versión real avisaremos al equipo que aún no llegó.')">No todavía</button></div></div>
+      <button type="button" class="seg-volver" onclick="restaurarBuscadorSeguimiento()">← Volver</button>`;
+  };
+  window.restaurarBuscadorSeguimiento = function() {
+    const cont = document.getElementById('seguimiento-contenido');
+    if (!cont) return;
+    cont.innerHTML = `<div class="seguimiento-vacio"><div class="seguimiento-vacio-icono">🛍️</div><h3>Encuentra tu pedido</h3><p>Abre el enlace privado que recibiste al comprar o pega aquí tu código de seguimiento.</p><div class="seguimiento-codigo-fila"><input id="seguimiento-codigo" class="seguimiento-codigo" type="text" autocomplete="off" placeholder="Código privado de seguimiento"><button type="button" class="seguimiento-buscar" onclick="buscarPedidoCliente()">Consultar</button></div><button type="button" class="seguimiento-demo" onclick="mostrarEjemploSeguimiento()">Ver ejemplo de la tarjeta</button><div class="seguimiento-privacidad">🔒 Tu número de pedido, teléfono o cédula no bastan para entrar. Solo el enlace privado permite consultar la compra.</div></div>`;
+  };
+  document.addEventListener('keydown',function(event){ if(event.key==='Escape') cerrarMisPedidos(); });
+  document.addEventListener('DOMContentLoaded',function(){
+    const token=new URLSearchParams(location.search).get('seguimiento')||'';
+    if(/^[A-Za-z0-9_-]{43}$/.test(token)) setTimeout(abrirMisPedidos,250);
+  });
 </script>
 </body></html>
