@@ -20,12 +20,16 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
   window.db = db;
   const auth = getAuth(app);
   setPersistence(auth, browserLocalPersistence);
+  window.obtenerTokenSesion = async function() {
+    return auth.currentUser ? auth.currentUser.getIdToken() : '';
+  };
 
   // ── ROLES ─────────────────────────────────────────────────
   const ROLES = {
     'F2SHGFQYSuMWlkbQKV8yrKAXgaH3': { nombre: 'Yohana',  rol: 'admin',   whatsapp: '573025451526' },
-    'yI067cx29zbmiBOd9wyKcwp0HpF2':  { nombre: 'Gina',    rol: 'asesora', whatsapp: '573025451526' },
+    'yI067cx29zbmiBOd9wyKcwp0HpF2':  { nombre: 'Gina',    rol: 'asesora', whatsapp: '573021065943' },
     'MtQpryHLGYab5v3UjhRZw88CAD63':  { nombre: 'Bibiana', rol: 'asesora', whatsapp: '15512627086', editarPrecio: true },
+    'IEB65uKdgldevmgRuenCj7pPwc12':  { nombre: 'Ángela',  rol: 'consulta', whatsapp: '573176459474' },
   };
 
   let usuarioActual = null;
@@ -108,7 +112,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
       usuarioActual = ROLES[user.uid] || null;
       if (usuarioActual) usuarioActual.uid = user.uid;
       window.usuarioActual = usuarioActual;
-      setTimeout(function(){ if (typeof mostrarBuscadorRef === 'function') mostrarBuscadorRef(); }, 500);
+      setTimeout(function(){ if (typeof mostrarBuscadorRef === 'function') mostrarBuscadorRef(); if (window.preseleccionarAsesora) window.preseleccionarAsesora(); }, 500);
       document.getElementById('login-overlay') && (document.getElementById('login-overlay').style.display = 'none');
 
       if (usuarioActual) {
@@ -327,6 +331,37 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
       if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 2500); }
     }
   };
+</script>
+<script>
+  window.ASESORAS_WHATSAPP = Object.freeze({
+    'Yohana': '573025451526',
+    'Gina': '573021065943',
+    'Bibiana': '15512627086',
+    'Ángela': '573176459474',
+    'Sin asesora': '573025451526'
+  });
+  window.obtenerAsesoraSeleccionada = function() {
+    const selector = document.getElementById('cart-asesora');
+    const valor = selector ? selector.value : '';
+    return Object.prototype.hasOwnProperty.call(window.ASESORAS_WHATSAPP, valor) ? valor : 'Sin asesora';
+  };
+  window.obtenerWhatsappAsesora = function(nombre) {
+    return window.ASESORAS_WHATSAPP[nombre] || window.ASESORAS_WHATSAPP['Sin asesora'];
+  };
+  window.preseleccionarAsesora = function() {
+    const selector = document.getElementById('cart-asesora');
+    if (!selector) return;
+    const params = new URLSearchParams(window.location.search);
+    const desdeEnlace = params.get('asesora');
+    const desdeSesion = window.usuarioActual && window.usuarioActual.nombre;
+    const candidata = desdeEnlace || desdeSesion || localStorage.getItem('superkidsAsesoraElegida') || '';
+    if (Object.prototype.hasOwnProperty.call(window.ASESORAS_WHATSAPP, candidata)) selector.value = candidata;
+    if (selector.dataset.asesoraConectada !== '1') {
+      selector.dataset.asesoraConectada = '1';
+      selector.addEventListener('change', function() { localStorage.setItem('superkidsAsesoraElegida', selector.value); });
+    }
+  };
+  document.addEventListener('DOMContentLoaded', window.preseleccionarAsesora);
 </script>
 
     <meta charset="UTF-8">
@@ -1700,6 +1735,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 </div>
                 <input type="tel" id="cart-telefono" placeholder="📱 WhatsApp / Teléfono" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <input type="email" id="cart-correo" placeholder="✉️ Correo electrónico" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
+                <select id="cart-asesora" aria-label="Asesora que atendió al cliente" style="width:100%;padding:13px 16px;border:2px solid rgb(240,214,245);border-radius:12px;font-size:.95em;margin-bottom:10px;outline:none;box-sizing:border-box;background:white;color:#555;font-family:inherit;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
+                    <option value="Sin asesora">👩‍💼 ¿Qué asesora te atendió?</option>
+                    <option value="Yohana">Yohana</option><option value="Gina">Gina</option><option value="Bibiana">Bibiana</option><option value="Ángela">Ángela</option>
+                </select>
                 <textarea id="cart-observaciones" placeholder="📝 Observaciones (opcional)" rows="2" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 16px; outline: none; box-sizing: border-box; resize: none; font-family: inherit;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'"></textarea>
 
 <!-- ====================================================
@@ -2041,8 +2080,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             if (!u) return;
             const esAdmin = u.rol === 'admin' || u.uid === UID_YOHANA;
             const esGina  = u.uid === UID_GINA;
+            const esAngela = u.uid === 'IEB65uKdgldevmgRuenCj7pPwc12';
             const wrap = document.getElementById('wrap-buscador-ref');
-            if (wrap) wrap.style.display = (esAdmin || esGina) ? 'flex' : 'none';
+            if (wrap) wrap.style.display = (esAdmin || esGina || esAngela) ? 'flex' : 'none';
         }
 
         let temporizadorBusquedaCatalogo = null;
@@ -4652,7 +4692,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     stockDescontado: false,
                     transportadora: '',
                     observaciones: obs || '',
-                    asesora: (window.usuarioActual && window.usuarioActual.nombre) || ''
+                    asesora: window.obtenerAsesoraSeleccionada()
                 };
 
                 const respuesta = await fetch('https://superkids-pagos-api.superkids-babys.workers.dev/preparar-pago', {
@@ -4672,6 +4712,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                             correo: correo || '',
                             observaciones: obs || ''
                         },
+                        asesora: window.obtenerAsesoraSeleccionada(),
                         turnstileToken: turnstilePedidoToken,
                         items: carrito.map(function(item) {
                             return { id: item.id, talla: item.talla || '', cantidad: 1 };
@@ -5453,7 +5494,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                         },
                         turnstileToken: turnstilePedidoToken,
                         transportadora: transp,
-                            asesora: (window.usuarioActual && window.usuarioActual.nombre) || '',
+                            asesora: window.obtenerAsesoraSeleccionada(),
                             items: carrito.map(function(item) {
                                 return {
                                     id: String(item.id || ''),
@@ -5509,7 +5550,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 renderCarrito();
                 limpiarFormularioCheckoutDespuesDeEnviar();
                 window.open(
-                    'https://wa.me/' + config.whatsapp + '?text=' + encodeURIComponent(mensajeWA),
+                    'https://wa.me/' + window.obtenerWhatsappAsesora(objetoOrdenSeguro.asesora || window.obtenerAsesoraSeleccionada()) + '?text=' + encodeURIComponent(mensajeWA),
                     '_blank'
                 );
                 setTimeout(function() { imprimirFactura(numeroSeguro); }, 500);
@@ -5542,18 +5583,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             t = promoPedido.total;
             let ahoraPedido = Date.now();
             let fechaHoy = new Date(ahoraPedido).toLocaleString('es-CO', { hour12: true });
-            let asesoraVal = (function() {
-                if (window.usuarioActual && window.usuarioActual.nombre) return window.usuarioActual.nombre;
-                var waConfig = String(config.whatsapp || '').replace(/\D/g, '');
-                if (waConfig && window.ROLES) {
-                    var roles = window.ROLES;
-                    for (var uid in roles) {
-                        var waRol = String(roles[uid].whatsapp || '').replace(/\D/g, '');
-                        if (waRol && waConfig.endsWith(waRol.slice(-9))) return roles[uid].nombre;
-                    }
-                }
-                return '';
-            })();
+            let asesoraVal = window.obtenerAsesoraSeleccionada();
 
             // Obtener número consecutivo global desde Firebase (transacción atómica)
             (async function() {
@@ -5605,7 +5635,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 descontarStockPedido(objetoOrden);
 
                 // PASO 2: WhatsApp
-                window.open('https://wa.me/' + config.whatsapp + '?text=' + encodeURIComponent(txtWA), '_blank');
+                window.open('https://wa.me/' + window.obtenerWhatsappAsesora(asesoraVal) + '?text=' + encodeURIComponent(txtWA), '_blank');
 
                 // PASO 3: Prefactura
                 setTimeout(function() { imprimirFactura(numOrden); }, 500);
@@ -5950,6 +5980,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         window.actualizarPedidoDesdePrefactura = function(ref, cambios) {
             var idx = historialPedidos.findIndex(function(p) { return p.num === ref.num; });
             if (idx === -1) return;
+            cambios = Object.assign({}, cambios);
+            delete cambios.num;
+            delete cambios.numOrden;
             var numAnteriorPedido = historialPedidos[idx].num;
             Object.assign(historialPedidos[idx], cambios);
             if (Array.isArray(cambios.preciosItems) && historialPedidos[idx].items) {
@@ -6041,26 +6074,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         const ANULAR_PEDIDO_API = PAGOS_API_ORIGIN + '/anular-pedido';
-        const CLAVE_ANULAR_PEDIDO_LOCAL = 'superkidsAnulacionAdminSecret';
-
         async function anularPedidoEnServidor(pedido) {
-            let clave = localStorage.getItem(CLAVE_ANULAR_PEDIDO_LOCAL) || localStorage.getItem('superkidsTarifasAdminSecret') || '';
-            if (!clave) {
-                clave = prompt('Ingresa la clave administrativa para anular el pedido y devolver el stock:') || '';
-                if (clave) localStorage.setItem(CLAVE_ANULAR_PEDIDO_LOCAL, clave);
+            if (!usuarioActual || usuarioActual.uid !== 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3') {
+                throw new Error('Solo Yohana puede anular pedidos.');
             }
-            if (!clave) throw new Error('Necesitas la clave administrativa para anular el pedido.');
+            const token = await window.obtenerTokenSesion();
+            if (!token) throw new Error('Tu sesión venció. Inicia sesión nuevamente.');
             const respuesta = await fetch(ANULAR_PEDIDO_API, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Admin-Secret': clave },
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({ num: pedido.num })
             });
             const datos = await respuesta.json().catch(function() { return {}; });
             if (!respuesta.ok) {
-                if (respuesta.status === 401) {
-                    localStorage.removeItem(CLAVE_ANULAR_PEDIDO_LOCAL);
-                    localStorage.removeItem('superkidsTarifasAdminSecret');
-                }
                 throw new Error(datos.error || 'No se pudo devolver el inventario.');
             }
             return datos.pedido || pedido;
@@ -6157,7 +6183,7 @@ body{font-family:'Segoe UI',sans-serif;background:#faf5ff;color:#333;padding:20p
 .bloque-datos h4{color:#8e44ad;font-size:0.75em;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;border-bottom:1px solid #f0e6fb;padding-bottom:5px}
 .bloque-datos p{font-size:0.85em;color:#555;line-height:1.7}
 .bloque-datos strong{color:#333}
-.num-editable{font-weight:800;color:#8e44ad;border:1.5px dashed #c9a0dc;border-radius:6px;padding:1px 6px;cursor:pointer;display:inline-block}
+.num-editable{font-weight:800;color:#8e44ad;border:none;border-radius:6px;padding:1px 6px;cursor:default;display:inline-block;pointer-events:none}
 .num-editable:focus{outline:none;border-color:#8e44ad;background:#fdf0ff}
 .tabla-wrap{background:white;border-radius:10px;box-shadow:0 2px 8px rgba(142,68,173,0.08);overflow:hidden;margin-bottom:14px}
 .tabla-header{background:#8e44ad;color:white;display:grid;grid-template-columns:80px 1fr auto;padding:8px 12px;font-size:0.75em;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
@@ -6183,7 +6209,7 @@ table{width:100%;border-collapse:collapse}
   </div>
   <div class="bloque-datos">
     <h4>📦 Pedido</h4>
-    <p>N° <strong class="num-editable" contenteditable="true" spellcheck="false" id="fac-num-orden">${ped.numOrden || ('#SK-' + ped.num)}</strong>&nbsp;&nbsp;<span style="background:#f0e6fb;color:#8e44ad;font-size:0.8em;font-weight:800;padding:2px 8px;border-radius:20px;" id="fac-tipo-venta-display">${(ped.estadoPago === 'APPROVED' || ped.esPruebaWompi || ped.ambientePago === 'sandbox') ? 'Pago Wompi' : (ped.tipoVenta || 'Contraentrega')}</span><br>${ped.fecha}<br>Estado: <strong>${ped.estado}</strong>${ped.asesora ? '<br>Asesora: <strong>' + ped.asesora + '</strong>' : ""}</p>
+    <p>N° <strong class="num-editable" contenteditable="false" spellcheck="false" id="fac-num-orden">${ped.numOrden || ('#SK-' + ped.num)}</strong>&nbsp;&nbsp;<span style="background:#f0e6fb;color:#8e44ad;font-size:0.8em;font-weight:800;padding:2px 8px;border-radius:20px;" id="fac-tipo-venta-display">${(ped.estadoPago === 'APPROVED' || ped.esPruebaWompi || ped.ambientePago === 'sandbox') ? 'Pago Wompi' : (ped.tipoVenta || 'Contraentrega')}</span><br>${ped.fecha}<br>Estado: <strong>${ped.estado}</strong>${ped.asesora ? '<br>Asesora: <strong>' + ped.asesora + '</strong>' : ""}</p>
   </div>
 </div>
 <div class="tabla-wrap">
@@ -6362,6 +6388,7 @@ table{width:100%;border-collapse:collapse}
             const cont = document.getElementById('contenedor-historial-pedidos'); if (!cont) return;
             cont.innerHTML = "";
             const esGina = usuarioActual && usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2';
+            const esYohana = usuarioActual && usuarioActual.uid === 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3';
             const puedeVerAnuladas = usuarioActual && (usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2' || usuarioActual.uid === 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3' || usuarioActual.uid === 'MtQpryHLGYab5v3UjhRZw88CAD63');
 
             // Mostrar/ocultar botón facturas anuladas según permisos
@@ -6413,7 +6440,7 @@ table{width:100%;border-collapse:collapse}
                 }).join('');
 
                 const numFact = ped.numOrden || ('SK' + String(ped.numFactura || ped.num).padStart(5, '0'));
-                const btnAnular = esGina && !ped.facturaAnulada ? `
+                const btnAnular = esYohana && !ped.facturaAnulada ? `
                     <div style="margin-top:8px;border-top:1px dashed #f5c6cb;padding-top:8px;">
                         <textarea id="motivo-anular-${ped.num}" placeholder="Motivo de anulación..." rows="2" style="width:100%;font-size:0.78em;padding:6px;border-radius:6px;border:1px solid #f5c6cb;resize:none;box-sizing:border-box;margin-bottom:4px;"></textarea>
                         <button onclick="anularFacturaPedido(${ped.num})" style="width:100%;background:#fcebeb;color:#a32d2d;border:1px solid #f7c1c1;border-radius:8px;padding:7px;font-size:0.8em;font-weight:700;cursor:pointer;">🚫 Anular factura</button>
@@ -6446,7 +6473,6 @@ table{width:100%;border-collapse:collapse}
                       '</div>' +
                       '<div class="tp-fila3">' +
                         '<button class="tp-btn-factura" onclick="imprimirFactura(' + ped.num + ')">📋 ' + numFact + '</button>' +
-                        '<button class="tp-btn-eliminar" onclick="eliminarPedido(' + ped.num + ')">🗑️ Eliminar</button>' +
                         '<select class="select-estado-ped" onchange="cambiarEstadoPedido(' + ped.num + ', this.value)" style="flex:1;padding:5px 6px;border:1.5px solid #d8b4fe;border-radius:8px;font-size:0.76em;font-weight:700;color:#7e22ce;background:#fdf8ff;cursor:pointer;font-family:Nunito,sans-serif;">' + opcionesEstado + '</select>' +
                       '</div>' +
                     '</div>' +
@@ -6702,6 +6728,10 @@ table{width:100%;border-collapse:collapse}
         // ══ FIN MÓDULO TRANSPORTADORAS ══
 
         async function anularFacturaPedido(numPed) {
+            if (!usuarioActual || usuarioActual.uid !== 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3') {
+                alert('Solo Yohana puede anular pedidos.');
+                return;
+            }
             const motivo = (document.getElementById('motivo-anular-' + numPed) || {}).value || '';
             if (!motivo.trim()) { alert('Escribe el motivo de anulación.'); return; }
             if (!confirm('¿Confirmas la anulación de esta factura? El stock se devolverá y el pedido pasará a Cancelado.')) return;

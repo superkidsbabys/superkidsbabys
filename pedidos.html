@@ -27,9 +27,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
   // ── ROLES ─────────────────────────────────────────────────
   const ROLES = {
     'F2SHGFQYSuMWlkbQKV8yrKAXgaH3': { nombre: 'Yohana',  rol: 'admin',   whatsapp: '573025451526' },
-    'yI067cx29zbmiBOd9wyKcwp0HpF2':  { nombre: 'Gina',    rol: 'asesora', whatsapp: '573025451526' },
+    'yI067cx29zbmiBOd9wyKcwp0HpF2':  { nombre: 'Gina',    rol: 'asesora', whatsapp: '573021065943' },
     'MtQpryHLGYab5v3UjhRZw88CAD63':  { nombre: 'Bibiana', rol: 'asesora', whatsapp: '15512627086', editarPrecio: true },
-    'IEB65uKdgldevmgRuenCj7pPwc12':  { nombre: 'Ángela',  rol: 'consulta', whatsapp: '' },
+    'IEB65uKdgldevmgRuenCj7pPwc12':  { nombre: 'Ángela',  rol: 'consulta', whatsapp: '573176459474' },
   };
 
   let usuarioActual = null;
@@ -119,7 +119,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
       setTimeout(function(){
         if (window.registrarActividadEquipo) window.registrarActividadEquipo('iniciar_sesion','sesion','',{});
       }, 1200);
-      setTimeout(function(){ if (typeof mostrarBuscadorRef === 'function') mostrarBuscadorRef(); }, 500);
+      setTimeout(function(){ if (typeof mostrarBuscadorRef === 'function') mostrarBuscadorRef(); if (window.preseleccionarAsesora) window.preseleccionarAsesora(); }, 500);
       setTimeout(function(){ if (typeof window.actualizarAccesoReporteConteo === 'function') window.actualizarAccesoReporteConteo(); }, 500);
       document.getElementById('login-overlay') && (document.getElementById('login-overlay').style.display = 'none');
 
@@ -238,6 +238,20 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
               campo.readOnly = true;
             }
           });
+          // Ángela sí puede registrar y corregir entradas de mercancía. Se
+          // habilita únicamente este formulario; eliminar registros continúa
+          // reservado para Yohana y lo refuerzan las reglas de Firestore.
+          const inventario = document.getElementById('tab-inventario');
+          if (inventario) {
+            inventario.querySelectorAll('input, select, textarea').forEach(function(campo) {
+              campo.disabled = false;
+              campo.readOnly = false;
+            });
+            inventario.querySelectorAll('button').forEach(function(btn) {
+              const accion = String(btn.getAttribute('onclick') || '').toLowerCase();
+              if (!accion.includes('eliminar')) btn.style.display = '';
+            });
+          }
         }
       }
 
@@ -383,6 +397,37 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
       if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 2500); }
     }
   };
+</script>
+<script>
+  window.ASESORAS_WHATSAPP = Object.freeze({
+    'Yohana': '573025451526',
+    'Gina': '573021065943',
+    'Bibiana': '15512627086',
+    'Ángela': '573176459474',
+    'Sin asesora': '573025451526'
+  });
+  window.obtenerAsesoraSeleccionada = function() {
+    const selector = document.getElementById('cart-asesora');
+    const valor = selector ? selector.value : '';
+    return Object.prototype.hasOwnProperty.call(window.ASESORAS_WHATSAPP, valor) ? valor : 'Sin asesora';
+  };
+  window.obtenerWhatsappAsesora = function(nombre) {
+    return window.ASESORAS_WHATSAPP[nombre] || window.ASESORAS_WHATSAPP['Sin asesora'];
+  };
+  window.preseleccionarAsesora = function() {
+    const selector = document.getElementById('cart-asesora');
+    if (!selector) return;
+    const params = new URLSearchParams(window.location.search);
+    const desdeEnlace = params.get('asesora');
+    const desdeSesion = window.usuarioActual && window.usuarioActual.nombre;
+    const candidata = desdeEnlace || desdeSesion || localStorage.getItem('superkidsAsesoraElegida') || '';
+    if (Object.prototype.hasOwnProperty.call(window.ASESORAS_WHATSAPP, candidata)) selector.value = candidata;
+    if (selector.dataset.asesoraConectada !== '1') {
+      selector.dataset.asesoraConectada = '1';
+      selector.addEventListener('change', function() { localStorage.setItem('superkidsAsesoraElegida', selector.value); });
+    }
+  };
+  document.addEventListener('DOMContentLoaded', window.preseleccionarAsesora);
 </script>
 
     <meta charset="UTF-8">
@@ -1302,7 +1347,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <button class="btn-tab btn-tab-inventario-personal" onclick="cambiarTab('inventario-personal')" style="display:none;">Mi inventario</button>
                 <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('clientes')" style="display:none;">Clientes</button>
                 <button class="btn-tab btn-tab-tarifas" onclick="cambiarTab('tarifas-envio')" style="display:none;">Tarifas de envío</button>
-                <button class="btn-tab" onclick="window.open('https://superkidsbabys.com','_blank')">Ver tienda</button>
+                <button class="btn-tab" onclick="window.open('https://superkidsbabys.com/?asesora='+encodeURIComponent((window.usuarioActual&&window.usuarioActual.nombre)||'Sin asesora'),'_blank')">Ver tienda</button>
                 <button class="btn-tab" onclick="cambiarTab('papelera')">Papelera</button>
                 <button class="btn-tab" onclick="cambiarTab('reporte-ventas')">Reporte ventas</button>
                 <button class="btn-tab" onclick="window.fbLogout && window.fbLogout()" style="background-color: #e74c3c; color: white;">Cerrar sesión</button>
@@ -1954,6 +1999,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <input type="text" id="cart-ciudad" placeholder="🏙️ Ciudad" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <input type="tel" id="cart-telefono" placeholder="📱 WhatsApp / Teléfono" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <input type="email" id="cart-correo" placeholder="✉️ Correo electrónico" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
+                <select id="cart-asesora" aria-label="Asesora que atendió al cliente" style="width:100%;padding:13px 16px;border:2px solid rgb(240,214,245);border-radius:12px;font-size:.95em;margin-bottom:10px;outline:none;box-sizing:border-box;background:white;color:#555;font-family:inherit;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
+                    <option value="Sin asesora">👩‍💼 ¿Qué asesora te atendió?</option>
+                    <option value="Yohana">Yohana</option><option value="Gina">Gina</option><option value="Bibiana">Bibiana</option><option value="Ángela">Ángela</option>
+                </select>
                 <textarea id="cart-observaciones" placeholder="📝 Observaciones (opcional)" rows="2" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 16px; outline: none; box-sizing: border-box; resize: none; font-family: inherit;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'"></textarea>
 
 <!-- ====================================================
@@ -2279,8 +2328,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (!u) return;
             const esAdmin = u.rol === 'admin' || u.uid === UID_YOHANA;
             const esGina  = u.uid === UID_GINA;
+            const esAngela = u.uid === 'IEB65uKdgldevmgRuenCj7pPwc12';
             const wrap = document.getElementById('wrap-buscador-ref');
-            if (wrap) wrap.style.display = (esAdmin || esGina) ? 'flex' : 'none';
+            if (wrap) wrap.style.display = (esAdmin || esGina || esAngela) ? 'flex' : 'none';
         }
 
         function buscarPorReferencia(valor) {
@@ -5500,18 +5550,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             });
             let ahoraPedido = Date.now();
             let fechaHoy = new Date(ahoraPedido).toLocaleString('es-CO', { hour12: true });
-            let asesoraVal = (function() {
-                if (window.usuarioActual && window.usuarioActual.nombre) return window.usuarioActual.nombre;
-                var waConfig = String(config.whatsapp || '').replace(/\D/g, '');
-                if (waConfig && window.ROLES) {
-                    var roles = window.ROLES;
-                    for (var uid in roles) {
-                        var waRol = String(roles[uid].whatsapp || '').replace(/\D/g, '');
-                        if (waRol && waConfig.endsWith(waRol.slice(-9))) return roles[uid].nombre;
-                    }
-                }
-                return '';
-            })();
+            let asesoraVal = window.obtenerAsesoraSeleccionada();
 
             // Obtener número consecutivo global desde Firebase (transacción atómica)
             (async function() {
@@ -5564,7 +5603,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 await descontarStockPedido(objetoOrden);
 
                 // PASO 2: WhatsApp
-                window.open('https://wa.me/' + config.whatsapp + '?text=' + encodeURIComponent(txtWA), '_blank');
+                window.open('https://wa.me/' + window.obtenerWhatsappAsesora(asesoraVal) + '?text=' + encodeURIComponent(txtWA), '_blank');
 
                 // PASO 3: Prefactura
                 setTimeout(function() { imprimirFactura(numOrden); }, 500);
@@ -6242,6 +6281,27 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             renderizarPedidosPanel();
         }
 
+        function htmlSelectorAsesoraPedido(ped) {
+            const actual = String(ped.asesora || 'Sin asesora');
+            if (!(window.usuarioActual && window.usuarioActual.rol === 'admin')) return '<div style="text-align:right;margin-top:7px;font-size:.78em;font-weight:800;color:#7e22ce;">Asesora: ' + escapeHtml(actual) + '</div>';
+            const opciones = ['Yohana','Gina','Bibiana','Ángela','Sin asesora'].map(function(nombre) {
+                return '<option value="' + escapeHtmlAttr(nombre) + '"' + (nombre === actual ? ' selected' : '') + '>' + escapeHtml(nombre) + '</option>';
+            }).join('');
+            return '<div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:7px;"><span style="font-size:.76em;font-weight:800;color:#7e22ce;">Asesora:</span><select onchange="cambiarAsesoraPedido(' + Number(ped.num) + ',this.value)" style="padding:6px 8px;border:1.5px solid #d8b4fe;border-radius:8px;background:white;color:#7e22ce;font-weight:900;">' + opciones + '</select></div>';
+        }
+
+        async function cambiarAsesoraPedido(numPed, nombre) {
+            if (!(window.usuarioActual && window.usuarioActual.rol === 'admin')) return alert('Solo Yohana puede cambiar la asesora de un pedido.');
+            if (!Object.prototype.hasOwnProperty.call(window.ASESORAS_WHATSAPP, nombre)) return alert('Asesora inválida.');
+            const ped = historialPedidos.find(function(p) { return String(p.num) === String(numPed); });
+            if (!ped) return;
+            ped.asesora = nombre;
+            localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+            await persistirPedidoEnFirebase(ped);
+            renderizarPedidosPanel();
+        }
+        window.cambiarAsesoraPedido = cambiarAsesoraPedido;
+
         async function guardarEdicionPrendasPedidoFirebase(ped, productosModificados) {
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
             localStorage.setItem('productosV36', JSON.stringify(productosDB));
@@ -6461,6 +6521,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         window.actualizarPedidoDesdePrefactura = function(ref, cambios) {
             var idx = historialPedidos.findIndex(function(p) { return p.num === ref.num; });
             if (idx === -1) return;
+            cambios = Object.assign({}, cambios);
+            delete cambios.num;
+            delete cambios.numOrden;
             var numAnteriorPedido = historialPedidos[idx].num;
             Object.assign(historialPedidos[idx], cambios);
             if (Array.isArray(cambios.preciosItems) && historialPedidos[idx].items) {
@@ -6591,26 +6654,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         const ANULAR_PEDIDO_API = 'https://superkids-pagos-api.superkids-babys.workers.dev/anular-pedido';
-        const CLAVE_ANULAR_PEDIDO_LOCAL = 'superkidsAnulacionAdminSecret';
-
         async function anularPedidoEnServidor(pedido) {
-            let clave = localStorage.getItem(CLAVE_ANULAR_PEDIDO_LOCAL) || localStorage.getItem('superkidsTarifasAdminSecret') || '';
-            if (!clave) {
-                clave = prompt('Ingresa la clave administrativa para anular el pedido y devolver el stock:') || '';
-                if (clave) localStorage.setItem(CLAVE_ANULAR_PEDIDO_LOCAL, clave);
+            if (!window.usuarioActual || window.usuarioActual.uid !== UID_YOHANA) {
+                throw new Error('Solo Yohana puede anular pedidos.');
             }
-            if (!clave) throw new Error('Necesitas la clave administrativa para anular el pedido.');
+            const token = await window.obtenerTokenSesion();
+            if (!token) throw new Error('Tu sesión venció. Inicia sesión nuevamente.');
             const respuesta = await fetch(ANULAR_PEDIDO_API, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Admin-Secret': clave },
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({ num: pedido.num })
             });
             const datos = await respuesta.json().catch(function() { return {}; });
             if (!respuesta.ok) {
-                if (respuesta.status === 401) {
-                    localStorage.removeItem(CLAVE_ANULAR_PEDIDO_LOCAL);
-                    localStorage.removeItem('superkidsTarifasAdminSecret');
-                }
                 throw new Error(datos.error || 'No se pudo devolver el inventario.');
             }
             return datos.pedido || pedido;
@@ -6938,6 +6994,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
 .btn-g{padding:9px 20px;border:none;border-radius:8px;cursor:pointer;font-weight:800;font-size:0.88em}
 .btn-verde{background:linear-gradient(135deg,#27ae60,#1e8449);color:white}
 .btn-rojo{background:#e74c3c;color:white}
+.num-editable{pointer-events:none!important;border:none!important;cursor:default!important}
 .tabla-limpia{display:none}
 @media print{
   .btn-no-print{display:none}
@@ -6958,7 +7015,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
   </div>
   <div class="bloque">
     <h4>📦 Pedido</h4>
-    <p>N° <strong class="num-editable" contenteditable="true" spellcheck="false" id="fac-num-orden">${ped.numOrden || ('#SK-' + ped.num)}</strong> <span style="background:#f0e6fb;color:#8e44ad;font-size:0.75em;font-weight:800;padding:1px 7px;border-radius:20px;" id="fac-tipo-venta-display">${(ped.estadoPago === 'APPROVED' || ped.esPruebaWompi || ped.ambientePago === 'sandbox') ? 'Pago Wompi' : (ped.tipoVenta || 'Contraentrega')}</span><br>${ped.fecha}<br>Estado: <strong>${ped.estado}</strong>${ped.asesora ? ' · Asesora: <strong>' + ped.asesora + '</strong>' : ''}</p>
+    <p>N° <strong class="num-editable" contenteditable="false" spellcheck="false" id="fac-num-orden">${ped.numOrden || ('#SK-' + ped.num)}</strong> <span style="background:#f0e6fb;color:#8e44ad;font-size:0.75em;font-weight:800;padding:1px 7px;border-radius:20px;" id="fac-tipo-venta-display">${(ped.estadoPago === 'APPROVED' || ped.esPruebaWompi || ped.ambientePago === 'sandbox') ? 'Pago Wompi' : (ped.tipoVenta || 'Contraentrega')}</span><br>${ped.fecha}<br>Estado: <strong>${ped.estado}</strong>${ped.asesora ? ' · Asesora: <strong>' + ped.asesora + '</strong>' : ''}</p>
   </div>
 </div>
 <div class="observaciones-amplias">
@@ -7262,7 +7319,7 @@ ${ped.comprobanteUrl ? `
                 }).join('');
 
                 const numFact = ped.numOrden || ('SK' + String(ped.numFactura || ped.num).padStart(5, '0'));
-                const btnAnular = esGina && !ped.facturaAnulada ? `
+                const btnAnular = esYohana && !ped.facturaAnulada ? `
                     <div style="margin-top:8px;border-top:1px dashed #f5c6cb;padding-top:8px;">
                         <textarea id="motivo-anular-${ped.num}" placeholder="Motivo de anulación..." rows="2" style="width:100%;font-size:0.78em;padding:6px;border-radius:6px;border:1px solid #f5c6cb;resize:none;box-sizing:border-box;margin-bottom:4px;"></textarea>
                         <button onclick="anularFacturaPedido(${ped.num})" style="width:100%;background:#fcebeb;color:#a32d2d;border:1px solid #f7c1c1;border-radius:8px;padding:7px;font-size:0.8em;font-weight:700;cursor:pointer;">🚫 Anular factura</button>
@@ -7311,7 +7368,6 @@ ${ped.comprobanteUrl ? `
                       '</div>' +
                       '<div class="tp-fila3">' +
                         '<button class="tp-btn-factura" onclick="imprimirFactura(' + ped.num + ')">📋 ' + numFact + '</button>' +
-                        '<button class="tp-btn-eliminar" onclick="eliminarPedido(' + ped.num + ')">🗑️ Eliminar</button>' +
                         '<select class="select-estado-ped" onchange="cambiarEstadoPedido(' + ped.num + ', this.value)" style="flex:1;padding:5px 6px;border:1.5px solid #d8b4fe;border-radius:8px;font-size:0.76em;font-weight:700;color:#7e22ce;background:#fdf8ff;cursor:pointer;font-family:Nunito,sans-serif;">' + opcionesEstado + '</select>' +
                       '</div>' +
                     '</div>' +
@@ -7341,6 +7397,7 @@ ${ped.comprobanteUrl ? `
                           }
                       })() + '</div>' +
                       (puedeEditarPrendasPedido() ? '<div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:7px;"><span style="font-size:.76em;font-weight:800;color:#7e22ce;">Descuento especial:</span><select onchange="cambiarDescuentoPedido(' + ped.num + ',this.value)" style="padding:6px 8px;border:1.5px solid #d8b4fe;border-radius:8px;background:white;color:#7e22ce;font-weight:900;"><option value="0"'+(!(ped.descuentoPorcentaje>0)?' selected':'')+'>Sin descuento</option><option value="5"'+(Number(ped.descuentoPorcentaje)===5?' selected':'')+'>5%</option><option value="10"'+(Number(ped.descuentoPorcentaje)===10?' selected':'')+'>10%</option><option value="15"'+(Number(ped.descuentoPorcentaje)===15?' selected':'')+'>15%</option></select></div>' : '') +
+                      htmlSelectorAsesoraPedido(ped) +
                       htmlComprobante +
                       btnAnular +
                     '</div>' +
@@ -7808,6 +7865,10 @@ ${ped.comprobanteUrl ? `
         window.buscarPorReferencia = window.buscarPorReferencia;
 
         async function anularFacturaPedido(numPed) {
+            if (!window.usuarioActual || window.usuarioActual.uid !== UID_YOHANA) {
+                alert('Solo Yohana puede anular pedidos.');
+                return;
+            }
             const motivo = (document.getElementById('motivo-anular-' + numPed) || {}).value || '';
             if (!motivo.trim()) { alert('Escribe el motivo de anulación.'); return; }
             if (!confirm('¿Confirmas la anulación de esta factura? El stock se devolverá y el pedido pasará a Anulado.')) return;
