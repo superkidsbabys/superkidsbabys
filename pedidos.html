@@ -7010,6 +7010,49 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
+        async function guardarNumeroGuiaPedido(numPed, valor) {
+            const pedido = (historialPedidos || []).find(function(p){ return Number(p.num) === Number(numPed); });
+            if (!pedido) return;
+            pedido.guia = String(valor || '').trim().slice(0, 100);
+            pedido.actualizadoEn = new Date().toISOString();
+            localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+            try {
+                await persistirPedidoEnFirebase(pedido);
+                mostrarToast('✅ Número de guía guardado', '#27ae60');
+            } catch (error) {
+                alert('No se pudo guardar el número de guía.');
+            }
+        }
+        window.guardarNumeroGuiaPedido = guardarNumeroGuiaPedido;
+
+        async function subirGuiaPedido(numPed, inputEl) {
+            const file = inputEl.files && inputEl.files[0];
+            if (!file) return;
+            if (!String(file.type || '').startsWith('image/')) {
+                inputEl.value = '';
+                return alert('Selecciona una fotografía válida de la guía.');
+            }
+            const pedido = (historialPedidos || []).find(function(p){ return Number(p.num) === Number(numPed); });
+            if (!pedido) return;
+            const btn = document.getElementById('btn-guia-' + numPed);
+            const textoOriginal = btn ? btn.innerHTML : '';
+            if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Subiendo guía...'; }
+            try {
+                pedido.guiaImagenUrl = await subirACloudinary(file);
+                pedido.actualizadoEn = new Date().toISOString();
+                localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+                await persistirPedidoEnFirebase(pedido);
+                renderizarPedidosPanel();
+                mostrarToast('✅ Foto de la guía guardada', '#27ae60');
+            } catch (error) {
+                alert('No se pudo subir la foto de la guía. Intenta nuevamente.\n' + (error.message || error));
+                if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
+            } finally {
+                inputEl.value = '';
+            }
+        }
+        window.subirGuiaPedido = subirGuiaPedido;
+
         function abrirFacturaEnApp() {
             let modal = document.getElementById('modal-factura-en-app');
             if (!modal) {
@@ -7515,6 +7558,15 @@ ${ped.comprobanteUrl ? `
                       (ped.comprobanteUrl ? '<img src="' + ped.comprobanteUrl + '" class="tp-comprobante-thumb" onclick="window.open(\'' + ped.comprobanteUrl + '\',\'_blank\')" title="Ver comprobante completo">' : '') +
                     '</div>'
                 ) : '';
+                const htmlGuiaEnvio = (estadoActual === 'enviado' || estadoActual === 'entregado') ? (
+                    '<div style="margin-top:10px;padding:11px;border:1.5px solid #9ed8ef;border-radius:11px;background:#f3fbff;">' +
+                      '<div style="font-size:.82em;font-weight:950;color:#176986;margin-bottom:8px;">🚚 Guía de envío</div>' +
+                      '<input type="text" value="' + escapeHtmlAttr(ped.guia || ped.numeroGuia || '') + '" placeholder="Número de guía" onchange="guardarNumeroGuiaPedido(' + Number(ped.num) + ',this.value)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid #a8d8ea;border-radius:8px;background:white;font-family:Nunito,sans-serif;margin-bottom:7px;">' +
+                      '<input type="file" accept="image/*" id="guia-input-' + ped.num + '" style="display:none" onchange="subirGuiaPedido(' + Number(ped.num) + ',this)">' +
+                      '<button type="button" id="btn-guia-' + ped.num + '" onclick="document.getElementById(\'guia-input-' + ped.num + '\').click()" style="width:100%;padding:8px;border:1.5px solid #43a9cf;border-radius:8px;background:white;color:#176986;font-family:Nunito,sans-serif;font-size:.8em;font-weight:900;cursor:pointer;">' + (ped.guiaImagenUrl ? '📷 Reemplazar foto de la guía' : '📷 Subir foto de la guía') + '</button>' +
+                      (ped.guiaImagenUrl ? '<img src="' + escapeHtmlAttr(ped.guiaImagenUrl) + '" onclick="window.open(this.src,\'_blank\')" title="Toca para ver la guía completa" style="display:block;width:118px;height:88px;object-fit:contain;margin:9px auto 0;background:white;border:1px solid #9ed8ef;border-radius:8px;cursor:zoom-in;">' : '') +
+                    '</div>'
+                ) : '';
 
                 const numOrdenDisplay = ped.numOrden || ('#SK-' + String(ped.num));
                 const tipoVentaActual = (ped.estadoPago === 'APPROVED' || ped.esPruebaWompi || ped.ambientePago === 'sandbox') ? 'Pago Wompi' : (ped.tipoVenta || 'Contraentrega');
@@ -7578,6 +7630,7 @@ ${ped.comprobanteUrl ? `
                       })() + '</div>' +
                       (puedeEditarPrendasPedido() ? '<div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:7px;"><span style="font-size:.76em;font-weight:800;color:#7e22ce;">Descuento especial:</span><select onchange="cambiarDescuentoPedido(' + ped.num + ',this.value)" style="padding:6px 8px;border:1.5px solid #d8b4fe;border-radius:8px;background:white;color:#7e22ce;font-weight:900;"><option value="0"'+(!(ped.descuentoPorcentaje>0)?' selected':'')+'>Sin descuento</option><option value="5"'+(Number(ped.descuentoPorcentaje)===5?' selected':'')+'>5%</option><option value="10"'+(Number(ped.descuentoPorcentaje)===10?' selected':'')+'>10%</option><option value="15"'+(Number(ped.descuentoPorcentaje)===15?' selected':'')+'>15%</option></select></div>' : '') +
                       htmlSelectorAsesoraPedido(ped) +
+                      htmlGuiaEnvio +
                       htmlConfirmacionCliente(ped) +
                       htmlBotonSeguimientoPedido(ped) +
                       htmlBotonNotificarEnvio(ped) +

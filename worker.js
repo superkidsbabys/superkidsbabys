@@ -1457,8 +1457,19 @@ function writeEliminarDocumento(coleccion, id) {
   return { delete: nombreDocumentoFirestore(coleccion, id) };
 }
 
+function numeroMonedaPedido(valor) {
+  if (typeof valor === 'number' && Number.isFinite(valor)) return Math.max(0, valor);
+  const digitos = String(valor == null ? '' : valor).replace(/[^0-9]/g, '');
+  return Math.max(0, Number(digitos) || 0);
+}
+
 function pedidoParaCliente(pedido) {
   const telefono = String(pedido.tel || '').replace(/\D/g, '');
+  const valorEnvio = numeroMonedaPedido(pedido.valorEnvio);
+  const total = numeroMonedaPedido(pedido.tot);
+  const totalPrendas = total > 0
+    ? Math.max(0, total - valorEnvio)
+    : numeroMonedaPedido(pedido.totalPrendas);
   return {
     num: Number(pedido.num || 0),
     numOrden: String(pedido.numOrden || ''),
@@ -1472,11 +1483,10 @@ function pedidoParaCliente(pedido) {
     estado: estadoSeguimientoPublico(pedido.estado),
     transportadora: textoPedido(pedido.transportadora, 60),
     guia: textoPedido(pedido.guia, 100),
-    valorEnvio: Math.max(0, Number(pedido.valorEnvio) || 0),
-    total: Math.max(0, Number(pedido.tot) || 0),
-    totalPrendas: Math.max(0, (Number(pedido.tot) || 0) > 0
-      ? (Number(pedido.tot) || 0) - (Number(pedido.valorEnvio) || 0)
-      : (Number(pedido.totalPrendas) || 0)),
+    guiaImagenUrl: textoPedido(pedido.guiaImagenUrl, 500),
+    valorEnvio,
+    total,
+    totalPrendas,
     confirmacionCliente: textoPedido(pedido.confirmacionCliente, 30),
     confirmacionClienteEn: textoPedido(pedido.confirmacionClienteEn, 60),
     items: (Array.isArray(pedido.items) ? pedido.items : []).slice(0, MAX_ITEMS_PAGO).map(item => ({
@@ -1524,13 +1534,19 @@ async function confirmarSeguimiento(request, env, origin) {
     return responder(origin, { error: 'Un pedido anulado no puede confirmar entrega' }, 409);
   }
   const confirmadoEn = new Date().toISOString();
+  const cambios = { confirmacionCliente: respuesta, confirmacionClienteEn: confirmadoEn, actualizadoEn: confirmadoEn };
+  const campos = ['confirmacionCliente', 'confirmacionClienteEn', 'actualizadoEn'];
+  if (respuesta === 'recibido') {
+    cambios.estado = 'entregado';
+    campos.push('estado');
+  }
   await commitFirebaseAdmin(env, [writeActualizarDocumento(
     'pedidos', 'pedido-' + resultado.numero,
-    { confirmacionCliente: respuesta, confirmacionClienteEn: confirmadoEn, actualizadoEn: confirmadoEn },
+    cambios,
     resultado.documento.updateTime,
-    ['confirmacionCliente', 'confirmacionClienteEn', 'actualizadoEn']
+    campos
   )]);
-  return responder(origin, { ok: true, confirmacionCliente: respuesta, confirmacionClienteEn: confirmadoEn });
+  return responder(origin, { ok: true, confirmacionCliente: respuesta, confirmacionClienteEn: confirmadoEn, estado: cambios.estado || estado });
 }
 
 async function administrarEnlaceSeguimiento(request, env, origin) {
