@@ -5222,7 +5222,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             console.log('✅ Stock devuelto y confirmado en Firebase para pedido #' + pedido.num);
         }
 
-        async function persistirPedidoEnFirebase(pedido, numAnteriorPedido) {
+        async function persistirPedidoEnFirebase(pedido, numAnteriorPedido, propagarError) {
             try {
                 const { collection, query, where, getDocs, doc, setDoc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const datosPedido = Object.assign({}, pedido, {
@@ -5233,7 +5233,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 delete datosPedido._numAnterior;
                 if (pedido._firebaseId) {
                     await setDoc(doc(db, 'pedidos', pedido._firebaseId), datosPedido, { merge: true });
-                    return;
+                    return true;
                 }
                 const candidatosNum = [pedido.num, numAnteriorPedido, pedido._numAnterior].filter(function(v, i, arr) {
                     return v !== undefined && v !== null && arr.indexOf(v) === i;
@@ -5246,11 +5246,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 }
                 if (!docsEncontrados.length) {
                     await setDoc(doc(db, 'pedidos', 'pedido-' + pedido.num), datosPedido, { merge: true });
-                    return;
+                    return true;
                 }
                 await Promise.all(docsEncontrados.map(d => updateDoc(doc(db, 'pedidos', d.id), datosPedido)));
+                return true;
             } catch(e) {
                 console.log('Pedido guardado localmente, Firebase no disponible:', e.message);
+                if (propagarError) throw e;
+                return false;
             }
         }
 
@@ -6701,20 +6704,36 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (typeof renderizarCatalogo === 'function') renderizarCatalogo();
         };
 
-        window.actualizarPedidoDesdePrefactura = function(ref, cambios) {
-            var idx = historialPedidos.findIndex(function(p) { return p.num === ref.num; });
-            if (idx === -1) return;
+        window.actualizarPedidoDesdePrefactura = async function(ref, cambios) {
+            var idx = historialPedidos.findIndex(function(p) { return String(p.num) === String(ref.num); });
+            if (idx === -1) throw new Error('No se encontró el pedido que deseas actualizar.');
             cambios = Object.assign({}, cambios);
             delete cambios.num;
             delete cambios.numOrden;
             var numAnteriorPedido = historialPedidos[idx].num;
-            Object.assign(historialPedidos[idx], cambios);
-            if (Array.isArray(cambios.preciosItems) && historialPedidos[idx].items) {
-                historialPedidos[idx].items.forEach(function(item, itemIdx) {
-                    var nuevoPrecio = parseInt(cambios.preciosItems[itemIdx], 10);
-                    if (!isNaN(nuevoPrecio) && nuevoPrecio >= 0) item.precio = nuevoPrecio;
-                });
-                delete historialPedidos[idx].preciosItems;
+            var esAngelaDespachos = window.usuarioActual && window.usuarioActual.uid === UID_ANGELA;
+            if (esAngelaDespachos) {
+                var pedidoActual = historialPedidos[idx];
+                var envioAnterior = parseInt(String(pedidoActual.valorEnvio || '0').replace(/[^0-9]/g, ''), 10) || 0;
+                var envioNuevo = parseInt(String(cambios.valorEnvio || '0').replace(/[^0-9]/g, ''), 10) || 0;
+                var subtotalActual = Math.max(0, (parseInt(pedidoActual.tot, 10) || 0) - envioAnterior);
+                cambios = {
+                    valorEnvio: String(cambios.valorEnvio || '').trim(),
+                    transportadora: String(cambios.transportadora || pedidoActual.transportadora || '').trim(),
+                    guia: String(cambios.guia || pedidoActual.guia || '').trim(),
+                    tot: subtotalActual + envioNuevo,
+                    actualizadoEn: new Date().toISOString()
+                };
+                Object.assign(pedidoActual, cambios);
+            } else {
+                Object.assign(historialPedidos[idx], cambios);
+                if (Array.isArray(cambios.preciosItems) && historialPedidos[idx].items) {
+                    historialPedidos[idx].items.forEach(function(item, itemIdx) {
+                        var nuevoPrecio = parseInt(cambios.preciosItems[itemIdx], 10);
+                        if (!isNaN(nuevoPrecio) && nuevoPrecio >= 0) item.precio = nuevoPrecio;
+                    });
+                    delete historialPedidos[idx].preciosItems;
+                }
             }
             var nuevoNumeroPedido = numeroPedidoValor(historialPedidos[idx]);
             if (nuevoNumeroPedido) {
@@ -6722,14 +6741,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 historialPedidos[idx].numOrden = formatoNumeroPedido(nuevoNumeroPedido);
                 sincronizarContadorPedidos(nuevoNumeroPedido, true);
             }
-            recalcularTotalPedidoConEnvio(historialPedidos[idx]);
+            if (!esAngelaDespachos) recalcularTotalPedidoConEnvio(historialPedidos[idx]);
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-            renderizarPedidosPanel();
             // Persistir en Firebase
             if (typeof persistirPedidoEnFirebase === 'function') {
-                persistirPedidoEnFirebase(historialPedidos[idx], numAnteriorPedido);
+                await persistirPedidoEnFirebase(historialPedidos[idx], numAnteriorPedido, true);
             }
+            renderizarPedidosPanel();
             console.log('✅ Pedido actualizado desde prefactura:', ref.num, cambios);
+            return true;
         };
         // ── FIN SCE SINCRONIZACIÓN ──
 
@@ -7404,7 +7424,7 @@ ${ped.comprobanteUrl ? `
             // Pasar el num del pedido de forma segura via variable global en la ventana
             var numPedActual = ped.num;
             scriptGuardar.textContent = 'window._numPedFactura = ' + JSON.stringify(numPedActual) + ';\n' +
-                'window.guardarCambiosPrefactura = function() {' +
+                'window.guardarCambiosPrefactura = async function() {' +
                 '  var precios = document.querySelectorAll(".precio-editable");' +
                 '  var sub = 0;' +
                 '  var preciosItems = [];' +
@@ -7428,7 +7448,7 @@ ${ped.comprobanteUrl ? `
                 '  var appPrincipal = (window.parent && window.parent !== window) ? window.parent : window.opener;' +
                 '  if (appPrincipal && !appPrincipal.closed) {' +
                 '    try {' +
-                '      appPrincipal.actualizarPedidoDesdePrefactura({num: window._numPedFactura}, cambios);' +
+                '      await appPrincipal.actualizarPedidoDesdePrefactura({num: window._numPedFactura}, cambios);' +
                 '      var btn = document.querySelector("[onclick*=guardarCambios]");' +
                 '      if (btn) { btn.textContent = "✅ Guardado"; btn.style.background = "#1a7a40";' +
                 '        setTimeout(function(){ btn.textContent = "💾 Guardar cambios en la app"; btn.style.background = "linear-gradient(135deg,#27ae60,#1e8449)"; }, 2500); }' +
