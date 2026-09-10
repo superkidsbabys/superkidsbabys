@@ -6404,26 +6404,71 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             return '<button type="button" onclick="generarEnlaceSeguimientoPedido(' + Number(ped.num) + ')" style="width:100%;margin-top:8px;padding:8px;border:1.5px solid #d9b6d0;border-radius:9px;background:#fff7fc;color:#853565;font-size:.78em;font-weight:900;cursor:pointer;">🔗 ' + (ped.seguimientoHash ? 'Renovar enlace del cliente' : 'Crear enlace del cliente') + '</button>';
         }
 
+        function htmlBotonNotificarEnvio(ped) {
+            if (!(window.usuarioActual && window.usuarioActual.uid === UID_YOHANA)) return '';
+            if (normalizarEstadoPedido(ped.estado) !== 'enviado') return '';
+            return '<button type="button" onclick="notificarEnvioCliente(' + Number(ped.num) + ')" style="width:100%;margin-top:8px;padding:10px;border:0;border-radius:9px;background:#25D366;color:white;font-size:.82em;font-weight:950;cursor:pointer;box-shadow:0 5px 14px rgba(37,211,102,.22);">📲 Notificar envío al cliente</button>';
+        }
+
+        async function crearEnlaceSeguimientoAdmin(numero) {
+            const token = await window.obtenerTokenSesion();
+            if (!token) throw new Error('Tu sesión venció. Inicia sesión nuevamente.');
+            const respuesta = await fetch('https://superkids-pagos-api.superkids-babys.workers.dev/seguimiento/admin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ num: Number(numero) })
+            });
+            const datos = await respuesta.json().catch(function(){ return {}; });
+            if (!respuesta.ok || !datos.seguimientoUrl) throw new Error(datos.error || 'No fue posible generar el enlace.');
+            return datos.seguimientoUrl;
+        }
+
         async function generarEnlaceSeguimientoPedido(numero) {
             const pedido = (historialPedidos || []).find(function(p){ return Number(p.num) === Number(numero); });
             if (pedido && pedido.seguimientoHash && !confirm('Esto invalidará el enlace anterior del cliente. ¿Deseas continuar?')) return;
             try {
-                const token = await window.obtenerTokenSesion();
-                if (!token) throw new Error('Tu sesión venció. Inicia sesión nuevamente.');
-                const respuesta = await fetch('https://superkids-pagos-api.superkids-babys.workers.dev/seguimiento/admin', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-                    body: JSON.stringify({ num: Number(numero) })
-                });
-                const datos = await respuesta.json().catch(function(){ return {}; });
-                if (!respuesta.ok || !datos.seguimientoUrl) throw new Error(datos.error || 'No fue posible generar el enlace.');
-                try { await navigator.clipboard.writeText(datos.seguimientoUrl); alert('Enlace privado copiado. Ya puedes enviarlo al cliente.'); }
-                catch(_) { prompt('Copia el enlace privado del cliente:', datos.seguimientoUrl); }
+                const enlace = await crearEnlaceSeguimientoAdmin(numero);
+                try { await navigator.clipboard.writeText(enlace); alert('Enlace privado copiado. Ya puedes enviarlo al cliente.'); }
+                catch(_) { prompt('Copia el enlace privado del cliente:', enlace); }
             } catch(error) {
                 alert(error.message || 'No fue posible generar el enlace.');
             }
         }
         window.generarEnlaceSeguimientoPedido = generarEnlaceSeguimientoPedido;
+
+        async function notificarEnvioCliente(numero) {
+            const pedido = (historialPedidos || []).find(function(p){ return Number(p.num) === Number(numero); });
+            if (!pedido) return alert('No encontramos este pedido.');
+            let telefono = String(pedido.tel || '').replace(/\D/g, '');
+            if (telefono.length === 10) telefono = '57' + telefono;
+            if (telefono.length < 10) return alert('Este pedido no tiene un teléfono válido.');
+            const aviso = pedido.seguimientoHash
+                ? 'Se creará un enlace nuevo para el cliente y el enlace anterior dejará de funcionar. ¿Deseas abrir WhatsApp con la notificación?'
+                : 'Se creará el enlace privado y se abrirá WhatsApp con la notificación. ¿Deseas continuar?';
+            if (!confirm(aviso)) return;
+            try {
+                const enlace = await crearEnlaceSeguimientoAdmin(numero);
+                const consecutivo = pedido.numOrden || ('SK' + String(pedido.num || '').padStart(5, '0'));
+                const transportadora = normalizarTransportadora(pedido.transportadora || '') || 'la transportadora asignada';
+                const guia = String(pedido.guia || pedido.numeroGuia || '').trim();
+                let mensaje = '🚚 ¡Hola ' + (pedido.nom || '') + '! Tu pedido ' + consecutivo + ' de SuperKids & Babys ya fue enviado.\n\n';
+                mensaje += 'Transportadora: ' + transportadora + '\n';
+                if (guia) mensaje += 'Número de guía: ' + guia + '\n';
+                mensaje += 'Lo recibirás aproximadamente entre 1 y 3 días hábiles.\n\n';
+                mensaje += 'Consulta aquí el estado de tu pedido:\n' + enlace + '\n\n';
+                mensaje += 'Gracias por comprar con nosotros 💗';
+                const enlaceWhatsApp = 'https://wa.me/' + telefono + '?text=' + encodeURIComponent(mensaje);
+                if (/Android/i.test(navigator.userAgent || '')) {
+                    const intentBusiness = 'intent://send?phone=' + telefono + '&text=' + encodeURIComponent(mensaje) + '#Intent;scheme=whatsapp;package=com.whatsapp.w4b;S.browser_fallback_url=' + encodeURIComponent(enlaceWhatsApp) + ';end';
+                    window.location.href = intentBusiness;
+                } else {
+                    window.open(enlaceWhatsApp, '_blank', 'noopener');
+                }
+            } catch(error) {
+                alert(error.message || 'No fue posible preparar la notificación.');
+            }
+        }
+        window.notificarEnvioCliente = notificarEnvioCliente;
 
         async function cambiarAsesoraPedido(numPed, nombre) {
             if (!(window.usuarioActual && window.usuarioActual.rol === 'admin')) return alert('Solo Yohana puede cambiar la asesora de un pedido.');
@@ -7535,6 +7580,7 @@ ${ped.comprobanteUrl ? `
                       htmlSelectorAsesoraPedido(ped) +
                       htmlConfirmacionCliente(ped) +
                       htmlBotonSeguimientoPedido(ped) +
+                      htmlBotonNotificarEnvio(ped) +
                       htmlComprobante +
                       btnAnular +
                     '</div>' +
