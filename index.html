@@ -348,6 +348,24 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
   window.obtenerWhatsappAsesora = function(nombre) {
     return window.ASESORAS_WHATSAPP[nombre] || window.ASESORAS_WHATSAPP['Sin asesora'];
   };
+  window.obtenerAsesoraContactoActual = function() {
+    const params = new URLSearchParams(window.location.search);
+    const desdeEnlace = params.get('asesora');
+    if (desdeEnlace && desdeEnlace !== 'Sin asesora' && Object.prototype.hasOwnProperty.call(window.ASESORAS_WHATSAPP, desdeEnlace)) return desdeEnlace;
+    const desdeSesion = window.usuarioActual && window.usuarioActual.nombre;
+    if (desdeSesion && Object.prototype.hasOwnProperty.call(window.ASESORAS_WHATSAPP, desdeSesion)) return desdeSesion;
+    const guardada = localStorage.getItem('superkidsAsesoraElegida') || '';
+    if (guardada && guardada !== 'Sin asesora' && Object.prototype.hasOwnProperty.call(window.ASESORAS_WHATSAPP, guardada)) return guardada;
+    return 'Sin asesora';
+  };
+  window.crearEnlaceCatalogoAsesora = function() {
+    const enlace = new URL(window.location.href);
+    const asesora = window.obtenerAsesoraContactoActual();
+    enlace.searchParams.delete('seguimiento');
+    if (asesora !== 'Sin asesora') enlace.searchParams.set('asesora', asesora);
+    else enlace.searchParams.delete('asesora');
+    return enlace.toString();
+  };
   window.preseleccionarAsesora = function() {
     const selector = document.getElementById('cart-asesora');
     if (!selector) return;
@@ -7451,9 +7469,10 @@ table{width:100%;border-collapse:collapse}
         }
 
         function compartirCatalogo() {
+            const enlaceCompartir = window.crearEnlaceCatalogoAsesora ? window.crearEnlaceCatalogoAsesora() : window.location.href;
             navigator.share
-                ? navigator.share({ title: config.titulo, url: window.location.href })
-                : navigator.clipboard.writeText(window.location.href).then(() => alert("¡Enlace copiado!"));
+                ? navigator.share({ title: config.titulo, url: enlaceCompartir })
+                : navigator.clipboard.writeText(enlaceCompartir).then(() => alert("¡Enlace personalizado copiado!"));
         }
 
         [
@@ -7557,7 +7576,9 @@ table{width:100%;border-collapse:collapse}
         boton.setAttribute('aria-expanded', 'false');
       }
       function numeroWhatsappTienda() {
-        var numero = String((typeof config !== 'undefined' && config.whatsapp) || '3025451526').replace(/\D/g, '');
+        var asesora = window.obtenerAsesoraContactoActual ? window.obtenerAsesoraContactoActual() : 'Sin asesora';
+        var numeroAsesora = window.obtenerWhatsappAsesora ? window.obtenerWhatsappAsesora(asesora) : '';
+        var numero = String(numeroAsesora || (typeof config !== 'undefined' && config.whatsapp) || '3025451526').replace(/\D/g, '');
         if (numero.length === 10) numero = '57' + numero;
         return numero;
       }
