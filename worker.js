@@ -1553,12 +1553,18 @@ async function administrarEnlaceSeguimiento(request, env, origin) {
   if (!ORIGENES_PERMITIDOS.has(origin)) return responder(origin, { error: 'Origen no autorizado' }, 403);
   const actor = await autenticarStaff(request);
   if (!actor) return responder(origin, { error: 'Sesión no autorizada' }, 401);
-  if (actor.uid !== UID_ADMIN_AUDITORIA) return responder(origin, { error: 'Solo Yohana puede generar enlaces privados' }, 403);
   const body = await request.json().catch(() => ({}));
   const numero = Number(body.num);
   if (!Number.isSafeInteger(numero) || numero < 1) return responder(origin, { error: 'Número de pedido inválido' }, 400);
   const documento = await leerDocumentoFirebaseAdmin(env, 'pedidos', 'pedido-' + numero);
   if (!documento) return responder(origin, { error: 'No se encontró el pedido' }, 404);
+  const esNotificacionEnvio = String(body.motivo || '') === 'notificar_envio';
+  const puedeNotificarEnvio = ['MtQpryHLGYab5v3UjhRZw88CAD63', 'IEB65uKdgldevmgRuenCj7pPwc12'].includes(actor.uid)
+    && esNotificacionEnvio
+    && String(documento.data.estado || '').toLowerCase() === 'enviado';
+  if (actor.uid !== UID_ADMIN_AUDITORIA && !puedeNotificarEnvio) {
+    return responder(origin, { error: 'No tienes permiso para generar este enlace privado' }, 403);
+  }
   const anterior = String(documento.data.seguimientoHash || '');
   const token = crearTokenSeguimientoAleatorio();
   const hash = await sha256(token);
@@ -1570,7 +1576,7 @@ async function administrarEnlaceSeguimiento(request, env, origin) {
   if (/^[a-f0-9]{64}$/.test(anterior) && anterior !== hash) writes.push(writeEliminarDocumento('seguimiento_pedidos', anterior));
   await commitFirebaseAdmin(env, writes);
   try {
-    await registrarAuditoria(env, actor, 'generar_enlace_seguimiento', 'pedido', numero, { enlaceAnteriorInvalidado: Boolean(anterior) });
+    await registrarAuditoria(env, actor, esNotificacionEnvio ? 'notificar_envio_seguimiento' : 'generar_enlace_seguimiento', 'pedido', numero, { enlaceAnteriorInvalidado: Boolean(anterior) });
   } catch (error) {
     console.error(JSON.stringify({ mensaje: 'No se pudo registrar auditoría de seguimiento', numero, error: String(error) }));
   }

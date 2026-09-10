@@ -7672,7 +7672,6 @@ document.addEventListener('DOMContentLoaded', function() {
   .seg-instalar-btn{width:100%;border:0;border-radius:12px;padding:12px 14px;background:linear-gradient(135deg,#f34fae,#d94fae);color:#fff;font-family:Nunito,sans-serif;font-size:.9rem;font-weight:950;cursor:pointer;box-shadow:0 7px 18px rgba(217,79,174,.24);transition:transform .18s ease,box-shadow .18s ease}
   .seg-instalar-btn:hover{transform:translateY(-1px);box-shadow:0 9px 22px rgba(217,79,174,.3)}
   .seg-instalar-ayuda{display:block;margin-top:8px;color:#786d75;font-size:.73rem;line-height:1.4}
-  .seguimiento-demo{margin-top:10px;border:0;background:transparent;color:#9b3d7a;font-family:Nunito,sans-serif;font-weight:900;text-decoration:underline;cursor:pointer}
   .seg-estado{display:flex;gap:11px;align-items:center;padding:14px;border-radius:16px;background:#eefaf2;border:1px solid #c9ecd5}.seg-estado-icono{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:#27ae60;color:#fff;font-size:1.25rem;flex:0 0 auto}.seg-estado strong{display:block;color:#176d3d}.seg-estado span{display:block;margin-top:2px;color:#557060;font-size:.78rem;line-height:1.35}
   .seg-numero{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:16px 0 10px}.seg-numero strong{font-size:1.06rem;color:#762858}.seg-numero span{font-size:.72rem;color:#777;background:#f6f1f5;border-radius:999px;padding:5px 9px}
   .seg-datos{font-size:.82rem;line-height:1.55;color:#645c62;padding:11px 12px;background:#faf8fa;border-radius:12px}
@@ -7700,7 +7699,6 @@ document.addEventListener('DOMContentLoaded', function() {
           <input id="seguimiento-codigo" class="seguimiento-codigo" type="text" autocomplete="off" placeholder="Código privado de seguimiento">
           <button type="button" class="seguimiento-buscar" onclick="buscarPedidoCliente()">Consultar</button>
         </div>
-        <button type="button" class="seguimiento-demo" onclick="mostrarEjemploSeguimiento()">Ver ejemplo de la tarjeta</button>
         <div class="seguimiento-privacidad">🔒 Tu número de pedido, teléfono o cédula no bastan para entrar. Solo el enlace privado permite consultar la compra.</div>
       </div>
     </div>
@@ -7851,7 +7849,7 @@ document.addEventListener('DOMContentLoaded', function() {
   window.restaurarBuscadorSeguimiento = function() {
     const cont = document.getElementById('seguimiento-contenido');
     if (!cont) return;
-    cont.innerHTML = `<div class="seguimiento-vacio"><div class="seguimiento-vacio-icono">🛍️</div><h3>Encuentra tu pedido</h3><p>Abre el enlace privado que recibiste al comprar o pega aquí tu código de seguimiento.</p><div class="seguimiento-codigo-fila"><input id="seguimiento-codigo" class="seguimiento-codigo" type="text" autocomplete="off" placeholder="Código privado de seguimiento"><button type="button" class="seguimiento-buscar" onclick="buscarPedidoCliente()">Consultar</button></div><button type="button" class="seguimiento-demo" onclick="mostrarEjemploSeguimiento()">Ver ejemplo de la tarjeta</button><div class="seguimiento-privacidad">🔒 Tu número de pedido, teléfono o cédula no bastan para entrar. Solo el enlace privado permite consultar la compra.</div></div>`;
+    cont.innerHTML = `<div class="seguimiento-vacio"><div class="seguimiento-vacio-icono">🛍️</div><h3>Encuentra tu pedido</h3><p>Abre el enlace privado que recibiste al comprar o pega aquí tu código de seguimiento.</p><div class="seguimiento-codigo-fila"><input id="seguimiento-codigo" class="seguimiento-codigo" type="text" autocomplete="off" placeholder="Código privado de seguimiento"><button type="button" class="seguimiento-buscar" onclick="buscarPedidoCliente()">Consultar</button></div><div class="seguimiento-privacidad">🔒 Tu número de pedido, teléfono o cédula no bastan para entrar. Solo el enlace privado permite consultar la compra.</div></div>`;
   };
   document.addEventListener('keydown',function(event){ if(event.key==='Escape') cerrarMisPedidos(); });
   document.addEventListener('DOMContentLoaded',function(){

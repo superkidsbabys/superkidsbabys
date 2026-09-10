@@ -227,12 +227,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
           // Se mantienen únicamente búsquedas, filtros y navegación. Los
           // demás botones y campos de edición quedan fuera de su alcance.
           panel.querySelectorAll('button').forEach(function(btn) {
-            if (btn.classList.contains('btn-tab') || btn.classList.contains('btn-filtro-ped') || btn.id === 'btn-exportar-stock-excel' || btn.id === 'btn-exportar-stock-pdf') return;
+            if (btn.classList.contains('btn-tab') || btn.classList.contains('btn-filtro-ped') || btn.classList.contains('permiso-despachos-angela') || btn.id === 'btn-exportar-stock-excel' || btn.id === 'btn-exportar-stock-pdf') return;
             btn.style.display = 'none';
           });
           panel.querySelectorAll('input, select, textarea').forEach(function(campo) {
             const id = String(campo.id || '').toLowerCase();
-            const esBusquedaOFiltro = id.includes('buscar') || id.includes('filtro');
+            const esBusquedaOFiltro = id.includes('buscar') || id.includes('filtro') || campo.classList.contains('permiso-despachos-angela');
             if (!esBusquedaOFiltro) {
               campo.disabled = true;
               campo.readOnly = true;
@@ -2325,13 +2325,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         const UID_GINA    = 'yI067cx29zbmiBOd9wyKcwp0HpF2';
         const UID_YOHANA  = 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3';
         const UID_BIBIANA = 'MtQpryHLGYab5v3UjhRZw88CAD63';
+        const UID_ANGELA  = 'IEB65uKdgldevmgRuenCj7pPwc12';
 
         function mostrarBuscadorRef() {
             const u = window.usuarioActual;
             if (!u) return;
             const esAdmin = u.rol === 'admin' || u.uid === UID_YOHANA;
             const esGina  = u.uid === UID_GINA;
-            const esAngela = u.uid === 'IEB65uKdgldevmgRuenCj7pPwc12';
+            const esAngela = u.uid === UID_ANGELA;
             const wrap = document.getElementById('wrap-buscador-ref');
             if (wrap) wrap.style.display = (esAdmin || esGina || esAngela) ? 'flex' : 'none';
         }
@@ -6405,18 +6406,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         function htmlBotonNotificarEnvio(ped) {
-            if (!(window.usuarioActual && window.usuarioActual.uid === UID_YOHANA)) return '';
+            const uid = window.usuarioActual && window.usuarioActual.uid;
+            if (![UID_YOHANA, UID_BIBIANA, UID_ANGELA].includes(uid)) return '';
             if (normalizarEstadoPedido(ped.estado) !== 'enviado') return '';
-            return '<button type="button" onclick="notificarEnvioCliente(' + Number(ped.num) + ')" style="width:100%;margin-top:8px;padding:10px;border:0;border-radius:9px;background:#25D366;color:white;font-size:.82em;font-weight:950;cursor:pointer;box-shadow:0 5px 14px rgba(37,211,102,.22);">📲 Notificar envío al cliente</button>';
+            return '<button type="button" class="permiso-despachos-angela" onclick="notificarEnvioCliente(' + Number(ped.num) + ')" style="width:100%;margin-top:8px;padding:10px;border:0;border-radius:9px;background:#25D366;color:white;font-size:.82em;font-weight:950;cursor:pointer;box-shadow:0 5px 14px rgba(37,211,102,.22);">📲 Notificar envío al cliente</button>';
         }
 
-        async function crearEnlaceSeguimientoAdmin(numero) {
+        async function crearEnlaceSeguimientoAdmin(numero, motivo) {
             const token = await window.obtenerTokenSesion();
             if (!token) throw new Error('Tu sesión venció. Inicia sesión nuevamente.');
             const respuesta = await fetch('https://superkids-pagos-api.superkids-babys.workers.dev/seguimiento/admin', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-                body: JSON.stringify({ num: Number(numero) })
+                body: JSON.stringify({ num: Number(numero), motivo: motivo || 'administrar' })
             });
             const datos = await respuesta.json().catch(function(){ return {}; });
             if (!respuesta.ok || !datos.seguimientoUrl) throw new Error(datos.error || 'No fue posible generar el enlace.');
@@ -6427,7 +6429,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const pedido = (historialPedidos || []).find(function(p){ return Number(p.num) === Number(numero); });
             if (pedido && pedido.seguimientoHash && !confirm('Esto invalidará el enlace anterior del cliente. ¿Deseas continuar?')) return;
             try {
-                const enlace = await crearEnlaceSeguimientoAdmin(numero);
+                const enlace = await crearEnlaceSeguimientoAdmin(numero, 'administrar');
                 try { await navigator.clipboard.writeText(enlace); alert('Enlace privado copiado. Ya puedes enviarlo al cliente.'); }
                 catch(_) { prompt('Copia el enlace privado del cliente:', enlace); }
             } catch(error) {
@@ -6447,7 +6449,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 : 'Se creará el enlace privado y se abrirá WhatsApp con la notificación. ¿Deseas continuar?';
             if (!confirm(aviso)) return;
             try {
-                const enlace = await crearEnlaceSeguimientoAdmin(numero);
+                const enlace = await crearEnlaceSeguimientoAdmin(numero, 'notificar_envio');
                 const consecutivo = pedido.numOrden || ('SK' + String(pedido.num || '').padStart(5, '0'));
                 const transportadora = normalizarTransportadora(pedido.transportadora || '') || 'la transportadora asignada';
                 const guia = String(pedido.guia || pedido.numeroGuia || '').trim();
@@ -6860,6 +6862,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const pedido = historialPedidos[pedIndex];
             const estadoAnterior = normalizarEstadoPedido(pedido.estado);
             nuevoEstado = normalizarEstadoPedido(nuevoEstado);
+            const esAngelaDespachos = window.usuarioActual && window.usuarioActual.uid === UID_ANGELA;
+            if (esAngelaDespachos && nuevoEstado !== estadoAnterior && nuevoEstado !== 'enviado') {
+                renderizarPedidosPanel();
+                alert('Ángela solamente puede mover pedidos al estado Enviado.');
+                return;
+            }
             pedido.estado = nuevoEstado;
             if (nuevoEstado === 'cancelado' && estadoAnterior !== 'cancelado') {
                 try {
@@ -7025,6 +7033,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         async function guardarNumeroGuiaPedido(numPed, valor) {
+            const uid = window.usuarioActual && window.usuarioActual.uid;
+            if (![UID_YOHANA, UID_ANGELA].includes(uid)) return alert('Solo Yohana o Ángela pueden modificar la guía de envío.');
             const pedido = (historialPedidos || []).find(function(p){ return Number(p.num) === Number(numPed); });
             if (!pedido) return;
             pedido.guia = String(valor || '').trim().slice(0, 100);
@@ -7040,6 +7050,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         window.guardarNumeroGuiaPedido = guardarNumeroGuiaPedido;
 
         async function subirGuiaPedido(numPed, inputEl) {
+            const uid = window.usuarioActual && window.usuarioActual.uid;
+            if (![UID_YOHANA, UID_ANGELA].includes(uid)) {
+                inputEl.value = '';
+                return alert('Solo Yohana o Ángela pueden modificar la guía de envío.');
+            }
             const file = inputEl.files && inputEl.files[0];
             if (!file) return;
             if (!String(file.type || '').startsWith('image/')) {
@@ -7575,9 +7590,9 @@ ${ped.comprobanteUrl ? `
                 const htmlGuiaEnvio = (estadoActual === 'enviado' || estadoActual === 'entregado') ? (
                     '<div style="margin-top:10px;padding:11px;border:1.5px solid #9ed8ef;border-radius:11px;background:#f3fbff;">' +
                       '<div style="font-size:.82em;font-weight:950;color:#176986;margin-bottom:8px;">🚚 Guía de envío</div>' +
-                      '<input type="text" value="' + escapeHtmlAttr(ped.guia || ped.numeroGuia || '') + '" placeholder="Número de guía" onchange="guardarNumeroGuiaPedido(' + Number(ped.num) + ',this.value)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid #a8d8ea;border-radius:8px;background:white;font-family:Nunito,sans-serif;margin-bottom:7px;">' +
-                      '<input type="file" accept="image/*" id="guia-input-' + ped.num + '" style="display:none" onchange="subirGuiaPedido(' + Number(ped.num) + ',this)">' +
-                      '<button type="button" id="btn-guia-' + ped.num + '" onclick="document.getElementById(\'guia-input-' + ped.num + '\').click()" style="width:100%;padding:8px;border:1.5px solid #43a9cf;border-radius:8px;background:white;color:#176986;font-family:Nunito,sans-serif;font-size:.8em;font-weight:900;cursor:pointer;">' + (ped.guiaImagenUrl ? '📷 Reemplazar foto de la guía' : '📷 Subir foto de la guía') + '</button>' +
+                      '<input type="text" class="permiso-despachos-angela" value="' + escapeHtmlAttr(ped.guia || ped.numeroGuia || '') + '" placeholder="Número de guía" onchange="guardarNumeroGuiaPedido(' + Number(ped.num) + ',this.value)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid #a8d8ea;border-radius:8px;background:white;font-family:Nunito,sans-serif;margin-bottom:7px;">' +
+                      '<input type="file" class="permiso-despachos-angela" accept="image/*" id="guia-input-' + ped.num + '" style="display:none" onchange="subirGuiaPedido(' + Number(ped.num) + ',this)">' +
+                      '<button type="button" class="permiso-despachos-angela" id="btn-guia-' + ped.num + '" onclick="document.getElementById(\'guia-input-' + ped.num + '\').click()" style="width:100%;padding:8px;border:1.5px solid #43a9cf;border-radius:8px;background:white;color:#176986;font-family:Nunito,sans-serif;font-size:.8em;font-weight:900;cursor:pointer;">' + (ped.guiaImagenUrl ? '📷 Reemplazar foto de la guía' : '📷 Subir foto de la guía') + '</button>' +
                       (ped.guiaImagenUrl ? '<img src="' + escapeHtmlAttr(ped.guiaImagenUrl) + '" onclick="window.open(this.src,\'_blank\')" title="Toca para ver la guía completa" style="display:block;width:118px;height:88px;object-fit:contain;margin:9px auto 0;background:white;border:1px solid #9ed8ef;border-radius:8px;cursor:zoom-in;">' : '') +
                     '</div>'
                 ) : '';
@@ -7610,11 +7625,11 @@ ${ped.comprobanteUrl ? `
                       '<div class="tp-fila1"><span class="tp-id">' + numOrdenDisplay + '</span><span class="tp-fecha">🕐 ' + (ped.fecha || '') + '</span></div>' +
                       '<div class="tp-fila2">' +
                         '<select onchange="cambiarTipoVenta(' + ped.num + ', this.value)" style="border:1.5px solid #c9a0dc;color:#8e44ad;background:#fdf8ff;">' + tipoVentaOpts + '</select>' +
-                        '<select onchange="cambiarTransportadora(' + ped.num + ', this.value)" style="border:1.5px solid #a8d8ea;color:#1a6a8a;background:#f0faff;">' + transpOpts + '</select>' +
+                        '<select class="permiso-despachos-angela" onchange="cambiarTransportadora(' + ped.num + ', this.value)" style="border:1.5px solid #a8d8ea;color:#1a6a8a;background:#f0faff;">' + transpOpts + '</select>' +
                       '</div>' +
                       '<div class="tp-fila3">' +
                         '<button class="tp-btn-factura" onclick="imprimirFactura(' + ped.num + ')">📋 ' + numFact + '</button>' +
-                        '<select class="select-estado-ped" onchange="cambiarEstadoPedido(' + ped.num + ', this.value)" style="flex:1;padding:5px 6px;border:1.5px solid #d8b4fe;border-radius:8px;font-size:0.76em;font-weight:700;color:#7e22ce;background:#fdf8ff;cursor:pointer;font-family:Nunito,sans-serif;">' + opcionesEstado + '</select>' +
+                        '<select class="select-estado-ped permiso-despachos-angela" onchange="cambiarEstadoPedido(' + ped.num + ', this.value)" style="flex:1;padding:5px 6px;border:1.5px solid #d8b4fe;border-radius:8px;font-size:0.76em;font-weight:700;color:#7e22ce;background:#fdf8ff;cursor:pointer;font-family:Nunito,sans-serif;">' + opcionesEstado + '</select>' +
                       '</div>' +
                     '</div>' +
                     '<div class="tp-body">' +
