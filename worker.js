@@ -1559,10 +1559,12 @@ async function administrarEnlaceSeguimiento(request, env, origin) {
   const documento = await leerDocumentoFirebaseAdmin(env, 'pedidos', 'pedido-' + numero);
   if (!documento) return responder(origin, { error: 'No se encontró el pedido' }, 404);
   const esNotificacionEnvio = String(body.motivo || '') === 'notificar_envio';
-  const puedeNotificarEnvio = ['MtQpryHLGYab5v3UjhRZw88CAD63', 'IEB65uKdgldevmgRuenCj7pPwc12'].includes(actor.uid)
+  const esEncargadaAutorizada = ['MtQpryHLGYab5v3UjhRZw88CAD63', 'IEB65uKdgldevmgRuenCj7pPwc12'].includes(actor.uid);
+  const puedeAdministrarEnlace = esEncargadaAutorizada && String(body.motivo || '') === 'administrar';
+  const puedeNotificarEnvio = esEncargadaAutorizada
     && esNotificacionEnvio
     && String(documento.data.estado || '').toLowerCase() === 'enviado';
-  if (actor.uid !== UID_ADMIN_AUDITORIA && !puedeNotificarEnvio) {
+  if (actor.uid !== UID_ADMIN_AUDITORIA && !puedeAdministrarEnlace && !puedeNotificarEnvio) {
     return responder(origin, { error: 'No tienes permiso para generar este enlace privado' }, 403);
   }
   const anterior = String(documento.data.seguimientoHash || '');
