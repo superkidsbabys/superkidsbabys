@@ -1830,6 +1830,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
                         <div><h3 style="margin:0;color:#7e22ce;">🔐 Mi inventario conciliado</h3><p style="margin:4px 0 0;color:#667085;font-size:.85em;">Cruza inventario nuevo, ventas activas y catálogo por referencia y talla. Visible únicamente para Yohana.</p></div>
                         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                            <button id="ip-btn-mudanza" onclick="abrirInventarioMudanza()" style="border:0;background:#ea580c;color:white;border-radius:9px;padding:9px 14px;font-weight:900;cursor:pointer;">📦 Inventario de mudanza</button>
                             <button id="btn-respaldo-pedidos-excel" onclick="exportarRespaldoPedidosExcel()" style="display:none;border:0;background:#168653;color:white;border-radius:9px;padding:9px 14px;font-weight:900;cursor:pointer;">📊 Respaldar pedidos en Excel</button>
                             <button id="ip-btn-actualizar" onclick="cargarInventarioPersonal(true)" style="border:0;background:#7e22ce;color:white;border-radius:9px;padding:9px 14px;font-weight:900;cursor:pointer;">Actualizar cruce</button>
                         </div>
@@ -5958,8 +5959,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 modal = document.createElement('div'); modal.id = 'modal-conteo-rapido';
                 modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:100009;background:rgba(0,0,0,.58);padding:18px;box-sizing:border-box;overflow:auto;';
                 modal.innerHTML = '<div style="max-width:560px;margin:8vh auto;background:#fff;border-radius:18px;padding:22px;font-family:Nunito,sans-serif;box-shadow:0 20px 55px #0005">'+
-                    '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><h2 style="margin:0;color:#168d55;font-size:1.25em">📦 Conteo rápido</h2><div style="color:#667085;font-size:.84em;margin-top:4px">Escribe o escanea la referencia para ajustar sus tallas.</div></div><button onclick="cerrarConteoRapido()" style="border:0;background:#eee;border-radius:50%;width:34px;height:34px;font-weight:900;font-size:1.1em;cursor:pointer">✕</button></div>'+
-                    '<input id="conteo-rapido-codigo" autocomplete="off" inputmode="numeric" placeholder="Código o referencia…" oninput="buscarConteoRapido()" onkeydown="if(event.key===\'Enter\')editarConteoRapido()" style="box-sizing:border-box;width:100%;margin:18px 0 12px;padding:14px;border:2px solid #8ee0b6;border-radius:11px;font-size:1.08em;font-weight:800;outline:none">'+
+                    '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><h2 style="margin:0;color:#168d55;font-size:1.25em">📦 Conteo rápido</h2><div style="color:#667085;font-size:.84em;margin-top:4px">Escribe o escanea la referencia para ajustar sus tallas.</div><div id="estado-scanner-conteo" style="display:inline-block;margin-top:7px;padding:4px 9px;border-radius:12px;background:#e8f8ef;color:#168d55;font-size:.75em;font-weight:900">● Lector listo</div></div><button onclick="cerrarConteoRapido()" style="border:0;background:#eee;border-radius:50%;width:34px;height:34px;font-weight:900;font-size:1.1em;cursor:pointer">✕</button></div>'+ 
+                    '<input id="conteo-rapido-codigo" autocomplete="off" inputmode="numeric" placeholder="Código o referencia…" oninput="entradaScannerConteoRapido()" onkeydown="manejarTeclaConteoRapido(event)" style="box-sizing:border-box;width:100%;margin:18px 0 12px;padding:14px;border:2px solid #8ee0b6;border-radius:11px;font-size:1.08em;font-weight:800;outline:none">'+
                     '<div id="conteo-rapido-resultado" style="min-height:80px;border:1.5px dashed #b7e7cb;border-radius:12px;padding:12px;color:#667085;text-align:center">Cargando referencias…</div></div>';
                 document.body.appendChild(modal);
             }
@@ -5970,10 +5971,71 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 const snap = await getDocs(collection(db, 'productos'));
                 const completos = snap.docs.map(d => Object.assign({id:d.id}, d.data()));
                 if (completos.length) { productosDB = completos; window.productosDB = completos; }
-                document.getElementById('conteo-rapido-resultado').textContent = 'Escribe una referencia para encontrar la prenda.';
+                document.getElementById('conteo-rapido-resultado').textContent = 'Escanea una referencia o escríbela para encontrar la prenda.';
+                caja.focus();
             } catch(e) { document.getElementById('conteo-rapido-resultado').textContent = 'No se pudo cargar el inventario: ' + e.message; }
         };
         window.cerrarConteoRapido = function(){ const m=document.getElementById('modal-conteo-rapido'); if(m)m.style.display='none'; };
+        window._scannerConteoTimer = null;
+        window._scannerConteoInicio = 0;
+        window._scannerConteoUltimaTecla = 0;
+        window._scannerConteoCaracteres = 0;
+        window.manejarTeclaConteoRapido = function(event) {
+            const ahora = Date.now();
+            if (event.key === 'Enter' || event.key === 'Tab') {
+                event.preventDefault();
+                clearTimeout(window._scannerConteoTimer);
+                buscarConteoRapido();
+                const salida = document.getElementById('conteo-rapido-resultado');
+                if (salida && salida.dataset.id) editarConteoRapido();
+                return;
+            }
+            if (event.key && event.key.length === 1) {
+                if (!window._scannerConteoUltimaTecla || ahora - window._scannerConteoUltimaTecla > 250) {
+                    window._scannerConteoInicio = ahora;
+                    window._scannerConteoCaracteres = 0;
+                }
+                window._scannerConteoUltimaTecla = ahora;
+                window._scannerConteoCaracteres++;
+            }
+        };
+        window.entradaScannerConteoRapido = function() {
+            const caja = document.getElementById('conteo-rapido-codigo');
+            if (!caja) return;
+            caja.value = caja.value.replace(/[\r\n\t]/g, '').trim();
+            buscarConteoRapido();
+            const estado = document.getElementById('estado-scanner-conteo');
+            if (estado) estado.textContent = '● Leyendo…';
+            clearTimeout(window._scannerConteoTimer);
+            const valorLeido = caja.value;
+            window._scannerConteoTimer = setTimeout(function() {
+                const salida = document.getElementById('conteo-rapido-resultado');
+                const duracion = Date.now() - (window._scannerConteoInicio || Date.now());
+                const pareceScanner = window._scannerConteoCaracteres >= 3 && duracion < 1200;
+                if (estado) estado.textContent = salida && salida.dataset.id ? '✓ Referencia leída' : '● Lector listo';
+                // Algunos lectores no envían Enter. Si el código llegó con la
+                // velocidad de un escáner y existe, abrirlo automáticamente.
+                if (pareceScanner && caja.value === valorLeido && salida && salida.dataset.id) editarConteoRapido();
+            }, 180);
+        };
+        if (!window._capturaScannerConteoInstalada) {
+            window._capturaScannerConteoInstalada = true;
+            document.addEventListener('keydown', function(event) {
+                const modal = document.getElementById('modal-conteo-rapido');
+                const caja = document.getElementById('conteo-rapido-codigo');
+                if (!modal || modal.style.display === 'none' || !caja || document.activeElement === caja) return;
+                if (event.key && event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+                    caja.focus();
+                    caja.value += event.key;
+                    manejarTeclaConteoRapido(event);
+                    entradaScannerConteoRapido();
+                    event.preventDefault();
+                } else if (event.key === 'Enter' || event.key === 'Tab') {
+                    caja.focus();
+                    manejarTeclaConteoRapido(event);
+                }
+            }, true);
+        }
         window.buscarConteoRapido = function(){
             const codigo=(document.getElementById('conteo-rapido-codigo')||{value:''}).value.trim().toLowerCase();
             const salida=document.getElementById('conteo-rapido-resultado'); if(!salida)return;
@@ -10367,6 +10429,182 @@ ${ped.comprobanteUrl ? `
                 ['Unidades vendidas', ventas, '#187548']
             ].map(x => '<div style="background:white;border:1.5px solid #e5d5f4;border-radius:10px;padding:10px;"><div style="font-size:.72em;color:#667085;font-weight:800;">'+x[0]+'</div><div style="font-size:1.35em;font-weight:950;color:'+x[2]+';">'+x[1]+'</div></div>').join('');
         }
+
+        // ===== INVENTARIO DE MUDANZA (LOCAL Y COMPARATIVO) =====
+        // Este conteo vive únicamente en localStorage. Nunca escribe en
+        // Firebase ni modifica el stock oficial del catálogo.
+        const CLAVE_INVENTARIO_MUDANZA = 'superkidsInventarioMudanzaV1';
+        const TALLAS_MUDANZA = ['0M','1M','3M','6M','9M','12M','15M','18M','24M','2T','3T','4T','5T','6T','7T','8T','9T','10T','11T','12T','13T','14T','15T','16T'];
+        let inventarioMudanza = {};
+
+        function normalizarTallaMudanza(talla) {
+            let valor = String(talla == null ? '' : talla).trim().toUpperCase().replace(/\s+/g, '');
+            if (/^\d+$/.test(valor)) valor += 'T';
+            return valor;
+        }
+
+        function indiceTallaMudanza(talla) {
+            const i = TALLAS_MUDANZA.indexOf(normalizarTallaMudanza(talla));
+            return i < 0 ? 999 : i;
+        }
+
+        function cargarDatosInventarioMudanza() {
+            try { inventarioMudanza = JSON.parse(localStorage.getItem(CLAVE_INVENTARIO_MUDANZA) || '{}') || {}; }
+            catch(e) { inventarioMudanza = {}; }
+            return inventarioMudanza;
+        }
+
+        function guardarDatosInventarioMudanza() {
+            localStorage.setItem(CLAVE_INVENTARIO_MUDANZA, JSON.stringify(inventarioMudanza));
+        }
+
+        function productosParaMudanza() {
+            return (Array.isArray(window.productosDB) && window.productosDB.length ? window.productosDB : (productosDB || []));
+        }
+
+        function buscarProductoMudanza(codigo) {
+            const ref = _ipNormalizar(codigo);
+            return productosParaMudanza().find(p => _ipNormalizar(p.codigo || p.ref) === ref) || null;
+        }
+
+        window.abrirInventarioMudanza = function() {
+            if (!esYohanaInventario()) return alert('Este inventario es exclusivo de Yohana.');
+            cargarDatosInventarioMudanza();
+            let modal = document.getElementById('modal-inventario-mudanza');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'modal-inventario-mudanza';
+                modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:100020;background:rgba(20,12,5,.68);padding:14px;box-sizing:border-box;overflow:auto;font-family:Nunito,sans-serif;';
+                modal.innerHTML = '<div style="max-width:1280px;margin:2vh auto;background:#fff;border-radius:18px;padding:20px;box-shadow:0 24px 70px #0006;">'
+                    + '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;"><div><h2 style="margin:0;color:#c2410c;">📦 Inventario de mudanza</h2><p style="margin:5px 0;color:#667085;font-size:.84em;">Conteo independiente. No cambia el stock oficial ni Firebase.</p></div><button onclick="cerrarInventarioMudanza()" style="border:0;background:#f2f4f7;border-radius:50%;width:36px;height:36px;font-size:1.1em;font-weight:900;cursor:pointer;">✕</button></div>'
+                    + '<div style="margin-top:14px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:13px;padding:13px;"><div style="display:grid;grid-template-columns:minmax(220px,1.2fr) minmax(130px,.5fr) minmax(100px,.35fr) auto;gap:9px;align-items:end;">'
+                    + '<label style="font-size:.78em;font-weight:900;color:#9a3412;">Escanear referencia<input id="mudanza-codigo" autocomplete="off" inputmode="numeric" placeholder="Escanea o escribe el código" oninput="buscarReferenciaMudanza()" onkeydown="manejarScannerMudanza(event)" style="display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:12px;border:2px solid #fb923c;border-radius:9px;font-size:1.05em;font-weight:900;"></label>'
+                    + '<label style="font-size:.78em;font-weight:900;color:#9a3412;">Talla<select id="mudanza-talla" style="display:block;width:100%;margin-top:5px;padding:12px;border:1.5px solid #fdba74;border-radius:9px;background:white;font-weight:900;"></select></label>'
+                    + '<label style="font-size:.78em;font-weight:900;color:#9a3412;">Cantidad<input id="mudanza-cantidad" type="number" min="1" value="1" style="display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:12px;border:1.5px solid #fdba74;border-radius:9px;font-weight:900;"></label>'
+                    + '<button onclick="agregarAlInventarioMudanza()" style="border:0;background:#ea580c;color:white;border-radius:9px;padding:13px 16px;font-weight:950;cursor:pointer;white-space:nowrap;">+ Agregar conteo</button></div>'
+                    + '<div id="mudanza-producto" style="margin-top:10px;min-height:42px;color:#667085;font-size:.84em;font-weight:800;">Conecta el lector y escanea una referencia.</div></div>'
+                    + '<div id="mudanza-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin:13px 0;"></div>'
+                    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"><button onclick="mostrarComparacionMudanza()" style="border:0;background:#7e22ce;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">🔎 Comparar con stock</button><button onclick="exportarInventarioMudanzaExcel()" style="border:0;background:#168653;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">📊 Exportar Excel</button><button onclick="reiniciarInventarioMudanza()" style="border:1px solid #fda4af;background:white;color:#be123c;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">Vaciar conteo</button></div>'
+                    + '<div style="overflow:auto;border:1.5px solid #fed7aa;border-radius:11px;max-height:440px;"><table style="border-collapse:collapse;min-width:1900px;width:100%;font-size:.76em;"><thead id="mudanza-thead" style="position:sticky;top:0;background:#ffedd5;color:#9a3412;z-index:2;"></thead><tbody id="mudanza-tbody"></tbody></table></div>'
+                    + '<div id="mudanza-comparacion" style="display:none;margin-top:16px;"></div></div>';
+                document.body.appendChild(modal);
+                document.getElementById('mudanza-talla').innerHTML = TALLAS_MUDANZA.map(t => '<option value="'+t+'">'+t+'</option>').join('');
+            }
+            modal.style.display = 'block';
+            document.getElementById('mudanza-codigo').value = '';
+            document.getElementById('mudanza-producto').textContent = 'Conecta el lector y escanea una referencia.';
+            renderizarInventarioMudanza();
+            setTimeout(() => document.getElementById('mudanza-codigo').focus(), 50);
+        };
+
+        window.cerrarInventarioMudanza = function() {
+            const modal = document.getElementById('modal-inventario-mudanza');
+            if (modal) modal.style.display = 'none';
+        };
+
+        window.buscarReferenciaMudanza = function() {
+            const caja = document.getElementById('mudanza-codigo');
+            const salida = document.getElementById('mudanza-producto');
+            if (!caja || !salida) return;
+            caja.value = caja.value.replace(/[\r\n\t]/g, '').trim();
+            const producto = buscarProductoMudanza(caja.value);
+            if (!caja.value) { salida.textContent = 'Conecta el lector y escanea una referencia.'; return; }
+            if (!producto) { salida.innerHTML = '<span style="color:#b42318;">No encontramos esa referencia en el stock oficial.</span> Puedes conservarla como referencia externa seleccionando una talla y agregándola.'; return; }
+            const tallas = (producto.tallasObj || []).map(t => normalizarTallaMudanza(t.nombre || t.talla)).filter(Boolean).sort((a,b) => indiceTallaMudanza(a)-indiceTallaMudanza(b));
+            if (tallas.length) document.getElementById('mudanza-talla').value = tallas[0];
+            salida.innerHTML = '<b style="color:#9a3412;">'+escapeHtml(producto.nombre || 'Sin nombre')+'</b> · Ref. '+escapeHtml(producto.codigo || '')+'<br><span style="color:#667085;">Tallas en stock: '+escapeHtml(tallas.join(', ') || 'sin tallas')+'</span>';
+        };
+
+        window.manejarScannerMudanza = function(event) {
+            if (event.key !== 'Enter' && event.key !== 'Tab') return;
+            event.preventDefault();
+            buscarReferenciaMudanza();
+            const selector = document.getElementById('mudanza-talla');
+            if (selector) selector.focus();
+        };
+
+        window.agregarAlInventarioMudanza = function() {
+            const codigo = _ipNormalizar((document.getElementById('mudanza-codigo') || {}).value);
+            const talla = normalizarTallaMudanza((document.getElementById('mudanza-talla') || {}).value);
+            const cantidad = Math.max(1, parseInt((document.getElementById('mudanza-cantidad') || {}).value, 10) || 1);
+            if (!codigo) return alert('Escanea o escribe una referencia.');
+            const producto = buscarProductoMudanza(codigo);
+            if (!inventarioMudanza[codigo]) inventarioMudanza[codigo] = { ref:codigo, nombre:producto ? (producto.nombre || '') : 'Referencia no encontrada en stock', tallas:{}, actualizadoEn:'' };
+            inventarioMudanza[codigo].nombre = producto ? (producto.nombre || inventarioMudanza[codigo].nombre) : inventarioMudanza[codigo].nombre;
+            inventarioMudanza[codigo].tallas[talla] = Math.max(0, parseInt(inventarioMudanza[codigo].tallas[talla], 10) || 0) + cantidad;
+            inventarioMudanza[codigo].actualizadoEn = new Date().toISOString();
+            guardarDatosInventarioMudanza();
+            renderizarInventarioMudanza();
+            const salida = document.getElementById('mudanza-producto');
+            if (salida) salida.innerHTML = '<span style="color:#187548;">✓ Agregado: '+escapeHtml(codigo)+' · '+escapeHtml(talla)+' · +'+cantidad+'</span>';
+            document.getElementById('mudanza-codigo').value = '';
+            document.getElementById('mudanza-cantidad').value = '1';
+            document.getElementById('mudanza-codigo').focus();
+        };
+
+        window.ajustarCantidadMudanza = function(refCodificada, talla, cambio) {
+            const ref = decodeURIComponent(refCodificada);
+            const registro = inventarioMudanza[ref]; if (!registro) return;
+            const nueva = Math.max(0, (parseInt(registro.tallas[talla], 10) || 0) + cambio);
+            if (nueva) registro.tallas[talla] = nueva; else delete registro.tallas[talla];
+            if (!Object.keys(registro.tallas).length) delete inventarioMudanza[ref];
+            guardarDatosInventarioMudanza(); renderizarInventarioMudanza();
+        };
+
+        function renderizarInventarioMudanza() {
+            const thead = document.getElementById('mudanza-thead'), tbody = document.getElementById('mudanza-tbody');
+            if (!thead || !tbody) return;
+            thead.innerHTML = '<tr><th style="padding:9px;text-align:left;position:sticky;left:0;background:#ffedd5;">Referencia</th><th style="text-align:left;min-width:190px;">Prenda</th>'+TALLAS_MUDANZA.map(t => '<th style="min-width:54px;">'+t+'</th>').join('')+'<th>Total</th></tr>';
+            const registros = Object.values(inventarioMudanza).sort((a,b) => String(a.ref).localeCompare(String(b.ref),'es',{numeric:true}));
+            tbody.innerHTML = registros.map(r => {
+                const total = Object.values(r.tallas || {}).reduce((s,n) => s + (parseInt(n,10)||0), 0);
+                const refUrl = encodeURIComponent(r.ref);
+                return '<tr style="border-bottom:1px solid #f1e3d8;"><td style="padding:8px;font-weight:950;color:#9a3412;position:sticky;left:0;background:white;">'+escapeHtml(r.ref)+'</td><td>'+escapeHtml(r.nombre || '')+'</td>'+TALLAS_MUDANZA.map(t => { const n=parseInt((r.tallas||{})[t],10)||0; return '<td style="text-align:center;">'+(n ? '<button title="Restar una" onclick="ajustarCantidadMudanza(\''+refUrl+'\',\''+t+'\',-1)" style="border:0;background:#fff7ed;color:#c2410c;border-radius:7px;padding:5px 7px;font-weight:950;cursor:pointer;">'+n+'</button>' : '—')+'</td>'; }).join('')+'<td style="text-align:center;font-weight:950;">'+total+'</td></tr>';
+            }).join('') || '<tr><td colspan="28" style="padding:26px;text-align:center;color:#98a2b3;font-weight:900;">Todavía no has escaneado prendas para la mudanza.</td></tr>';
+            const totalRefs = registros.length;
+            const totalUnidades = registros.reduce((s,r) => s + Object.values(r.tallas||{}).reduce((a,n)=>a+(parseInt(n,10)||0),0),0);
+            const totalTallas = registros.reduce((s,r) => s + Object.keys(r.tallas||{}).filter(t => (parseInt(r.tallas[t],10)||0)>0).length,0);
+            const resumen = document.getElementById('mudanza-resumen');
+            if (resumen) resumen.innerHTML = [['Referencias',totalRefs,'#c2410c'],['Unidades contadas',totalUnidades,'#168653'],['Combinaciones de talla',totalTallas,'#7e22ce']].map(x => '<div style="border:1.5px solid #fed7aa;border-radius:10px;padding:10px;background:#fffaf5;"><div style="font-size:.72em;color:#667085;font-weight:800;">'+x[0]+'</div><div style="font-size:1.4em;font-weight:950;color:'+x[2]+';">'+x[1]+'</div></div>').join('');
+            const comparacion = document.getElementById('mudanza-comparacion'); if (comparacion && comparacion.style.display !== 'none') mostrarComparacionMudanza();
+        }
+
+        function filasComparacionMudanza() {
+            const mapa = new Map();
+            function fila(ref,nombre,talla) { const clave=ref+'|'+talla; if(!mapa.has(clave)) mapa.set(clave,{ref,nombre:nombre||'',talla,stock:0,contado:0}); return mapa.get(clave); }
+            productosParaMudanza().forEach(p => { const ref=_ipNormalizar(p.codigo||p.ref); if(!ref)return; (p.tallasObj||[]).forEach(t => { const f=fila(ref,p.nombre,normalizarTallaMudanza(t.nombre||t.talla)); f.stock += Math.max(0,parseInt(t.stock,10)||0); }); });
+            Object.values(inventarioMudanza).forEach(r => Object.keys(r.tallas||{}).forEach(t => { const f=fila(r.ref,r.nombre,normalizarTallaMudanza(t)); f.contado += Math.max(0,parseInt(r.tallas[t],10)||0); }));
+            return Array.from(mapa.values()).map(f => { f.diferencia=f.contado-f.stock; f.estado=f.diferencia===0?'Cuadra':(f.stock===0?'Solo en mudanza':(f.contado===0?'No encontrada en mudanza':(f.diferencia>0?'Sobra en mudanza':'Falta en mudanza'))); return f; }).sort((a,b)=>a.ref.localeCompare(b.ref,'es',{numeric:true})||indiceTallaMudanza(a.talla)-indiceTallaMudanza(b.talla));
+        }
+
+        window.mostrarComparacionMudanza = function() {
+            const panel = document.getElementById('mudanza-comparacion'); if (!panel) return;
+            const filas = filasComparacionMudanza();
+            const diferencias = filas.filter(f => f.diferencia !== 0);
+            const faltan = diferencias.filter(f => f.diferencia < 0).reduce((s,f)=>s+Math.abs(f.diferencia),0);
+            const sobran = diferencias.filter(f => f.diferencia > 0).reduce((s,f)=>s+f.diferencia,0);
+            panel.style.display = 'block';
+            panel.innerHTML = '<h3 style="color:#6b21a8;margin:0 0 8px;">Comparación con el stock oficial</h3><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"><span style="background:#fff1f2;color:#b42318;padding:7px 10px;border-radius:14px;font-weight:900;">Faltan '+faltan+'</span><span style="background:#fffaeb;color:#9a6700;padding:7px 10px;border-radius:14px;font-weight:900;">Sobran '+sobran+'</span><span style="background:#f3e8ff;color:#6b21a8;padding:7px 10px;border-radius:14px;font-weight:900;">Diferencias '+diferencias.length+'</span></div><div style="overflow:auto;border:1.5px solid #e5d5f4;border-radius:10px;max-height:360px;"><table style="width:100%;border-collapse:collapse;font-size:.79em;min-width:760px;"><thead style="position:sticky;top:0;background:#f3e8ff;color:#6b21a8;"><tr><th style="padding:9px;text-align:left;">Referencia</th><th style="text-align:left;">Prenda</th><th>Talla</th><th>Stock</th><th>Mudanza</th><th>Diferencia</th><th style="text-align:left;">Resultado</th></tr></thead><tbody>'+diferencias.map(f => '<tr style="border-bottom:1px solid #eee;"><td style="padding:8px;font-weight:900;">'+escapeHtml(f.ref)+'</td><td>'+escapeHtml(f.nombre)+'</td><td style="text-align:center;">'+escapeHtml(f.talla)+'</td><td style="text-align:center;">'+f.stock+'</td><td style="text-align:center;">'+f.contado+'</td><td style="text-align:center;font-weight:950;color:'+(f.diferencia<0?'#b42318':'#9a6700')+';">'+(f.diferencia>0?'+':'')+f.diferencia+'</td><td>'+escapeHtml(f.estado)+'</td></tr>').join('')+'</tbody></table></div>';
+        };
+
+        window.exportarInventarioMudanzaExcel = function() {
+            const registros = Object.values(inventarioMudanza).sort((a,b)=>String(a.ref).localeCompare(String(b.ref),'es',{numeric:true}));
+            if (!registros.length) return alert('Primero escanea algunas prendas.');
+            const filasComparacion = filasComparacionMudanza().filter(f => f.diferencia !== 0);
+            const esc = v => escapeHtml(v == null ? '' : v);
+            const encabezadoTallas = TALLAS_MUDANZA.map(t=>'<th>'+t+'</th>').join('');
+            const cuerpo = registros.map(r => '<tr><td class="texto">'+esc(r.ref)+'</td><td class="texto">'+esc(r.nombre)+'</td>'+TALLAS_MUDANZA.map(t=>'<td class="num">'+(parseInt((r.tallas||{})[t],10)||0)+'</td>').join('')+'<td class="total">'+Object.values(r.tallas||{}).reduce((s,n)=>s+(parseInt(n,10)||0),0)+'</td></tr>').join('');
+            const comparacion = filasComparacion.map(f=>'<tr><td class="texto">'+esc(f.ref)+'</td><td class="texto">'+esc(f.nombre)+'</td><td>'+esc(f.talla)+'</td><td class="num">'+f.stock+'</td><td class="num">'+f.contado+'</td><td class="num">'+f.diferencia+'</td><td class="texto">'+esc(f.estado)+'</td></tr>').join('');
+            const html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>body{font-family:Arial;color:#25324a}table{border-collapse:collapse;margin-bottom:28px}h1{color:#c2410c}h2{color:#6b21a8}th{background:#c2410c;color:white;border:1px solid #fed7aa;padding:8px;font-weight:bold}td{border:1px solid #eadfd6;padding:7px}.num{text-align:center;mso-number-format:"0"}.texto{mso-number-format:"\\@"}.total{background:#fff7ed;font-weight:bold;text-align:center}.comparacion th{background:#6b21a8}</style></head><body><h1>Inventario de mudanza — SuperKids &amp; Babys</h1><p>Generado el '+esc(new Date().toLocaleString('es-CO'))+' · Conteo independiente del stock oficial</p><table><tr><th>Referencia</th><th>Prenda</th>'+encabezadoTallas+'<th>Total</th></tr>'+cuerpo+'</table><h2>Diferencias frente al stock oficial</h2><table class="comparacion"><tr><th>Referencia</th><th>Prenda</th><th>Talla</th><th>Stock oficial</th><th>Conteo mudanza</th><th>Diferencia</th><th>Resultado</th></tr>'+comparacion+'</table></body></html>';
+            const blob = new Blob(['\ufeff',html],{type:'application/vnd.ms-excel;charset=utf-8'}), a=document.createElement('a');
+            a.href=URL.createObjectURL(blob); a.download='Inventario_Mudanza_'+new Date().toISOString().slice(0,10)+'.xls'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+        };
+
+        window.reiniciarInventarioMudanza = function() {
+            if (!confirm('¿Vaciar todo el conteo de mudanza? Esta acción no afecta el stock oficial.')) return;
+            inventarioMudanza = {}; guardarDatosInventarioMudanza(); renderizarInventarioMudanza();
+            const panel=document.getElementById('mudanza-comparacion'); if(panel) panel.style.display='none';
+        };
 
         function cambiarTab(tab) {
             document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('activo'));
