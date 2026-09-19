@@ -7598,6 +7598,120 @@ ${ped.comprobanteUrl ? `
             return TRANSP_KEY_MAP[low] || val.trim();
         }
 
+        // Verificación visual de prendas para despacho. Se guarda solo en
+        // este dispositivo y nunca modifica pedidos, stock, fotos o Excel.
+        const CLAVE_VERIFICACION_DESPACHO = 'superkidsVerificacionDespachoV1';
+        let verificacionDespachoActiva = null;
+        let temporizadorScannerDespacho = null;
+
+        function leerVerificacionesDespacho() {
+            try { return JSON.parse(localStorage.getItem(CLAVE_VERIFICACION_DESPACHO) || '{}') || {}; }
+            catch(e) { return {}; }
+        }
+
+        function guardarVerificacionesDespacho(datos) {
+            localStorage.setItem(CLAVE_VERIFICACION_DESPACHO, JSON.stringify(datos || {}));
+        }
+
+        function claveReferenciaDespacho(ref) {
+            return String(ref == null ? '' : ref).trim().toUpperCase().replace(/\s+/g, '');
+        }
+
+        function obtenerEstadoVerificacionPrenda(numPedido, ref, requerida) {
+            const datos = leerVerificacionesDespacho();
+            const pedido = datos[String(numPedido)] || {};
+            const cantidad = Math.min(Math.max(0, parseInt(pedido[claveReferenciaDespacho(ref)], 10) || 0), Math.max(1, parseInt(requerida, 10) || 1));
+            const total = Math.max(1, parseInt(requerida, 10) || 1);
+            return { cantidad:cantidad, requerida:total, completa:cantidad >= total };
+        }
+
+        function emitirAlertaPrendaErrada() {
+            try { if (navigator.vibrate) navigator.vibrate([220,100,220]); } catch(e) {}
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx(), osc = ctx.createOscillator(), gain = ctx.createGain();
+                osc.type = 'square'; osc.frequency.value = 170; gain.gain.value = .12;
+                osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + .35);
+                osc.onended = function(){ try { ctx.close(); } catch(e) {} };
+            } catch(e) {}
+        }
+
+        window.abrirVerificacionPrendaPedido = function(numPedido, refCodificada, nombreCodificado, tallasCodificadas, requerida) {
+            const ref = decodeURIComponent(refCodificada || '');
+            if (!ref || ref === 'S/N') return alert('Esta prenda no tiene una referencia válida para escanear.');
+            verificacionDespachoActiva = { numPedido:Number(numPedido), ref:ref, nombre:decodeURIComponent(nombreCodificado || ''), tallas:decodeURIComponent(tallasCodificadas || ''), requerida:Math.max(1,Number(requerida)||1) };
+            let modal = document.getElementById('modal-verificar-prenda-pedido');
+            if (!modal) {
+                const estilo = document.createElement('style');
+                estilo.textContent = '@media print{.control-verificacion-despacho,#modal-verificar-prenda-pedido{display:none!important}}';
+                document.head.appendChild(estilo);
+                modal = document.createElement('div'); modal.id = 'modal-verificar-prenda-pedido';
+                modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:100030;background:rgba(0,0,0,.68);padding:16px;box-sizing:border-box;overflow:auto;font-family:Nunito,sans-serif;';
+                modal.innerHTML = '<div style="max-width:520px;margin:6vh auto;background:white;border-radius:18px;padding:21px;box-shadow:0 24px 65px #0006;"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;"><div><h2 style="margin:0;color:#c2410c;font-size:1.2em;">▣ Verificar prenda</h2><p style="margin:4px 0;color:#667085;font-size:.82em;">Escanea la etiqueta antes de empacarla.</p></div><button onclick="cerrarVerificacionPrendaPedido()" style="border:0;background:#eee;border-radius:50%;width:34px;height:34px;font-weight:900;cursor:pointer;">✕</button></div><div id="verificar-prenda-esperada" style="margin:13px 0;padding:12px;border:1.5px solid #fed7aa;background:#fff7ed;border-radius:11px;"></div><input id="verificar-prenda-codigo" autocomplete="off" inputmode="numeric" placeholder="Escanea la referencia" oninput="entradaScannerVerificacionPedido()" onkeydown="teclaScannerVerificacionPedido(event)" style="box-sizing:border-box;width:100%;padding:14px;border:2px solid #fb923c;border-radius:10px;font-size:1.08em;font-weight:950;outline:none;"><div id="verificar-prenda-mensaje" style="min-height:54px;margin-top:11px;padding:12px;border-radius:10px;background:#f8fafc;color:#667085;font-size:.86em;font-weight:900;text-align:center;">Lector listo</div><div style="display:flex;gap:8px;margin-top:12px;"><button onclick="reiniciarVerificacionPrendaActual()" style="flex:1;border:1.5px solid #cbd5e1;background:white;color:#475467;border-radius:9px;padding:9px;font-weight:900;cursor:pointer;">Reiniciar conteo</button><button onclick="cerrarVerificacionPrendaPedido()" style="flex:1;border:0;background:#334155;color:white;border-radius:9px;padding:9px;font-weight:900;cursor:pointer;">Cerrar</button></div></div>';
+                document.body.appendChild(modal);
+            }
+            modal.style.display = 'block';
+            actualizarModalVerificacionPrenda();
+            setTimeout(function(){ const c=document.getElementById('verificar-prenda-codigo'); if(c){c.value='';c.focus();} },50);
+        };
+
+        function actualizarModalVerificacionPrenda() {
+            if (!verificacionDespachoActiva) return;
+            const v = verificacionDespachoActiva;
+            const estado = obtenerEstadoVerificacionPrenda(v.numPedido,v.ref,v.requerida);
+            const esperado = document.getElementById('verificar-prenda-esperada');
+            if (esperado) esperado.innerHTML = '<div style="font-size:.75em;color:#9a3412;font-weight:900;">PEDIDO SK'+String(v.numPedido).padStart(5,'0')+'</div><div style="font-weight:950;color:#25324a;margin-top:4px;">'+escapeHtml(v.nombre || 'Prenda')+'</div><div style="font-size:.84em;color:#667085;margin-top:3px;">Debe leer: <b style="color:#c2410c;">'+escapeHtml(v.ref)+'</b> · Tallas: '+escapeHtml(v.tallas || '—')+'</div><div style="margin-top:6px;color:'+(estado.completa?'#166534':'#9a3412')+';font-weight:950;">Verificadas: '+estado.cantidad+' de '+estado.requerida+'</div>';
+        }
+
+        window.cerrarVerificacionPrendaPedido = function() {
+            clearTimeout(temporizadorScannerDespacho);
+            const modal=document.getElementById('modal-verificar-prenda-pedido'); if(modal)modal.style.display='none';
+            verificacionDespachoActiva=null;
+        };
+
+        window.teclaScannerVerificacionPedido = function(event) {
+            if (event.key !== 'Enter' && event.key !== 'Tab') return;
+            event.preventDefault(); clearTimeout(temporizadorScannerDespacho); validarEscaneoPrendaPedido();
+        };
+
+        window.entradaScannerVerificacionPedido = function() {
+            const caja=document.getElementById('verificar-prenda-codigo'); if(!caja)return;
+            caja.value=caja.value.replace(/[\r\n\t]/g,'').trim();
+            clearTimeout(temporizadorScannerDespacho);
+            if (!caja.value) return;
+            temporizadorScannerDespacho=setTimeout(validarEscaneoPrendaPedido,220);
+        };
+
+        window.validarEscaneoPrendaPedido = function() {
+            if (!verificacionDespachoActiva) return;
+            const caja=document.getElementById('verificar-prenda-codigo'), mensaje=document.getElementById('verificar-prenda-mensaje');
+            const leida=claveReferenciaDespacho(caja && caja.value), esperada=claveReferenciaDespacho(verificacionDespachoActiva.ref);
+            if (!leida) return;
+            if (leida !== esperada) {
+                if (mensaje) { mensaje.style.background='#fff1f2'; mensaje.style.color='#b42318'; mensaje.style.border='2px solid #fda4af'; mensaje.innerHTML='❌ PRENDA EQUIVOCADA<br><span style="font-size:.9em;">Esperada: '+escapeHtml(verificacionDespachoActiva.ref)+' · Escaneada: '+escapeHtml(caja.value)+'</span>'; }
+                emitirAlertaPrendaErrada(); caja.select(); return;
+            }
+            const datos=leerVerificacionesDespacho(), clavePedido=String(verificacionDespachoActiva.numPedido), claveRef=esperada;
+            if(!datos[clavePedido])datos[clavePedido]={};
+            const actual=parseInt(datos[clavePedido][claveRef],10)||0;
+            datos[clavePedido][claveRef]=Math.min(verificacionDespachoActiva.requerida,actual+1);
+            guardarVerificacionesDespacho(datos);
+            const estado=obtenerEstadoVerificacionPrenda(verificacionDespachoActiva.numPedido,verificacionDespachoActiva.ref,verificacionDespachoActiva.requerida);
+            if(mensaje){mensaje.style.background='#ecfdf3';mensaje.style.color='#166534';mensaje.style.border='2px solid #86efac';mensaje.innerHTML=estado.completa?'✅ PRENDA CORRECTA · VERIFICACIÓN COMPLETA':'✅ PRENDA CORRECTA · '+estado.cantidad+' DE '+estado.requerida;}
+            actualizarModalVerificacionPrenda(); renderizarPedidosPanel();
+            caja.value=''; caja.focus();
+        };
+
+        window.reiniciarVerificacionPrendaActual = function() {
+            if(!verificacionDespachoActiva)return;
+            const datos=leerVerificacionesDespacho(), p=datos[String(verificacionDespachoActiva.numPedido)];
+            if(p){delete p[claveReferenciaDespacho(verificacionDespachoActiva.ref)]; if(!Object.keys(p).length)delete datos[String(verificacionDespachoActiva.numPedido)];}
+            guardarVerificacionesDespacho(datos); actualizarModalVerificacionPrenda(); renderizarPedidosPanel();
+            const mensaje=document.getElementById('verificar-prenda-mensaje'); if(mensaje){mensaje.style.background='#f8fafc';mensaje.style.color='#667085';mensaje.style.border='none';mensaje.textContent='Conteo reiniciado. Lector listo.';}
+            const caja=document.getElementById('verificar-prenda-codigo'); if(caja){caja.value='';caja.focus();}
+        };
+
         window.abrirWhatsAppPedido = function(numPedido) {
             const pedido = (historialPedidos || []).find(function(p) { return Number(p.num) === Number(numPedido); });
             if (!pedido || !pedido.tel) return alert('Este pedido no tiene un teléfono registrado.');
@@ -7650,7 +7764,10 @@ ${ped.comprobanteUrl ? `
                     // Las prendas facturadas no se eliminan desde la tarjeta:
                     // ese botón devolvía stock y podía descuadrar una curva por
                     // un toque accidental. Los ajustes se hacen en el editor.
-                    return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.cantidad > 1 ? '(' + g.cantidad + ') ' : ''}${g.nom}</div><div style="font-size:0.72em;color:#888;">Tallas: ${tallasTxt} · REF: ${g.cod || 'S/N'}</div></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(g.totalPrecio)}</span></div>`;
+                    const verificacion = obtenerEstadoVerificacionPrenda(ped.num, g.cod || 'S/N', g.cantidad || 1);
+                    const textoVerificacion = verificacion.completa ? '✓ Verificada '+verificacion.cantidad+'/'+verificacion.requerida : '▣ Escanear '+verificacion.cantidad+'/'+verificacion.requerida;
+                    const estiloVerificacion = verificacion.completa ? 'background:#dcfce7;color:#166534;border-color:#86efac;' : 'background:#fff7ed;color:#c2410c;border-color:#fdba74;';
+                    return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.cantidad > 1 ? '(' + g.cantidad + ') ' : ''}${g.nom}</div><div style="font-size:0.72em;color:#888;">Tallas: ${tallasTxt} · REF: ${g.cod || 'S/N'}</div><button type="button" class="control-verificacion-despacho" onclick="abrirVerificacionPrendaPedido(${Number(ped.num)},'${encodeURIComponent(g.cod || 'S/N')}','${encodeURIComponent(g.nom || '')}','${encodeURIComponent(tallasTxt)}',${Number(g.cantidad || 1)})" style="margin-top:5px;border:1.5px solid;border-radius:8px;padding:5px 9px;font-size:.73em;font-weight:950;cursor:pointer;${estiloVerificacion}">${textoVerificacion}</button></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(g.totalPrecio)}</span></div>`;
                 }).join('');
 
                 const numFact = ped.numOrden || ('SK' + String(ped.numFactura || ped.num).padStart(5, '0'));
