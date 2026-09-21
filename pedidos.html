@@ -6405,6 +6405,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             return !!(u && (u.rol === 'admin' || u.uid === UID_GINA || u.uid === 'MtQpryHLGYab5v3UjhRZw88CAD63'));
         }
 
+        function puedeEditarPrecioPedido() {
+            const u = window.usuarioActual;
+            return !!(u && (u.rol === 'admin' || u.editarPrecio === true));
+        }
+
         function calcularDescuentoMamelucosPedido(items) {
             let bruto = 0, cantidadPromo = 0;
             (items || []).forEach(i => {
@@ -6597,13 +6602,48 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         function renderItemsEditorPedido(ped) {
             const cont = document.getElementById('edit-prendas-pedido-items');
             if (!cont) return;
+            const permitePrecio = puedeEditarPrecioPedido();
             cont.innerHTML = (ped.items || []).map((item, idx) => {
                 const prod = productosDB.find(p => String(p.id) === String(item.id_prod)) || productosDB.find(p => String(p.codigo || '') === String(item.cod || ''));
                 const actual = normalizarTallaValor(item.talla);
                 const opciones = prod && prod.tallasObj ? prod.tallasObj.filter(t => (parseInt(t.stock,10)||0) > 0 || normalizarTallaValor(t.nombre) === actual).map(t => '<option value="'+escapeHtmlAttr(t.nombre)+'"'+(normalizarTallaValor(t.nombre)===actual?' selected':'')+'>'+t.nombre+' ('+(parseInt(t.stock,10)||0)+' disponibles)</option>').join('') : '<option>'+escapeHtmlAttr(item.talla || 'Única')+'</option>';
-                return '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(125px,180px);gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #f0e6f5;"><div><strong style="font-size:.88em;">'+escapeHtml(item.nom || '')+'</strong><div style="font-size:.75em;color:#777;">REF: '+escapeHtml(item.cod || 'S/N')+' · Cantidad: '+(parseInt(item.cant,10)||1)+'</div></div><select onchange="cambiarTallaProductoPedido('+ped.num+','+idx+',this.value,this)" style="width:100%;padding:8px;border:1.5px solid #d8b4fe;border-radius:8px;background:white;font:inherit;font-size:.82em;">'+opciones+'</select></div>';
+                const precioActual = Math.max(0, parseInt(item.precio,10) || 0);
+                const campoPrecio = '<label style="font-size:.72em;font-weight:900;color:'+(permitePrecio?'#166534':'#98a2b3')+';">Precio unitario<input type="number" min="0" step="1000" value="'+precioActual+'" '+(permitePrecio?'':'disabled title="Tu usuario no tiene permiso para cambiar precios"')+' onchange="cambiarPrecioProductoPedido('+ped.num+','+idx+',this.value,this)" style="display:block;width:100%;box-sizing:border-box;margin-top:3px;padding:8px;border:1.5px solid '+(permitePrecio?'#86efac':'#e5e7eb')+';border-radius:8px;background:'+(permitePrecio?'#f0fdf4':'#f8fafc')+';font:inherit;font-size:.82em;font-weight:900;color:#166534;"></label>';
+                return '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,165px) minmax(125px,165px);gap:8px;align-items:end;padding:9px 0;border-bottom:1px solid #f0e6f5;"><div><strong style="font-size:.88em;">'+escapeHtml(item.nom || '')+'</strong><div style="font-size:.75em;color:#777;">REF: '+escapeHtml(item.cod || 'S/N')+' · Cantidad: '+(parseInt(item.cant,10)||1)+'</div></div><label style="font-size:.72em;font-weight:900;color:#6b21a8;">Talla<select onchange="cambiarTallaProductoPedido('+ped.num+','+idx+',this.value,this)" style="display:block;width:100%;margin-top:3px;padding:8px;border:1.5px solid #d8b4fe;border-radius:8px;background:white;font:inherit;font-size:.82em;">'+opciones+'</select></label>'+campoPrecio+'</div>';
             }).join('') || '<div style="padding:15px;text-align:center;color:#888;">Este pedido no tiene prendas.</div>';
         }
+
+        async function cambiarPrecioProductoPedido(numPed, itemIdx, precioNuevo, input) {
+            if (!puedeEditarPrecioPedido()) {
+                alert('Tu usuario no tiene permiso para cambiar precios.');
+                const pedActual = historialPedidos.find(p => String(p.num) === String(numPed));
+                if (pedActual) renderItemsEditorPedido(pedActual);
+                return;
+            }
+            const ped = historialPedidos.find(p => String(p.num) === String(numPed));
+            const item = ped && ped.items && ped.items[itemIdx];
+            if (!item) return;
+            const anterior = Math.max(0, parseInt(item.precio,10) || 0);
+            const nuevo = Math.round(Number(precioNuevo));
+            if (!Number.isFinite(nuevo) || nuevo < 0 || nuevo > 10000000) {
+                alert('Escribe un precio válido.');
+                if (input) input.value = anterior;
+                return;
+            }
+            if (nuevo === anterior) return;
+            item.precio = nuevo;
+            recalcularTotalPedidoConEnvio(ped);
+            await guardarEdicionPrendasPedidoFirebase(ped, []);
+            await registrarActividadGestionDirecta('cambiar_precio_prenda_pedido','pedido',ped.num,{
+                cliente:ped.nom || '', producto:item.nom || item.nombre || '', referencia:item.cod || '',
+                precioAnterior:anterior, precioNuevo:nuevo, cantidad:parseInt(item.cant,10)||1
+            });
+            renderItemsEditorPedido(ped);
+            renderizarPedidosPanel();
+            const msg=document.getElementById('edit-prendas-pedido-msg');
+            if(msg){msg.style.display='block';msg.style.color='#187548';msg.textContent='✅ Precio actualizado y total recalculado.';setTimeout(()=>{msg.style.display='none';},2200);}
+        }
+        window.cambiarPrecioProductoPedido = cambiarPrecioProductoPedido;
 
         async function cambiarTallaProductoPedido(numPed, itemIdx, tallaNueva, select) {
             if (!puedeEditarPrendasPedido()) return;
@@ -10599,6 +10639,8 @@ ${ped.comprobanteUrl ? `
                     + '<label style="font-size:.78em;font-weight:900;color:#9a3412;">Talla<select id="mudanza-talla" style="display:block;width:100%;margin-top:5px;padding:12px;border:1.5px solid #fdba74;border-radius:9px;background:white;font-weight:900;"></select></label>'
                     + '<label style="font-size:.78em;font-weight:900;color:#9a3412;">Cantidad<input id="mudanza-cantidad" type="number" min="1" value="1" style="display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:12px;border:1.5px solid #fdba74;border-radius:9px;font-weight:900;"></label>'
                     + '<button onclick="agregarAlInventarioMudanza()" style="border:0;background:#ea580c;color:white;border-radius:9px;padding:13px 16px;font-weight:950;cursor:pointer;white-space:nowrap;">+ Agregar conteo</button></div>'
+                    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><button id="btn-camara-mudanza" onclick="iniciarLectorCamaraMudanza()" style="border:1.5px solid #fb923c;background:white;color:#c2410c;border-radius:9px;padding:9px 13px;font-weight:950;cursor:pointer;">📷 Escanear con cámara del celular</button><button id="btn-detener-camara-mudanza" onclick="detenerLectorCamaraMudanza()" style="display:none;border:0;background:#475467;color:white;border-radius:9px;padding:9px 13px;font-weight:900;cursor:pointer;">Detener cámara</button></div>'
+                    + '<div id="mudanza-camara-box" style="display:none;margin-top:10px;background:#111;border-radius:12px;padding:8px;text-align:center;"><video id="mudanza-video" autoplay playsinline muted style="width:100%;max-height:320px;object-fit:cover;border-radius:8px;"></video><div id="mudanza-camara-estado" style="color:white;font-size:.82em;font-weight:900;padding:7px;">Apunta al código de barras</div></div>'
                     + '<div id="mudanza-producto" style="margin-top:10px;min-height:42px;color:#667085;font-size:.84em;font-weight:800;">Conecta el lector y escanea una referencia.</div></div>'
                     + '<div id="mudanza-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin:13px 0;"></div>'
                     + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"><button onclick="mostrarComparacionMudanza()" style="border:0;background:#7e22ce;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">🔎 Comparar con stock</button><button onclick="exportarInventarioMudanzaExcel()" style="border:0;background:#168653;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">📊 Exportar Excel</button><button onclick="reiniciarInventarioMudanza()" style="border:1px solid #fda4af;background:white;color:#be123c;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">Vaciar conteo</button></div>'
@@ -10615,8 +10657,76 @@ ${ped.comprobanteUrl ? `
         };
 
         window.cerrarInventarioMudanza = function() {
+            detenerLectorCamaraMudanza();
             const modal = document.getElementById('modal-inventario-mudanza');
             if (modal) modal.style.display = 'none';
+        };
+
+        let streamCamaraMudanza = null;
+        let detectorCamaraMudanza = null;
+        let lectorZxingMudanza = null;
+        let cicloCamaraMudanza = 0;
+
+        function cargarZxingMudanza() {
+            if (window.ZXing) return Promise.resolve();
+            return new Promise(function(resolve,reject) {
+                const anterior=document.getElementById('script-zxing-mudanza');
+                if(anterior){anterior.addEventListener('load',resolve,{once:true});anterior.addEventListener('error',reject,{once:true});return;}
+                const script=document.createElement('script'); script.id='script-zxing-mudanza';
+                script.src='https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js';
+                script.onload=resolve; script.onerror=function(){reject(new Error('No se pudo cargar el lector de códigos.'));};
+                document.head.appendChild(script);
+            });
+        }
+
+        function aplicarCodigoCamaraMudanza(codigo) {
+            const caja=document.getElementById('mudanza-codigo'); if(!caja)return;
+            caja.value=String(codigo||'').trim(); buscarReferenciaMudanza(); detenerLectorCamaraMudanza();
+            const estado=document.getElementById('mudanza-camara-estado'); if(estado)estado.textContent='Código leído: '+caja.value;
+            const selector=document.getElementById('mudanza-talla'); if(selector)selector.focus();
+        }
+
+        window.iniciarLectorCamaraMudanza = async function() {
+            const box=document.getElementById('mudanza-camara-box'), estado=document.getElementById('mudanza-camara-estado');
+            if(box)box.style.display='block'; if(estado)estado.textContent='Solicitando cámara trasera…';
+            document.getElementById('btn-camara-mudanza').disabled=true;
+            document.getElementById('btn-detener-camara-mudanza').style.display='inline-block';
+            try {
+                if ('BarcodeDetector' in window) {
+                    const formatos=await BarcodeDetector.getSupportedFormats();
+                    const preferidos=['code_128','code_39','ean_13','ean_8','upc_a','upc_e','itf'].filter(f=>formatos.includes(f));
+                    detectorCamaraMudanza=new BarcodeDetector(preferidos.length?{formats:preferidos}:undefined);
+                    streamCamaraMudanza=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+                    const video=document.getElementById('mudanza-video'); video.srcObject=streamCamaraMudanza; await video.play();
+                    if(estado)estado.textContent='Apunta la cámara al código de barras';
+                    const revisar=async function(){
+                        if(!streamCamaraMudanza||!detectorCamaraMudanza)return;
+                        try{const codigos=await detectorCamaraMudanza.detect(video);if(codigos&&codigos[0]&&codigos[0].rawValue){aplicarCodigoCamaraMudanza(codigos[0].rawValue);return;}}catch(e){}
+                        cicloCamaraMudanza=requestAnimationFrame(revisar);
+                    }; revisar();
+                } else {
+                    if(estado)estado.textContent='Preparando lector compatible…';
+                    await cargarZxingMudanza();
+                    lectorZxingMudanza=new ZXing.BrowserMultiFormatReader();
+                    if(estado)estado.textContent='Apunta la cámara al código de barras';
+                    await lectorZxingMudanza.decodeFromVideoDevice(undefined,'mudanza-video',function(resultado,error){if(resultado&&resultado.getText)aplicarCodigoCamaraMudanza(resultado.getText());});
+                }
+            } catch(error) {
+                detenerLectorCamaraMudanza();
+                if(box)box.style.display='block';
+                if(estado){estado.style.color='#fecaca';estado.textContent='No se pudo usar la cámara: '+(error.message||error)+'. Abre la página publicada en GitHub y permite el acceso a la cámara.';}
+            }
+        };
+
+        window.detenerLectorCamaraMudanza = function() {
+            if(cicloCamaraMudanza)cancelAnimationFrame(cicloCamaraMudanza); cicloCamaraMudanza=0;
+            if(streamCamaraMudanza){streamCamaraMudanza.getTracks().forEach(t=>t.stop());streamCamaraMudanza=null;}
+            if(lectorZxingMudanza){try{lectorZxingMudanza.reset();}catch(e){}lectorZxingMudanza=null;}
+            detectorCamaraMudanza=null;
+            const video=document.getElementById('mudanza-video'); if(video)video.srcObject=null;
+            const btn=document.getElementById('btn-camara-mudanza'); if(btn)btn.disabled=false;
+            const detener=document.getElementById('btn-detener-camara-mudanza'); if(detener)detener.style.display='none';
+            const box=document.getElementById('mudanza-camara-box'); if(box)box.style.display='none';
         };
 
         window.buscarReferenciaMudanza = function() {
@@ -10668,16 +10778,47 @@ ${ped.comprobanteUrl ? `
             guardarDatosInventarioMudanza(); renderizarInventarioMudanza();
         };
 
+        window.editarReferenciaMudanza = function(refCodificada) {
+            const ref=decodeURIComponent(refCodificada), registro=inventarioMudanza[ref]; if(!registro)return;
+            let modal=document.getElementById('modal-editar-referencia-mudanza');
+            if(!modal){
+                modal=document.createElement('div');modal.id='modal-editar-referencia-mudanza';modal.style.cssText='display:none;position:fixed;inset:0;z-index:100025;background:rgba(0,0,0,.58);padding:16px;overflow:auto;box-sizing:border-box;font-family:Nunito,sans-serif;';
+                modal.innerHTML='<div style="max-width:690px;margin:5vh auto;background:white;border-radius:16px;padding:20px;"><div style="display:flex;justify-content:space-between;gap:10px;"><div><h3 id="editar-mudanza-titulo" style="margin:0;color:#c2410c;">Editar referencia</h3><p id="editar-mudanza-nombre" style="margin:4px 0;color:#667085;font-size:.84em;"></p></div><button onclick="cerrarEditarReferenciaMudanza()" style="border:0;background:#eee;border-radius:50%;width:34px;height:34px;font-weight:900;">✕</button></div><input type="hidden" id="editar-mudanza-ref"><div id="editar-mudanza-tallas" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px;margin-top:15px;"></div><div style="display:flex;gap:9px;margin-top:16px;"><button onclick="guardarEdicionReferenciaMudanza()" style="flex:1;border:0;background:#168653;color:white;border-radius:9px;padding:11px;font-weight:950;">Guardar cambios</button><button onclick="cerrarEditarReferenciaMudanza()" style="flex:1;border:1px solid #cbd5e1;background:white;color:#475467;border-radius:9px;padding:11px;font-weight:900;">Cancelar</button></div></div>';
+                document.body.appendChild(modal);
+            }
+            document.getElementById('editar-mudanza-ref').value=ref;
+            document.getElementById('editar-mudanza-titulo').textContent='Editar referencia '+ref;
+            document.getElementById('editar-mudanza-nombre').textContent=registro.nombre||'';
+            document.getElementById('editar-mudanza-tallas').innerHTML=TALLAS_MUDANZA.map(t=>'<label style="font-size:.76em;font-weight:900;color:#9a3412;">'+t+'<input class="editar-mudanza-cantidad" data-talla="'+t+'" type="number" min="0" value="'+(parseInt((registro.tallas||{})[t],10)||0)+'" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #fdba74;border-radius:8px;text-align:center;font-weight:900;"></label>').join('');
+            modal.style.display='block';
+        };
+
+        window.cerrarEditarReferenciaMudanza=function(){const m=document.getElementById('modal-editar-referencia-mudanza');if(m)m.style.display='none';};
+
+        window.guardarEdicionReferenciaMudanza=function(){
+            const ref=document.getElementById('editar-mudanza-ref').value,registro=inventarioMudanza[ref];if(!registro)return;
+            const tallas={};document.querySelectorAll('#editar-mudanza-tallas .editar-mudanza-cantidad').forEach(inp=>{const n=Math.max(0,parseInt(inp.value,10)||0);if(n)tallas[inp.dataset.talla]=n;});
+            registro.tallas=tallas;registro.actualizadoEn=new Date().toISOString();
+            if(!Object.keys(tallas).length)delete inventarioMudanza[ref];
+            guardarDatosInventarioMudanza();cerrarEditarReferenciaMudanza();renderizarInventarioMudanza();
+        };
+
+        window.eliminarReferenciaMudanza=function(refCodificada){
+            const ref=decodeURIComponent(refCodificada);if(!inventarioMudanza[ref])return;
+            if(!confirm('¿Eliminar la referencia '+ref+' del inventario de mudanza? El stock oficial no cambiará.'))return;
+            delete inventarioMudanza[ref];guardarDatosInventarioMudanza();renderizarInventarioMudanza();
+        };
+
         function renderizarInventarioMudanza() {
             const thead = document.getElementById('mudanza-thead'), tbody = document.getElementById('mudanza-tbody');
             if (!thead || !tbody) return;
-            thead.innerHTML = '<tr><th style="padding:9px;text-align:left;position:sticky;left:0;background:#ffedd5;">Referencia</th><th style="text-align:left;min-width:190px;">Prenda</th>'+TALLAS_MUDANZA.map(t => '<th style="min-width:54px;">'+t+'</th>').join('')+'<th>Total</th></tr>';
+            thead.innerHTML = '<tr><th style="padding:9px;text-align:left;position:sticky;left:0;background:#ffedd5;">Referencia</th><th style="text-align:left;min-width:190px;">Prenda</th>'+TALLAS_MUDANZA.map(t => '<th style="min-width:54px;">'+t+'</th>').join('')+'<th>Total</th><th style="min-width:145px;">Acciones</th></tr>';
             const registros = Object.values(inventarioMudanza).sort((a,b) => String(a.ref).localeCompare(String(b.ref),'es',{numeric:true}));
             tbody.innerHTML = registros.map(r => {
                 const total = Object.values(r.tallas || {}).reduce((s,n) => s + (parseInt(n,10)||0), 0);
                 const refUrl = encodeURIComponent(r.ref);
-                return '<tr style="border-bottom:1px solid #f1e3d8;"><td style="padding:8px;font-weight:950;color:#9a3412;position:sticky;left:0;background:white;">'+escapeHtml(r.ref)+'</td><td>'+escapeHtml(r.nombre || '')+'</td>'+TALLAS_MUDANZA.map(t => { const n=parseInt((r.tallas||{})[t],10)||0; return '<td style="text-align:center;">'+(n ? '<button title="Restar una" onclick="ajustarCantidadMudanza(\''+refUrl+'\',\''+t+'\',-1)" style="border:0;background:#fff7ed;color:#c2410c;border-radius:7px;padding:5px 7px;font-weight:950;cursor:pointer;">'+n+'</button>' : '—')+'</td>'; }).join('')+'<td style="text-align:center;font-weight:950;">'+total+'</td></tr>';
-            }).join('') || '<tr><td colspan="28" style="padding:26px;text-align:center;color:#98a2b3;font-weight:900;">Todavía no has escaneado prendas para la mudanza.</td></tr>';
+                return '<tr style="border-bottom:1px solid #f1e3d8;"><td style="padding:8px;font-weight:950;color:#9a3412;position:sticky;left:0;background:white;">'+escapeHtml(r.ref)+'</td><td>'+escapeHtml(r.nombre || '')+'</td>'+TALLAS_MUDANZA.map(t => { const n=parseInt((r.tallas||{})[t],10)||0; return '<td style="text-align:center;">'+(n ? '<button title="Restar una" onclick="ajustarCantidadMudanza(\''+refUrl+'\',\''+t+'\',-1)" style="border:0;background:#fff7ed;color:#c2410c;border-radius:7px;padding:5px 7px;font-weight:950;cursor:pointer;">'+n+'</button>' : '—')+'</td>'; }).join('')+'<td style="text-align:center;font-weight:950;">'+total+'</td><td style="text-align:center;white-space:nowrap;"><button onclick="editarReferenciaMudanza(\''+refUrl+'\')" style="border:0;background:#7e22ce;color:white;border-radius:7px;padding:6px 8px;font-weight:900;cursor:pointer;">Editar</button> <button onclick="eliminarReferenciaMudanza(\''+refUrl+'\')" style="border:0;background:#e11d48;color:white;border-radius:7px;padding:6px 8px;font-weight:900;cursor:pointer;">Eliminar</button></td></tr>';
+            }).join('') || '<tr><td colspan="29" style="padding:26px;text-align:center;color:#98a2b3;font-weight:900;">Todavía no has escaneado prendas para la mudanza.</td></tr>';
             const totalRefs = registros.length;
             const totalUnidades = registros.reduce((s,r) => s + Object.values(r.tallas||{}).reduce((a,n)=>a+(parseInt(n,10)||0),0),0);
             const totalTallas = registros.reduce((s,r) => s + Object.keys(r.tallas||{}).filter(t => (parseInt(r.tallas[t],10)||0)>0).length,0);
