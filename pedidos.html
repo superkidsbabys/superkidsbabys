@@ -10625,6 +10625,68 @@ ${ped.comprobanteUrl ? `
             return productosParaMudanza().find(p => _ipNormalizar(p.codigo || p.ref) === ref) || null;
         }
 
+        let consultaStockMudanzaEnCurso = null;
+        let referenciaConsultaStockMudanza = '';
+
+        async function buscarProductoMudanzaEnStockOficial(codigo) {
+            const ref = _ipNormalizar(codigo);
+            if (!ref) return null;
+            const local = buscarProductoMudanza(ref);
+            if (local) return local;
+            if (consultaStockMudanzaEnCurso && referenciaConsultaStockMudanza === ref) return consultaStockMudanzaEnCurso;
+            referenciaConsultaStockMudanza = ref;
+            consultaStockMudanzaEnCurso = (async function() {
+                try {
+                    const snap = await getDocs(collection(db, 'productos'));
+                    const completos = snap.docs.map(d => Object.assign({ id:d.id }, d.data()));
+                    if (completos.length) {
+                        productosDB = completos;
+                        window.productosDB = completos;
+                        localStorage.setItem('productosV36', JSON.stringify(completos));
+                        const encontradoFirebase = buscarProductoMudanza(ref);
+                        if (encontradoFirebase) return encontradoFirebase;
+                    }
+                } catch(e) { console.warn('Consulta de stock en Firebase:', e.message); }
+                try {
+                    const respuesta = await fetch('https://superkids-pagos-api.superkids-babys.workers.dev/catalogo-publico?t='+Date.now(), { cache:'no-store' });
+                    if (!respuesta.ok) throw new Error('Respuesta '+respuesta.status);
+                    const datos = await respuesta.json();
+                    const catalogo = Array.isArray(datos.productos) ? datos.productos : [];
+                    if (catalogo.length) {
+                        const mapa = new Map(productosParaMudanza().map(p => [String(p.id || p.codigo || p.ref), p]));
+                        catalogo.forEach(p => mapa.set(String(p.id || p.codigo || p.ref), p));
+                        productosDB = Array.from(mapa.values());
+                        window.productosDB = productosDB;
+                        localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                    }
+                    const encontradoPublico = buscarProductoMudanza(ref);
+                    if (encontradoPublico) return encontradoPublico;
+                } catch(e) {
+                    console.warn('Consulta del catálogo público:', e.message);
+                }
+                try {
+                    const respuestaHtml = await fetch('/index.html?t='+Date.now(), { cache:'no-store' });
+                    if (!respuestaHtml.ok) throw new Error('Respuesta '+respuestaHtml.status);
+                    const html = await respuestaHtml.text();
+                    const coincidencia = html.match(/window\.productosQ\s*=\s*(\[[\s\S]*?\]);\s*window\.pedidosQ/);
+                    const quemados = coincidencia ? JSON.parse(coincidencia[1]) : [];
+                    if (quemados.length) {
+                        const mapa = new Map(productosParaMudanza().map(p => [String(p.id || p.codigo || p.ref), p]));
+                        quemados.forEach(p => mapa.set(String(p.id || p.codigo || p.ref), p));
+                        productosDB = Array.from(mapa.values());
+                        window.productosDB = productosDB;
+                        localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                    }
+                    return buscarProductoMudanza(ref);
+                } catch(e) {
+                    console.warn('Consulta del catálogo publicado:', e.message);
+                    return null;
+                }
+            })();
+            try { return await consultaStockMudanzaEnCurso; }
+            finally { consultaStockMudanzaEnCurso = null; referenciaConsultaStockMudanza = ''; }
+        }
+
         window.abrirInventarioMudanza = function() {
             if (!esYohanaInventario()) return alert('Este inventario es exclusivo de Yohana.');
             cargarDatosInventarioMudanza();
@@ -10730,17 +10792,29 @@ ${ped.comprobanteUrl ? `
             const box=document.getElementById('mudanza-camara-box'); if(box)box.style.display='none';
         };
 
+        function mostrarProductoEncontradoMudanza(producto, salida) {
+            const tallas = (producto.tallasObj || []).map(t => normalizarTallaMudanza(t.nombre || t.talla)).filter(Boolean).sort((a,b) => indiceTallaMudanza(a)-indiceTallaMudanza(b));
+            if (tallas.length) document.getElementById('mudanza-talla').value = tallas[0];
+            salida.innerHTML = '<b style="color:#9a3412;">'+escapeHtml(producto.nombre || 'Sin nombre')+'</b> · Ref. '+escapeHtml(producto.codigo || producto.ref || '')+'<br><span style="color:#667085;">Tallas en stock: '+escapeHtml(tallas.join(', ') || 'sin tallas')+'</span>';
+        }
+
         window.buscarReferenciaMudanza = function() {
             const caja = document.getElementById('mudanza-codigo');
             const salida = document.getElementById('mudanza-producto');
             if (!caja || !salida) return;
             caja.value = caja.value.replace(/[\r\n\t]/g, '').trim();
+            const refBuscada = _ipNormalizar(caja.value);
             const producto = buscarProductoMudanza(caja.value);
             if (!caja.value) { salida.textContent = 'Conecta el lector y escanea una referencia.'; return; }
-            if (!producto) { salida.innerHTML = '<span style="color:#b42318;">No encontramos esa referencia en el stock oficial.</span> Puedes conservarla como referencia externa seleccionando una talla y agregándola.'; return; }
-            const tallas = (producto.tallasObj || []).map(t => normalizarTallaMudanza(t.nombre || t.talla)).filter(Boolean).sort((a,b) => indiceTallaMudanza(a)-indiceTallaMudanza(b));
-            if (tallas.length) document.getElementById('mudanza-talla').value = tallas[0];
-            salida.innerHTML = '<b style="color:#9a3412;">'+escapeHtml(producto.nombre || 'Sin nombre')+'</b> · Ref. '+escapeHtml(producto.codigo || '')+'<br><span style="color:#667085;">Tallas en stock: '+escapeHtml(tallas.join(', ') || 'sin tallas')+'</span>';
+            if (producto) { mostrarProductoEncontradoMudanza(producto, salida); return; }
+            salida.innerHTML = '<span style="color:#2563eb;">Buscando la referencia '+escapeHtml(refBuscada)+' en el stock oficial actualizado…</span>';
+            buscarProductoMudanzaEnStockOficial(refBuscada).then(function(encontrado) {
+                const cajaActual = document.getElementById('mudanza-codigo');
+                const salidaActual = document.getElementById('mudanza-producto');
+                if (!cajaActual || !salidaActual || _ipNormalizar(cajaActual.value) !== refBuscada) return;
+                if (encontrado) { mostrarProductoEncontradoMudanza(encontrado, salidaActual); return; }
+                salidaActual.innerHTML = '<span style="color:#b42318;">No encontramos esa referencia en el stock oficial actualizado.</span> Puedes conservarla como referencia externa seleccionando una talla y agregándola.';
+            });
         };
 
         window.manejarScannerMudanza = function(event) {
