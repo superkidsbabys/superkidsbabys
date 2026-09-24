@@ -10784,7 +10784,7 @@ ${ped.comprobanteUrl ? `
             let modal=document.getElementById('modal-editar-referencia-mudanza');
             if(!modal){
                 modal=document.createElement('div');modal.id='modal-editar-referencia-mudanza';modal.style.cssText='display:none;position:fixed;inset:0;z-index:100025;background:rgba(0,0,0,.58);padding:16px;overflow:auto;box-sizing:border-box;font-family:Nunito,sans-serif;';
-                modal.innerHTML='<div style="max-width:690px;margin:5vh auto;background:white;border-radius:16px;padding:20px;"><div style="display:flex;justify-content:space-between;gap:10px;"><div><h3 id="editar-mudanza-titulo" style="margin:0;color:#c2410c;">Editar referencia</h3><p id="editar-mudanza-nombre" style="margin:4px 0;color:#667085;font-size:.84em;"></p></div><button onclick="cerrarEditarReferenciaMudanza()" style="border:0;background:#eee;border-radius:50%;width:34px;height:34px;font-weight:900;">✕</button></div><input type="hidden" id="editar-mudanza-ref"><div id="editar-mudanza-tallas" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px;margin-top:15px;"></div><div style="display:flex;gap:9px;margin-top:16px;"><button onclick="guardarEdicionReferenciaMudanza()" style="flex:1;border:0;background:#168653;color:white;border-radius:9px;padding:11px;font-weight:950;">Guardar cambios</button><button onclick="cerrarEditarReferenciaMudanza()" style="flex:1;border:1px solid #cbd5e1;background:white;color:#475467;border-radius:9px;padding:11px;font-weight:900;">Cancelar</button></div></div>';
+                modal.innerHTML='<div style="max-width:690px;margin:5vh auto;background:white;border-radius:16px;padding:20px;"><div style="display:flex;justify-content:space-between;gap:10px;"><div><h3 id="editar-mudanza-titulo" style="margin:0;color:#c2410c;">Editar referencia</h3><p id="editar-mudanza-nombre" style="margin:4px 0;color:#667085;font-size:.84em;"></p></div><button onclick="cerrarEditarReferenciaMudanza()" style="border:0;background:#eee;border-radius:50%;width:34px;height:34px;font-weight:900;">✕</button></div><input type="hidden" id="editar-mudanza-ref"><div id="editar-mudanza-tallas" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px;margin-top:15px;"></div><div style="display:flex;gap:9px;margin-top:16px;flex-wrap:wrap;"><button onclick="guardarEdicionReferenciaMudanza()" style="flex:1;min-width:170px;border:0;background:#168653;color:white;border-radius:9px;padding:11px;font-weight:950;">Guardar cambios</button><button id="btn-imprimir-etiquetas-mudanza" onclick="imprimirEtiquetasReferenciaMudanza()" style="flex:1;min-width:170px;border:0;background:#2563eb;color:white;border-radius:9px;padding:11px;font-weight:950;">🖨️ Imprimir etiquetas</button><button onclick="cerrarEditarReferenciaMudanza()" style="flex:1;min-width:140px;border:1px solid #cbd5e1;background:white;color:#475467;border-radius:9px;padding:11px;font-weight:900;">Cancelar</button></div><p style="margin:8px 0 0;color:#667085;font-size:.72em;text-align:center;">Formato DYMO 89 × 28 mm · una etiqueta por unidad</p></div>';
                 document.body.appendChild(modal);
             }
             document.getElementById('editar-mudanza-ref').value=ref;
@@ -10802,6 +10802,65 @@ ${ped.comprobanteUrl ? `
             registro.tallas=tallas;registro.actualizadoEn=new Date().toISOString();
             if(!Object.keys(tallas).length)delete inventarioMudanza[ref];
             guardarDatosInventarioMudanza();cerrarEditarReferenciaMudanza();renderizarInventarioMudanza();
+        };
+
+        function cargarCodigoBarrasMudanza() {
+            if (window.JsBarcode) return Promise.resolve(window.JsBarcode);
+            return new Promise(function(resolve, reject) {
+                const anterior = document.getElementById('script-jsbarcode-mudanza');
+                if (anterior) {
+                    anterior.addEventListener('load', function(){ resolve(window.JsBarcode); }, {once:true});
+                    anterior.addEventListener('error', function(){ reject(new Error('No se pudo cargar el generador de códigos.')); }, {once:true});
+                    return;
+                }
+                const script = document.createElement('script');
+                script.id = 'script-jsbarcode-mudanza';
+                script.src = 'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js';
+                script.onload = function(){ resolve(window.JsBarcode); };
+                script.onerror = function(){ reject(new Error('No se pudo cargar el generador de códigos. Revisa la conexión.')); };
+                document.head.appendChild(script);
+            });
+        }
+
+        function svgCodigoBarrasMudanza(valor) {
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            window.JsBarcode(svg, String(valor), { format:'CODE128', width:2, height:42, displayValue:false, margin:0, background:'#ffffff', lineColor:'#000000' });
+            return new XMLSerializer().serializeToString(svg);
+        }
+
+        window.imprimirEtiquetasReferenciaMudanza = async function() {
+            const ref = _ipNormalizar((document.getElementById('editar-mudanza-ref') || {}).value);
+            if (!ref) return alert('No encontré la referencia para imprimir.');
+            const etiquetas = [];
+            document.querySelectorAll('#editar-mudanza-tallas .editar-mudanza-cantidad').forEach(function(input) {
+                const cantidad = Math.max(0, parseInt(input.value, 10) || 0);
+                for (let i = 0; i < cantidad; i++) etiquetas.push({ ref:ref, talla:normalizarTallaMudanza(input.dataset.talla) });
+            });
+            if (!etiquetas.length) return alert('Indica al menos una unidad para imprimir etiquetas.');
+            if (etiquetas.length > 500) return alert('El máximo por impresión es de 500 etiquetas. Divide el trabajo en varios grupos.');
+            if (!confirm('Se prepararán '+etiquetas.length+' etiquetas para la referencia '+ref+'.\n\nCada etiqueta llevará el código de barras, la referencia y la talla. ¿Continuar?')) return;
+
+            const ventana = window.open('', '_blank', 'width=960,height=720');
+            if (!ventana) return alert('El navegador bloqueó la ventana de impresión. Permite las ventanas emergentes para superkidsbabys.com.');
+            ventana.document.write('<!doctype html><title>Preparando etiquetas...</title><body style="font-family:Arial;text-align:center;padding:40px;">Preparando '+etiquetas.length+' etiquetas DYMO…</body>');
+            ventana.document.close();
+            const boton = document.getElementById('btn-imprimir-etiquetas-mudanza');
+            if (boton) { boton.disabled=true; boton.textContent='⏳ Preparando...'; }
+            try {
+                await cargarCodigoBarrasMudanza();
+                const paginas = etiquetas.map(function(etiqueta) {
+                    return '<section class="etiqueta"><div class="codigo">'+svgCodigoBarrasMudanza(etiqueta.ref)+'</div><div class="referencia">'+escapeHtml(etiqueta.ref)+'</div><div class="talla">'+escapeHtml(etiqueta.talla)+'</div></section>';
+                }).join('');
+                ventana.document.open();
+                ventana.document.write('<!doctype html><html><head><meta charset="UTF-8"><title>Etiquetas '+escapeHtml(ref)+'</title><style>@page{size:89mm 28mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;background:white;font-family:Arial,sans-serif}.etiqueta{width:89mm;height:28mm;margin:0;padding:1.5mm 5mm;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;page-break-after:always;break-after:page}.etiqueta:last-child{page-break-after:auto;break-after:auto}.codigo{width:76mm;height:10.5mm;display:flex;align-items:center;justify-content:center}.codigo svg{width:100%;height:100%;display:block}.referencia{font-size:13pt;font-weight:800;line-height:1.05;margin-top:.4mm;letter-spacing:.6mm}.talla{font-size:18pt;font-weight:900;line-height:1.05;margin-top:.8mm}</style></head><body>'+paginas+'<script>window.addEventListener("load",function(){setTimeout(function(){window.print()},250)});window.addEventListener("afterprint",function(){window.close()});<\/script></body></html>');
+                ventana.document.close();
+            } catch(error) {
+                try { ventana.close(); } catch(e) {}
+                console.error('Error preparando etiquetas:', error);
+                alert('No se pudieron preparar las etiquetas: '+(error.message || error));
+            } finally {
+                if (boton) { boton.disabled=false; boton.textContent='🖨️ Imprimir etiquetas'; }
+            }
         };
 
         window.eliminarReferenciaMudanza=function(refCodificada){
