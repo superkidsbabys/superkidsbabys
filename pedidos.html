@@ -10591,6 +10591,7 @@ ${ped.comprobanteUrl ? `
         // Este conteo vive únicamente en localStorage. Nunca escribe en
         // Firebase ni modifica el stock oficial del catálogo.
         const CLAVE_INVENTARIO_MUDANZA = 'superkidsInventarioMudanzaV1';
+        const CLAVE_RESPALDOS_MUDANZA = 'superkidsInventarioMudanzaRespaldosV1';
         const TALLAS_MUDANZA = ['0M','1M','3M','6M','9M','12M','15M','18M','24M','2T','3T','4T','5T','6T','7T','8T','9T','10T','11T','12T','13T','14T','15T','16T'];
         let inventarioMudanza = {};
 
@@ -10643,7 +10644,7 @@ ${ped.comprobanteUrl ? `
                     + '<div id="mudanza-camara-box" style="display:none;margin-top:10px;background:#111;border-radius:12px;padding:8px;text-align:center;"><video id="mudanza-video" autoplay playsinline muted style="width:100%;max-height:320px;object-fit:cover;border-radius:8px;"></video><div id="mudanza-camara-estado" style="color:white;font-size:.82em;font-weight:900;padding:7px;">Apunta al código de barras</div></div>'
                     + '<div id="mudanza-producto" style="margin-top:10px;min-height:42px;color:#667085;font-size:.84em;font-weight:800;">Conecta el lector y escanea una referencia.</div></div>'
                     + '<div id="mudanza-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin:13px 0;"></div>'
-                    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"><button onclick="mostrarComparacionMudanza()" style="border:0;background:#7e22ce;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">🔎 Comparar con stock</button><button onclick="exportarInventarioMudanzaExcel()" style="border:0;background:#168653;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">📊 Exportar Excel</button><button onclick="reiniciarInventarioMudanza()" style="border:1px solid #fda4af;background:white;color:#be123c;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">Vaciar conteo</button></div>'
+                    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"><button onclick="mostrarComparacionMudanza()" style="border:0;background:#7e22ce;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">🔎 Comparar con stock</button><button onclick="exportarInventarioMudanzaExcel()" style="border:0;background:#168653;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">📊 Exportar Excel</button><button id="btn-importar-mudanza" onclick="seleccionarExcelInventarioMudanza()" style="border:0;background:#2563eb;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">📥 Importar Excel</button><input id="archivo-importar-mudanza" type="file" accept=".xlsx,.xls" onchange="importarExcelInventarioMudanza(event)" style="display:none;"><button onclick="reiniciarInventarioMudanza()" style="border:1px solid #fda4af;background:white;color:#be123c;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">Vaciar conteo</button></div>'
                     + '<div style="overflow:auto;border:1.5px solid #fed7aa;border-radius:11px;max-height:440px;"><table style="border-collapse:collapse;min-width:1900px;width:100%;font-size:.76em;"><thead id="mudanza-thead" style="position:sticky;top:0;background:#ffedd5;color:#9a3412;z-index:2;"></thead><tbody id="mudanza-tbody"></tbody></table></div>'
                     + '<div id="mudanza-comparacion" style="display:none;margin-top:16px;"></div></div>';
                 document.body.appendChild(modal);
@@ -10856,6 +10857,111 @@ ${ped.comprobanteUrl ? `
             const html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>body{font-family:Arial;color:#25324a}table{border-collapse:collapse;margin-bottom:28px}h1{color:#c2410c}h2{color:#6b21a8}th{background:#c2410c;color:white;border:1px solid #fed7aa;padding:8px;font-weight:bold}td{border:1px solid #eadfd6;padding:7px}.num{text-align:center;mso-number-format:"0"}.texto{mso-number-format:"\\@"}.total{background:#fff7ed;font-weight:bold;text-align:center}.comparacion th{background:#6b21a8}</style></head><body><h1>Inventario de mudanza — SuperKids &amp; Babys</h1><p>Generado el '+esc(new Date().toLocaleString('es-CO'))+' · Conteo independiente del stock oficial</p><table><tr><th>Referencia</th><th>Prenda</th>'+encabezadoTallas+'<th>Total</th></tr>'+cuerpo+'</table><h2>Diferencias frente al stock oficial</h2><table class="comparacion"><tr><th>Referencia</th><th>Prenda</th><th>Talla</th><th>Stock oficial</th><th>Conteo mudanza</th><th>Diferencia</th><th>Resultado</th></tr>'+comparacion+'</table></body></html>';
             const blob = new Blob(['\ufeff',html],{type:'application/vnd.ms-excel;charset=utf-8'}), a=document.createElement('a');
             a.href=URL.createObjectURL(blob); a.download='Inventario_Mudanza_'+new Date().toISOString().slice(0,10)+'.xls'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+        };
+
+        function cargarLibreriaExcelMudanza() {
+            if (window.XLSX) return Promise.resolve(window.XLSX);
+            return new Promise(function(resolve, reject) {
+                const existente = document.getElementById('script-xlsx-mudanza');
+                if (existente) {
+                    existente.addEventListener('load', function(){ resolve(window.XLSX); }, { once:true });
+                    existente.addEventListener('error', function(){ reject(new Error('No se pudo cargar el lector de Excel.')); }, { once:true });
+                    return;
+                }
+                const script = document.createElement('script');
+                script.id = 'script-xlsx-mudanza';
+                script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+                script.onload = function(){ resolve(window.XLSX); };
+                script.onerror = function(){ reject(new Error('No se pudo cargar el lector de Excel. Revisa la conexión.')); };
+                document.head.appendChild(script);
+            });
+        }
+
+        function textoCabeceraMudanza(valor) {
+            return String(valor == null ? '' : valor).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
+        }
+
+        function respaldarInventarioMudanza(motivo) {
+            try {
+                const lista = JSON.parse(localStorage.getItem(CLAVE_RESPALDOS_MUDANZA) || '[]');
+                lista.unshift({ fecha:new Date().toISOString(), motivo:motivo || 'Respaldo automático', datos:JSON.parse(JSON.stringify(inventarioMudanza || {})) });
+                localStorage.setItem(CLAVE_RESPALDOS_MUDANZA, JSON.stringify(lista.slice(0, 5)));
+            } catch(e) { console.warn('No se pudo crear el respaldo de mudanza:', e); }
+        }
+
+        window.seleccionarExcelInventarioMudanza = function() {
+            if (!esYohanaInventario()) return alert('Esta función es exclusiva de Yohana.');
+            const input = document.getElementById('archivo-importar-mudanza');
+            if (input) { input.value = ''; input.click(); }
+        };
+
+        window.importarExcelInventarioMudanza = async function(event) {
+            const archivo = event && event.target && event.target.files ? event.target.files[0] : null;
+            if (!archivo) return;
+            if (!esYohanaInventario()) return alert('Esta función es exclusiva de Yohana.');
+            const boton = document.getElementById('btn-importar-mudanza');
+            if (boton) { boton.disabled = true; boton.textContent = '⏳ Leyendo Excel...'; }
+            try {
+                const XLSX = await cargarLibreriaExcelMudanza();
+                const libro = XLSX.read(await archivo.arrayBuffer(), { type:'array', cellDates:true });
+                const hoja = libro.Sheets[libro.SheetNames[0]];
+                if (!hoja) throw new Error('El archivo no contiene hojas.');
+                const filas = XLSX.utils.sheet_to_json(hoja, { header:1, defval:'', raw:false });
+                const indiceCabecera = filas.findIndex(function(fila) {
+                    const primera = textoCabeceraMudanza(fila[0]);
+                    const segunda = textoCabeceraMudanza(fila[1]);
+                    return primera === 'referencia' && (segunda === 'nombre' || segunda === 'prenda' || segunda.includes('nombre'));
+                });
+                if (indiceCabecera < 0) throw new Error('No encontré las columnas Referencia y Nombre/Prenda.');
+                const cabeceras = filas[indiceCabecera].map(textoCabeceraMudanza);
+                const columnasTalla = [];
+                cabeceras.forEach(function(titulo, indice) {
+                    const talla = normalizarTallaMudanza(titulo);
+                    if (TALLAS_MUDANZA.includes(talla)) columnasTalla.push({ indice:indice, talla:talla });
+                });
+                if (!columnasTalla.length) throw new Error('No encontré columnas de tallas compatibles.');
+
+                const importado = {};
+                for (let i = indiceCabecera + 1; i < filas.length; i++) {
+                    const fila = filas[i] || [];
+                    const ref = _ipNormalizar(fila[0]);
+                    if (!ref) continue;
+                    const tallas = {};
+                    columnasTalla.forEach(function(columna) {
+                        const cantidad = Math.max(0, parseInt(String(fila[columna.indice] || '0').replace(/[^0-9-]/g, ''), 10) || 0);
+                        if (cantidad) tallas[columna.talla] = cantidad;
+                    });
+                    if (!Object.keys(tallas).length) continue;
+                    const producto = buscarProductoMudanza(ref);
+                    importado[ref] = {
+                        ref: ref,
+                        nombre: String(fila[1] || (producto && producto.nombre) || 'Referencia no encontrada en stock').trim(),
+                        tallas: tallas,
+                        actualizadoEn: new Date().toISOString()
+                    };
+                }
+
+                const referencias = Object.keys(importado).length;
+                const unidades = Object.values(importado).reduce(function(suma, registro) {
+                    return suma + Object.values(registro.tallas || {}).reduce(function(s, n){ return s + (parseInt(n,10) || 0); }, 0);
+                }, 0);
+                if (!referencias) throw new Error('El Excel no contiene cantidades mayores que cero.');
+                const actuales = Object.keys(inventarioMudanza || {}).length;
+                const mensaje = 'Encontré '+referencias+' referencias y '+unidades+' unidades en el Excel.\n\nEl conteo actual ('+actuales+' referencias) se guardará como respaldo y será reemplazado. ¿Deseas continuar?';
+                if (!confirm(mensaje)) return;
+                respaldarInventarioMudanza('Antes de importar '+archivo.name);
+                inventarioMudanza = importado;
+                guardarDatosInventarioMudanza();
+                renderizarInventarioMudanza();
+                const panel = document.getElementById('mudanza-comparacion'); if (panel) panel.style.display = 'none';
+                alert('Importación completada: '+referencias+' referencias y '+unidades+' unidades cargadas en Inventario de mudanza.');
+            } catch(error) {
+                console.error('Error importando inventario de mudanza:', error);
+                alert('No se pudo importar el Excel: '+(error.message || error));
+            } finally {
+                if (boton) { boton.disabled = false; boton.textContent = '📥 Importar Excel'; }
+                if (event && event.target) event.target.value = '';
+            }
         };
 
         window.reiniciarInventarioMudanza = function() {
