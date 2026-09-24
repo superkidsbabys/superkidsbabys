@@ -10947,14 +10947,33 @@ ${ped.comprobanteUrl ? `
                 }, 0);
                 if (!referencias) throw new Error('El Excel no contiene cantidades mayores que cero.');
                 const actuales = Object.keys(inventarioMudanza || {}).length;
-                const mensaje = 'Encontré '+referencias+' referencias y '+unidades+' unidades en el Excel.\n\nEl conteo actual ('+actuales+' referencias) se guardará como respaldo y será reemplazado. ¿Deseas continuar?';
+                const unidadesActuales = Object.values(inventarioMudanza || {}).reduce(function(suma, registro) {
+                    return suma + Object.values(registro.tallas || {}).reduce(function(s, n){ return s + (parseInt(n,10) || 0); }, 0);
+                }, 0);
+                const mensaje = 'Encontré '+referencias+' referencias y '+unidades+' unidades en el Excel.\n\nSe SUMARÁN al conteo actual de '+actuales+' referencias y '+unidadesActuales+' unidades, talla por talla. También se guardará un respaldo antes de combinar. ¿Deseas continuar?';
                 if (!confirm(mensaje)) return;
                 respaldarInventarioMudanza('Antes de importar '+archivo.name);
-                inventarioMudanza = importado;
+                const combinado = JSON.parse(JSON.stringify(inventarioMudanza || {}));
+                Object.keys(importado).forEach(function(ref) {
+                    const nuevo = importado[ref];
+                    if (!combinado[ref]) {
+                        combinado[ref] = JSON.parse(JSON.stringify(nuevo));
+                        return;
+                    }
+                    if ((!combinado[ref].nombre || combinado[ref].nombre === 'Referencia no encontrada en stock') && nuevo.nombre) combinado[ref].nombre = nuevo.nombre;
+                    combinado[ref].tallas = combinado[ref].tallas || {};
+                    Object.keys(nuevo.tallas || {}).forEach(function(talla) {
+                        combinado[ref].tallas[talla] = (parseInt(combinado[ref].tallas[talla],10) || 0) + (parseInt(nuevo.tallas[talla],10) || 0);
+                    });
+                    combinado[ref].actualizadoEn = new Date().toISOString();
+                });
+                inventarioMudanza = combinado;
                 guardarDatosInventarioMudanza();
                 renderizarInventarioMudanza();
                 const panel = document.getElementById('mudanza-comparacion'); if (panel) panel.style.display = 'none';
-                alert('Importación completada: '+referencias+' referencias y '+unidades+' unidades cargadas en Inventario de mudanza.');
+                const referenciasFinales = Object.keys(inventarioMudanza).length;
+                const unidadesFinales = Object.values(inventarioMudanza).reduce(function(suma, registro) { return suma + Object.values(registro.tallas || {}).reduce(function(s,n){ return s + (parseInt(n,10) || 0); }, 0); }, 0);
+                alert('Importación completada. El conteo combinado quedó con '+referenciasFinales+' referencias y '+unidadesFinales+' unidades.');
             } catch(error) {
                 console.error('Error importando inventario de mudanza:', error);
                 alert('No se pudo importar el Excel: '+(error.message || error));
