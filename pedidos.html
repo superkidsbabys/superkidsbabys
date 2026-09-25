@@ -1672,7 +1672,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                             </div>
                             <div id="inv-foto-preview" style="width:120px;min-height:88px;border:1.5px dashed #a8e6c1;border-radius:10px;background:#f8fff9;display:flex;align-items:center;justify-content:center;color:#7aa88b;font-size:0.72em;font-weight:800;text-align:center;overflow:hidden;">Sin foto</div>
                         </div>
-                        <button onclick="guardarEntradaInventario()" style="background:linear-gradient(135deg,#27ae60,#2ecc71);color:white;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:800;font-size:1em;width:100%;font-family:Nunito,sans-serif;">✅ Registrar Entrada</button>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:9px;">
+                            <button onclick="guardarEntradaInventario()" style="background:linear-gradient(135deg,#27ae60,#2ecc71);color:white;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:800;font-size:1em;width:100%;font-family:Nunito,sans-serif;">✅ Registrar Entrada</button>
+                            <button id="btn-imprimir-etiquetas-entrada" type="button" onclick="imprimirEtiquetasEntradaInventario()" style="display:none;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:800;font-size:1em;width:100%;font-family:Nunito,sans-serif;">🖨️ Imprimir etiquetas</button>
+                        </div>
+                        <div id="ayuda-etiquetas-entrada" style="display:none;text-align:center;margin-top:6px;font-size:.73em;color:#526f61;font-weight:700;">Impresión opcional. Usa la referencia, las tallas y cantidades escritas arriba.</div>
                         <div id="inv-msg" style="display:none;text-align:center;margin-top:8px;font-size:0.85em;color:#27ae60;font-weight:700;"></div>
                     </div>
                     <div id="inv-historial-box" style="border:1.5px solid #a8e6c1;border-radius:12px;background:#fbfffc;margin-top:16px;overflow:hidden;">
@@ -10706,6 +10710,7 @@ ${ped.comprobanteUrl ? `
                     + '<div id="mudanza-camara-box" style="display:none;margin-top:10px;background:#111;border-radius:12px;padding:8px;text-align:center;"><video id="mudanza-video" autoplay playsinline muted style="width:100%;max-height:320px;object-fit:cover;border-radius:8px;"></video><div id="mudanza-camara-estado" style="color:white;font-size:.82em;font-weight:900;padding:7px;">Apunta al código de barras</div></div>'
                     + '<div id="mudanza-producto" style="margin-top:10px;min-height:42px;color:#667085;font-size:.84em;font-weight:800;">Conecta el lector y escanea una referencia.</div></div>'
                     + '<div id="mudanza-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin:13px 0;"></div>'
+                    + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:10px;background:#fffaf5;border:1.5px solid #fed7aa;border-radius:11px;"><input id="mudanza-buscar-lista" type="search" placeholder="Buscar por referencia o nombre de la prenda..." oninput="filtrarListaInventarioMudanza()" onkeydown="if(event.key===\'Enter\')abrirPrimeraCoincidenciaMudanza(event)" style="flex:1;min-width:240px;padding:10px 12px;border:1.5px solid #fb923c;border-radius:9px;font-family:Nunito,sans-serif;font-weight:800;"><button type="button" onclick="limpiarBusquedaInventarioMudanza()" style="border:1px solid #fdba74;background:white;color:#9a3412;border-radius:9px;padding:9px 12px;font-weight:900;cursor:pointer;">Limpiar</button><span id="mudanza-busqueda-estado" style="font-size:.78em;color:#667085;font-weight:800;"></span></div>'
                     + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"><button onclick="mostrarComparacionMudanza()" style="border:0;background:#7e22ce;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">🔎 Comparar con stock</button><button onclick="exportarInventarioMudanzaExcel()" style="border:0;background:#168653;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">📊 Exportar Excel</button><button id="btn-importar-mudanza" onclick="seleccionarExcelInventarioMudanza()" style="border:0;background:#2563eb;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">📥 Importar Excel</button><input id="archivo-importar-mudanza" type="file" accept=".xlsx,.xls" onchange="importarExcelInventarioMudanza(event)" style="display:none;"><button onclick="reiniciarInventarioMudanza()" style="border:1px solid #fda4af;background:white;color:#be123c;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">Vaciar conteo</button></div>'
                     + '<div style="overflow:auto;border:1.5px solid #fed7aa;border-radius:11px;max-height:440px;"><table style="border-collapse:collapse;min-width:1900px;width:100%;font-size:.76em;"><thead id="mudanza-thead" style="position:sticky;top:0;background:#ffedd5;color:#9a3412;z-index:2;"></thead><tbody id="mudanza-tbody"></tbody></table></div>'
                     + '<div id="mudanza-comparacion" style="display:none;margin-top:16px;"></div></div>';
@@ -10902,6 +10907,56 @@ ${ped.comprobanteUrl ? `
             return new XMLSerializer().serializeToString(svg);
         }
 
+        function puedeImprimirEtiquetasEntrada() {
+            const uid = window.usuarioActual && window.usuarioActual.uid;
+            return uid === UID_YOHANA || uid === UID_ANGELA;
+        }
+
+        function actualizarPermisoEtiquetasEntrada() {
+            const permitido = puedeImprimirEtiquetasEntrada();
+            const boton = document.getElementById('btn-imprimir-etiquetas-entrada');
+            const ayuda = document.getElementById('ayuda-etiquetas-entrada');
+            if (boton) boton.style.display = permitido ? 'block' : 'none';
+            if (ayuda) ayuda.style.display = permitido ? 'block' : 'none';
+        }
+
+        window.imprimirEtiquetasEntradaInventario = async function() {
+            if (!puedeImprimirEtiquetasEntrada()) return alert('Esta opción está disponible únicamente para Yohana y Ángela.');
+            const ref = _ipNormalizar((document.getElementById('inv-ref') || {}).value);
+            if (!ref) return alert('Escribe primero la referencia de la prenda.');
+            const tallas = obtenerTallasInventarioFormulario();
+            const etiquetas = [];
+            tallas.forEach(function(item) {
+                const cantidad = Math.max(0, parseInt(item.cantidad, 10) || 0);
+                for (let i = 0; i < cantidad; i++) etiquetas.push({ ref:ref, talla:normalizarTallaMudanza(item.talla) });
+            });
+            if (!etiquetas.length) return alert('Escribe al menos una talla con cantidad para preparar las etiquetas.');
+            if (etiquetas.length > 500) return alert('El máximo por impresión es de 500 etiquetas. Divide el trabajo en varios grupos.');
+            const tipo = buscarProductoCatalogoPorReferencia(ref) ? 'reposición' : 'nueva colección';
+            if (!confirm('Se prepararán '+etiquetas.length+' etiquetas para la referencia '+ref+' ('+tipo+').\n\nSaldrá una etiqueta por cada unidad y talla. ¿Continuar?')) return;
+            const ventana = window.open('', '_blank', 'width=960,height=720');
+            if (!ventana) return alert('El navegador bloqueó la ventana de impresión. Permite las ventanas emergentes para superkidsbabys.com.');
+            ventana.document.write('<!doctype html><title>Preparando etiquetas...</title><body style="font-family:Arial;text-align:center;padding:40px;">Preparando '+etiquetas.length+' etiquetas DYMO…</body>');
+            ventana.document.close();
+            const boton = document.getElementById('btn-imprimir-etiquetas-entrada');
+            if (boton) { boton.disabled=true; boton.textContent='⏳ Preparando...'; }
+            try {
+                await cargarCodigoBarrasMudanza();
+                const paginas = etiquetas.map(function(etiqueta) {
+                    return '<section class="etiqueta"><div class="codigo">'+svgCodigoBarrasMudanza(etiqueta.ref)+'</div><div class="referencia">'+escapeHtml(etiqueta.ref)+'</div><div class="talla">'+escapeHtml(etiqueta.talla)+'</div></section>';
+                }).join('');
+                ventana.document.open();
+                ventana.document.write('<!doctype html><html><head><meta charset="UTF-8"><title>Etiquetas '+escapeHtml(ref)+'</title><style>@page{size:89mm 28mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;background:white;font-family:Arial,sans-serif}.etiqueta{width:89mm;height:28mm;margin:0;padding:1.5mm 5mm;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;page-break-after:always;break-after:page}.etiqueta:last-child{page-break-after:auto;break-after:auto}.codigo{width:76mm;height:10.5mm;display:flex;align-items:center;justify-content:center}.codigo svg{width:100%;height:100%;display:block}.referencia{font-size:13pt;font-weight:800;line-height:1.05;margin-top:.4mm;letter-spacing:.6mm}.talla{font-size:18pt;font-weight:900;line-height:1.05;margin-top:.8mm}</style></head><body>'+paginas+'<script>window.addEventListener("load",function(){setTimeout(function(){window.print()},250)});window.addEventListener("afterprint",function(){window.close()});<\/script></body></html>');
+                ventana.document.close();
+            } catch(error) {
+                try { ventana.close(); } catch(e) {}
+                console.error('Error preparando etiquetas de entrada:', error);
+                alert('No se pudieron preparar las etiquetas: '+(error.message || error));
+            } finally {
+                if (boton) { boton.disabled=false; boton.textContent='🖨️ Imprimir etiquetas'; }
+            }
+        };
+
         window.imprimirEtiquetasReferenciaMudanza = async function() {
             const ref = _ipNormalizar((document.getElementById('editar-mudanza-ref') || {}).value);
             if (!ref) return alert('No encontré la referencia para imprimir.');
@@ -10951,15 +11006,43 @@ ${ped.comprobanteUrl ? `
             tbody.innerHTML = registros.map(r => {
                 const total = Object.values(r.tallas || {}).reduce((s,n) => s + (parseInt(n,10)||0), 0);
                 const refUrl = encodeURIComponent(r.ref);
-                return '<tr style="border-bottom:1px solid #f1e3d8;"><td style="padding:8px;font-weight:950;color:#9a3412;position:sticky;left:0;background:white;">'+escapeHtml(r.ref)+'</td><td>'+escapeHtml(r.nombre || '')+'</td>'+TALLAS_MUDANZA.map(t => { const n=parseInt((r.tallas||{})[t],10)||0; return '<td style="text-align:center;">'+(n ? '<button title="Restar una" onclick="ajustarCantidadMudanza(\''+refUrl+'\',\''+t+'\',-1)" style="border:0;background:#fff7ed;color:#c2410c;border-radius:7px;padding:5px 7px;font-weight:950;cursor:pointer;">'+n+'</button>' : '—')+'</td>'; }).join('')+'<td style="text-align:center;font-weight:950;">'+total+'</td><td style="text-align:center;white-space:nowrap;"><button onclick="editarReferenciaMudanza(\''+refUrl+'\')" style="border:0;background:#7e22ce;color:white;border-radius:7px;padding:6px 8px;font-weight:900;cursor:pointer;">Editar</button> <button onclick="eliminarReferenciaMudanza(\''+refUrl+'\')" style="border:0;background:#e11d48;color:white;border-radius:7px;padding:6px 8px;font-weight:900;cursor:pointer;">Eliminar</button></td></tr>';
+                return '<tr data-mudanza-ref="'+escapeHtml(r.ref)+'" data-mudanza-nombre="'+escapeHtml(r.nombre || '')+'" data-mudanza-ref-url="'+refUrl+'" style="border-bottom:1px solid #f1e3d8;"><td style="padding:8px;font-weight:950;color:#9a3412;position:sticky;left:0;background:white;">'+escapeHtml(r.ref)+'</td><td>'+escapeHtml(r.nombre || '')+'</td>'+TALLAS_MUDANZA.map(t => { const n=parseInt((r.tallas||{})[t],10)||0; return '<td style="text-align:center;">'+(n ? '<button title="Restar una" onclick="ajustarCantidadMudanza(\''+refUrl+'\',\''+t+'\',-1)" style="border:0;background:#fff7ed;color:#c2410c;border-radius:7px;padding:5px 7px;font-weight:950;cursor:pointer;">'+n+'</button>' : '—')+'</td>'; }).join('')+'<td style="text-align:center;font-weight:950;">'+total+'</td><td style="text-align:center;white-space:nowrap;"><button onclick="editarReferenciaMudanza(\''+refUrl+'\')" style="border:0;background:#7e22ce;color:white;border-radius:7px;padding:6px 8px;font-weight:900;cursor:pointer;">Editar</button> <button onclick="eliminarReferenciaMudanza(\''+refUrl+'\')" style="border:0;background:#e11d48;color:white;border-radius:7px;padding:6px 8px;font-weight:900;cursor:pointer;">Eliminar</button></td></tr>';
             }).join('') || '<tr><td colspan="29" style="padding:26px;text-align:center;color:#98a2b3;font-weight:900;">Todavía no has escaneado prendas para la mudanza.</td></tr>';
             const totalRefs = registros.length;
             const totalUnidades = registros.reduce((s,r) => s + Object.values(r.tallas||{}).reduce((a,n)=>a+(parseInt(n,10)||0),0),0);
             const totalTallas = registros.reduce((s,r) => s + Object.keys(r.tallas||{}).filter(t => (parseInt(r.tallas[t],10)||0)>0).length,0);
             const resumen = document.getElementById('mudanza-resumen');
             if (resumen) resumen.innerHTML = [['Referencias',totalRefs,'#c2410c'],['Unidades contadas',totalUnidades,'#168653'],['Combinaciones de talla',totalTallas,'#7e22ce']].map(x => '<div style="border:1.5px solid #fed7aa;border-radius:10px;padding:10px;background:#fffaf5;"><div style="font-size:.72em;color:#667085;font-weight:800;">'+x[0]+'</div><div style="font-size:1.4em;font-weight:950;color:'+x[2]+';">'+x[1]+'</div></div>').join('');
+            filtrarListaInventarioMudanza();
             const comparacion = document.getElementById('mudanza-comparacion'); if (comparacion && comparacion.style.display !== 'none') mostrarComparacionMudanza();
         }
+
+        window.filtrarListaInventarioMudanza = function() {
+            const input = document.getElementById('mudanza-buscar-lista');
+            const texto = String(input ? input.value : '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const filas = Array.from(document.querySelectorAll('#mudanza-tbody tr[data-mudanza-ref]'));
+            let visibles = 0;
+            filas.forEach(function(fila) {
+                const contenido = ((fila.dataset.mudanzaRef || '')+' '+(fila.dataset.mudanzaNombre || '')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                const coincide = !texto || contenido.includes(texto);
+                fila.style.display = coincide ? '' : 'none';
+                if (coincide) visibles++;
+            });
+            const estado = document.getElementById('mudanza-busqueda-estado');
+            if (estado) estado.textContent = texto ? (visibles ? 'Mostrando '+visibles+' de '+filas.length : 'No encontramos coincidencias') : '';
+        };
+
+        window.limpiarBusquedaInventarioMudanza = function() {
+            const input = document.getElementById('mudanza-buscar-lista');
+            if (input) { input.value=''; input.focus(); }
+            filtrarListaInventarioMudanza();
+        };
+
+        window.abrirPrimeraCoincidenciaMudanza = function(event) {
+            if (event) event.preventDefault();
+            const fila = Array.from(document.querySelectorAll('#mudanza-tbody tr[data-mudanza-ref]')).find(function(item){ return item.style.display !== 'none'; });
+            if (fila && fila.dataset.mudanzaRefUrl) editarReferenciaMudanza(fila.dataset.mudanzaRefUrl);
+        };
 
         function filasComparacionMudanza() {
             const mapa = new Map();
@@ -11130,6 +11213,7 @@ ${ped.comprobanteUrl ? `
             const tabEl = document.getElementById(`tab-${tab}`);
             if (tabEl) tabEl.classList.add('activo');
             if (tab === 'inventario') {
+                actualizarPermisoEtiquetasEntrada();
                 cargarHistorialInventario();
                 cargarHistorialSalidas();
                 actualizarPanelMigracionR2();
