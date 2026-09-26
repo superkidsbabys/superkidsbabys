@@ -11228,10 +11228,20 @@ ${ped.comprobanteUrl ? `
             if (boton) { boton.disabled=true; boton.textContent='⏳ Aplicando '+ref+'...'; }
             try {
                 const firestore = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const referenciaDocumento = firestore.doc(db, 'productos', producto.id);
-                const snap = await firestore.getDoc(referenciaDocumento);
-                if (!snap.exists()) throw new Error('La prenda ya no existe en Firebase.');
-                const actual = Object.assign({}, producto, snap.data(), { id:producto.id });
+                // Resolver el documento real por su referencia. El campo id que
+                // trae el catálogo puede no coincidir con el ID del documento.
+                const coleccionProductos = await firestore.getDocs(firestore.collection(db, 'productos'));
+                const coincidencias = coleccionProductos.docs.filter(function(documento) {
+                    const datos = documento.data() || {};
+                    const referencias = [datos.codigo, datos.ref].concat((datos.opcionesVenta || []).map(function(opcion){ return opcion && opcion.codigo; }));
+                    return referencias.some(function(codigo){ return _ipNormalizar(codigo) === ref; });
+                });
+                if (!coincidencias.length) throw new Error('No encontré en Firebase un documento con la referencia '+ref+'.');
+                if (coincidencias.length > 1) throw new Error('Firebase tiene '+coincidencias.length+' prendas con la referencia '+ref+'. Corrige la referencia duplicada antes de reemplazar.');
+                const documentoEncontrado = coincidencias[0];
+                const idDocumento = documentoEncontrado.id;
+                const referenciaDocumento = firestore.doc(db, 'productos', idDocumento);
+                const actual = Object.assign({}, producto, documentoEncontrado.data(), { id:(documentoEncontrado.data().id || producto.id || idDocumento), _firebaseId:idDocumento });
                 const anterioresPorTalla = new Map((actual.tallasObj || []).map(function(t){ return [normalizarTallaMudanza(t.nombre), t]; }));
                 const tallasNuevas = nuevasCantidades.map(function(item) {
                     const anterior = anterioresPorTalla.get(item.talla) || {};
@@ -11248,8 +11258,12 @@ ${ped.comprobanteUrl ? `
                 const datosConfirmados = confirmado.data();
                 const totalConfirmado = (datosConfirmados.tallasObj || []).reduce(function(s,t){ return s+Math.max(0,parseInt(t.stock,10)||0); },0);
                 if (totalConfirmado !== totalNuevo) throw new Error('La cantidad confirmada por Firebase no coincide con el conteo.');
-                const indice = (productosDB || []).findIndex(function(p){ return String(p.id) === String(producto.id); });
-                const actualizado = Object.assign({}, actual, datosConfirmados, { id:producto.id });
+                const firmaTallas = function(lista) {
+                    return (lista || []).map(function(t){ return normalizarTallaMudanza(t.nombre)+':'+Math.max(0,parseInt(t.stock,10)||0); }).sort().join('|');
+                };
+                if (firmaTallas(datosConfirmados.tallasObj) !== firmaTallas(tallasNuevas)) throw new Error('Firebase no confirmó exactamente las tallas del conteo.');
+                const indice = (productosDB || []).findIndex(function(p){ return String(p._firebaseId || '') === String(idDocumento) || String(p.id || '') === String(actual.id) || _ipNormalizar(p.codigo || p.ref) === ref; });
+                const actualizado = Object.assign({}, actual, datosConfirmados, { id:(datosConfirmados.id || actual.id || idDocumento), _firebaseId:idDocumento });
                 if (indice >= 0) productosDB[indice] = actualizado;
                 else productosDB.push(actualizado);
                 window.productosDB = productosDB;
@@ -11257,7 +11271,10 @@ ${ped.comprobanteUrl ? `
                 registro.aplicadoEn = new Date().toISOString();
                 registro.aplicadoTotal = totalNuevo;
                 guardarDatosInventarioMudanza();
-                if (typeof registrarActividadGestionDirecta === 'function') await registrarActividadGestionDirecta('reemplazar_stock_mudanza','producto',ref,{ productoId:producto.id, totalAnterior:totalAnterior, totalNuevo:totalNuevo, tallas:tallasNuevas });
+                if (typeof registrarActividadGestionDirecta === 'function') {
+                    try { await registrarActividadGestionDirecta('reemplazar_stock_mudanza','producto',ref,{ productoId:actual.id, documentoFirebase:idDocumento, totalAnterior:totalAnterior, totalNuevo:totalNuevo, tallas:tallasNuevas }); }
+                    catch(errorActividad) { console.warn('El stock se guardó, pero no se registró la actividad:', errorActividad); }
+                }
                 renderStockActual();
                 renderizarCatalogo();
                 mostrarComparacionMudanza();
