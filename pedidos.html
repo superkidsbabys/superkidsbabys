@@ -220,7 +220,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         const pestañasPermitidas = ['pedidos', 'inventario', 'clientes', 'ver tienda', 'cerrar sesión'];
         document.querySelectorAll('.btn-tab').forEach(function(btn) {
           const texto = btn.textContent.trim().toLowerCase();
-          btn.style.display = pestañasPermitidas.includes(texto) ? 'inline-block' : 'none';
+          const accion = String(btn.getAttribute('onclick') || '').toLowerCase();
+          const esPestanaNavegacion = accion.includes("cambiartab('pedidos')") || accion.includes("cambiartab('inventario')") || accion.includes("cambiartab('clientes')");
+          const esBotonGeneralPermitido = !accion.includes('cambiartab(') && pestañasPermitidas.some(function(nombre) { return texto.includes(nombre); });
+          const esPestanaPermitida = esPestanaNavegacion || esBotonGeneralPermitido;
+          btn.style.display = esPestanaPermitida ? 'inline-block' : 'none';
         });
         const panel = document.getElementById('panel-admin');
         if (panel) {
@@ -251,6 +255,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
               const accion = String(btn.getAttribute('onclick') || '').toLowerCase();
               if (!accion.includes('eliminar')) btn.style.display = '';
             });
+            const balance = document.getElementById('btn-balance-inventario');
+            if (balance) balance.style.display = 'none';
           }
         }
       }
@@ -1747,6 +1753,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
                             <button onclick="abrirConteoRapido()" style="background:linear-gradient(135deg,#168d55,#27ae60);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:900;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(22,141,85,.25);">📦 Conteo rápido</button>
                             <button id="btn-reporte-conteo-rapido" onclick="exportarReporteConteoRapido()" style="display:none;background:linear-gradient(135deg,#b7791f,#d69e2e);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:900;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(183,121,31,.25);">📋 Reporte de conteos</button>
+                            <button id="btn-balance-inventario" onclick="abrirBalanceInventario()" style="display:none;background:linear-gradient(135deg,#0f766e,#0891b2);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:900;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(8,145,178,.25);">💰 Balance $ / USD</button>
                             <button id="btn-exportar-stock-excel" onclick="exportarStockActualExcel()" style="background:linear-gradient(135deg,#1d8f4e,#29b765);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(29,143,78,.3);">📊 Exportar Excel</button>
                             <button id="btn-exportar-stock-pdf" onclick="exportarStockActualPDF()" style="background:linear-gradient(135deg,#8e44ad,#9b59b6);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(142,68,173,0.3);">🖨️ Exportar PDF</button>
                         </div>
@@ -5653,6 +5660,129 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             });
         }
 
+        function puedeVerBalanceInventario() {
+            const uid = window.usuarioActual && window.usuarioActual.uid;
+            return uid === UID_YOHANA || uid === UID_BIBIANA;
+        }
+
+        function actualizarPermisoBalanceInventario() {
+            const boton = document.getElementById('btn-balance-inventario');
+            if (boton) boton.style.display = puedeVerBalanceInventario() ? 'inline-block' : 'none';
+        }
+
+        async function cargarStockCompletoConsultaAngela() {
+            if (!(window.usuarioActual && window.usuarioActual.uid === UID_ANGELA)) return;
+            if (window._cargandoStockAngela) return window._cargandoStockAngela;
+            window._cargandoStockAngela = (async function() {
+                try {
+                    const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                    const snap = await getDocs(collection(db, 'productos'));
+                    const completos = snap.docs.map(function(documento) { return Object.assign({ id:documento.id }, documento.data()); });
+                    if (completos.length) {
+                        productosDB = completos;
+                        window.productosDB = completos;
+                        localStorage.setItem('productosV36', JSON.stringify(completos));
+                        renderStockActual();
+                    }
+                } catch(error) {
+                    console.warn('No se pudo refrescar el stock completo para Ángela:', error.message || error);
+                    renderStockActual();
+                } finally {
+                    window._cargandoStockAngela = null;
+                }
+            })();
+            return window._cargandoStockAngela;
+        }
+
+        function numeroPrecioInventario(valor) {
+            if (typeof valor === 'number') return isFinite(valor) ? Math.max(0, valor) : 0;
+            let texto = String(valor == null ? '' : valor).trim().replace(/[$\s]/g, '');
+            if (!texto) return 0;
+            if (/^\d{1,3}(\.\d{3})+$/.test(texto)) texto = texto.replace(/\./g, '');
+            else if (/^\d{1,3}(,\d{3})+$/.test(texto)) texto = texto.replace(/,/g, '');
+            else texto = texto.replace(/,/g, '.');
+            const numero = Number(texto);
+            return isFinite(numero) ? Math.max(0, numero) : 0;
+        }
+
+        function calcularBalanceInventario() {
+            const productos = window.productosDB || (typeof productosDB !== 'undefined' ? productosDB : []);
+            let referencias = 0, unidades = 0, valorPesos = 0, unidadesSinPrecio = 0;
+            const categorias = {};
+            productos.forEach(function(producto) {
+                const cantidad = (producto.tallasObj || []).reduce(function(total, talla) {
+                    return total + Math.max(0, parseInt(talla.stock, 10) || 0);
+                }, 0);
+                if (!cantidad) return;
+                referencias++;
+                unidades += cantidad;
+                const precio = numeroPrecioInventario(producto.precio);
+                if (!precio) unidadesSinPrecio += cantidad;
+                const subtotal = cantidad * precio;
+                valorPesos += subtotal;
+                const categoria = String(producto.categoria || 'Sin categoría').trim() || 'Sin categoría';
+                if (!categorias[categoria]) categorias[categoria] = { referencias:0, unidades:0, pesos:0 };
+                categorias[categoria].referencias++;
+                categorias[categoria].unidades += cantidad;
+                categorias[categoria].pesos += subtotal;
+            });
+            return { referencias:referencias, unidades:unidades, valorPesos:valorPesos, unidadesSinPrecio:unidadesSinPrecio, categorias:categorias };
+        }
+
+        function formatoPesosInventario(valor) {
+            return new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 }).format(valor || 0);
+        }
+
+        function formatoDolaresInventario(valor) {
+            return new Intl.NumberFormat('en-US', { style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2 }).format(valor || 0);
+        }
+
+        window.abrirBalanceInventario = function() {
+            if (!puedeVerBalanceInventario()) return alert('Este balance está disponible únicamente para Yohana y Bibiana.');
+            let modal = document.getElementById('modal-balance-inventario');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'modal-balance-inventario';
+                modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:100030;background:rgba(15,23,42,.68);padding:16px;overflow:auto;box-sizing:border-box;font-family:Nunito,sans-serif;';
+                modal.innerHTML = '<div style="max-width:760px;margin:5vh auto;background:white;border-radius:18px;padding:20px;box-shadow:0 24px 70px #0006;">'
+                    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;"><div><h2 style="margin:0;color:#0f766e;">💰 Balance del inventario</h2><p style="margin:5px 0 0;color:#64748b;font-size:.84em;">Valor estimado usando el precio de venta de cada producto con stock.</p></div><button onclick="cerrarBalanceInventario()" style="border:0;background:#f1f5f9;border-radius:50%;width:36px;height:36px;font-size:1.1em;font-weight:900;cursor:pointer;">✕</button></div>'
+                    + '<div style="margin:16px 0 12px;background:#ecfeff;border:1.5px solid #a5f3fc;border-radius:12px;padding:12px;"><label style="display:block;color:#155e75;font-size:.8em;font-weight:900;">Tasa de cambio: pesos colombianos por 1 dólar</label><div style="display:flex;gap:8px;align-items:center;margin-top:5px;"><span style="font-weight:900;color:#0f766e;">$</span><input id="balance-tasa-dolar" type="number" min="1" step="1" oninput="actualizarBalanceInventario()" style="flex:1;padding:10px;border:1.5px solid #22d3ee;border-radius:9px;font-size:1em;font-weight:900;"><span style="font-weight:900;color:#0f766e;">COP = US$1</span></div></div>'
+                    + '<div id="balance-inventario-contenido"></div>'
+                    + '<p style="margin:12px 0 0;color:#64748b;font-size:.75em;line-height:1.45;">La tasa se puede cambiar manualmente y queda guardada en este equipo. El cálculo no modifica el inventario.</p></div>';
+                document.body.appendChild(modal);
+            }
+            const tasa = Math.max(1, parseFloat(localStorage.getItem('superkidsTasaDolarInventario') || '4000') || 4000);
+            document.getElementById('balance-tasa-dolar').value = Math.round(tasa);
+            modal.style.display = 'block';
+            actualizarBalanceInventario();
+        };
+
+        window.cerrarBalanceInventario = function() {
+            const modal = document.getElementById('modal-balance-inventario');
+            if (modal) modal.style.display = 'none';
+        };
+
+        window.actualizarBalanceInventario = function() {
+            const contenedor = document.getElementById('balance-inventario-contenido');
+            if (!contenedor) return;
+            const input = document.getElementById('balance-tasa-dolar');
+            const tasa = Math.max(1, parseFloat(input ? input.value : 0) || 1);
+            if (input && parseFloat(input.value) > 0) localStorage.setItem('superkidsTasaDolarInventario', String(parseFloat(input.value)));
+            const balance = calcularBalanceInventario();
+            const dolares = balance.valorPesos / tasa;
+            const filas = Object.keys(balance.categorias).sort(function(a,b){ return a.localeCompare(b,'es'); }).map(function(nombre) {
+                const dato = balance.categorias[nombre];
+                return '<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px;">'+escapeHtml(nombre)+'</td><td style="padding:8px;text-align:center;">'+dato.unidades+'</td><td style="padding:8px;text-align:right;font-weight:900;">'+formatoPesosInventario(dato.pesos)+'</td><td style="padding:8px;text-align:right;font-weight:900;color:#0369a1;">'+formatoDolaresInventario(dato.pesos/tasa)+'</td></tr>';
+            }).join('');
+            contenedor.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin-bottom:14px;">'
+                + '<div style="background:#f0fdfa;border:1.5px solid #99f6e4;border-radius:11px;padding:12px;"><div style="font-size:.75em;color:#64748b;font-weight:800;">Referencias con stock</div><div style="font-size:1.55em;color:#0f766e;font-weight:950;">'+balance.referencias+'</div></div>'
+                + '<div style="background:#f0fdfa;border:1.5px solid #99f6e4;border-radius:11px;padding:12px;"><div style="font-size:.75em;color:#64748b;font-weight:800;">Unidades disponibles</div><div style="font-size:1.55em;color:#0f766e;font-weight:950;">'+balance.unidades+'</div></div>'
+                + '<div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:11px;padding:12px;"><div style="font-size:.75em;color:#64748b;font-weight:800;">Total en pesos</div><div style="font-size:1.35em;color:#c2410c;font-weight:950;">'+formatoPesosInventario(balance.valorPesos)+'</div></div>'
+                + '<div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:11px;padding:12px;"><div style="font-size:.75em;color:#64748b;font-weight:800;">Total en dólares</div><div style="font-size:1.35em;color:#0369a1;font-weight:950;">'+formatoDolaresInventario(dolares)+'</div></div></div>'
+                + (balance.unidadesSinPrecio ? '<div style="background:#fff1f2;border:1px solid #fecdd3;color:#be123c;border-radius:9px;padding:9px 11px;margin-bottom:12px;font-size:.8em;font-weight:800;">⚠️ '+balance.unidadesSinPrecio+' unidades no tienen precio y aportan $0 al balance.</div>' : '')
+                + '<div style="overflow:auto;max-height:300px;border:1px solid #cbd5e1;border-radius:10px;"><table style="width:100%;border-collapse:collapse;font-size:.82em;min-width:540px;"><thead style="position:sticky;top:0;background:#0f766e;color:white;"><tr><th style="padding:8px;text-align:left;">Categoría</th><th>Unidades</th><th style="text-align:right;padding:8px;">Pesos</th><th style="text-align:right;padding:8px;">Dólares</th></tr></thead><tbody>'+filas+'</tbody></table></div>';
+        };
+
         function renderStockActual() {
             var prods = window.productosDB || (typeof productosDB !== 'undefined' ? productosDB : []);
             if (!prods.length) {
@@ -5956,19 +6086,29 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         // Conteo físico: busca una referencia y abre su editor de tallas sin
         // obligar a Gina a navegar por el catálogo ni crearla de nuevo.
+        function usuarioPuedeConsultarConteoRapido() {
+            return usuarioPuedeEditarStockRestringido() || !!(window.usuarioActual && window.usuarioActual.uid === UID_ANGELA);
+        }
+
         window.abrirConteoRapido = async function() {
-            if (!usuarioPuedeEditarStockRestringido()) return alert('No tienes permiso para ajustar inventario.');
+            if (!usuarioPuedeConsultarConteoRapido()) return alert('No tienes permiso para consultar este inventario.');
+            const soloLectura = !!(window.usuarioActual && window.usuarioActual.uid === UID_ANGELA);
             let modal = document.getElementById('modal-conteo-rapido');
             if (!modal) {
                 modal = document.createElement('div'); modal.id = 'modal-conteo-rapido';
                 modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:100009;background:rgba(0,0,0,.58);padding:18px;box-sizing:border-box;overflow:auto;';
                 modal.innerHTML = '<div style="max-width:560px;margin:8vh auto;background:#fff;border-radius:18px;padding:22px;font-family:Nunito,sans-serif;box-shadow:0 20px 55px #0005">'+
-                    '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><h2 style="margin:0;color:#168d55;font-size:1.25em">📦 Conteo rápido</h2><div style="color:#667085;font-size:.84em;margin-top:4px">Escribe o escanea la referencia para ajustar sus tallas.</div><div id="estado-scanner-conteo" style="display:inline-block;margin-top:7px;padding:4px 9px;border-radius:12px;background:#e8f8ef;color:#168d55;font-size:.75em;font-weight:900">● Lector listo</div></div><button onclick="cerrarConteoRapido()" style="border:0;background:#eee;border-radius:50%;width:34px;height:34px;font-weight:900;font-size:1.1em;cursor:pointer">✕</button></div>'+ 
+                    '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><h2 style="margin:0;color:#168d55;font-size:1.25em">📦 Conteo rápido</h2><div id="conteo-rapido-instruccion" style="color:#667085;font-size:.84em;margin-top:4px">Escribe o escanea la referencia para ajustar sus tallas.</div><div id="estado-scanner-conteo" style="display:inline-block;margin-top:7px;padding:4px 9px;border-radius:12px;background:#e8f8ef;color:#168d55;font-size:.75em;font-weight:900">● Lector listo</div></div><button onclick="cerrarConteoRapido()" style="border:0;background:#eee;border-radius:50%;width:34px;height:34px;font-weight:900;font-size:1.1em;cursor:pointer">✕</button></div>'+ 
                     '<input id="conteo-rapido-codigo" autocomplete="off" inputmode="numeric" placeholder="Código o referencia…" oninput="entradaScannerConteoRapido()" onkeydown="manejarTeclaConteoRapido(event)" style="box-sizing:border-box;width:100%;margin:18px 0 12px;padding:14px;border:2px solid #8ee0b6;border-radius:11px;font-size:1.08em;font-weight:800;outline:none">'+
                     '<div id="conteo-rapido-resultado" style="min-height:80px;border:1.5px dashed #b7e7cb;border-radius:12px;padding:12px;color:#667085;text-align:center">Cargando referencias…</div></div>';
                 document.body.appendChild(modal);
             }
             modal.style.display = 'block';
+            modal.dataset.soloLectura = soloLectura ? '1' : '0';
+            const instruccion = document.getElementById('conteo-rapido-instruccion');
+            if (instruccion) instruccion.textContent = soloLectura
+                ? 'Modo consulta: busca una referencia para ver todas sus tallas y cantidades. No puedes modificar el stock.'
+                : 'Escribe o escanea la referencia para ajustar sus tallas.';
             const caja = document.getElementById('conteo-rapido-codigo'); caja.value = ''; caja.focus();
             try {
                 const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
@@ -5991,7 +6131,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 clearTimeout(window._scannerConteoTimer);
                 buscarConteoRapido();
                 const salida = document.getElementById('conteo-rapido-resultado');
-                if (salida && salida.dataset.id) editarConteoRapido();
+                if (salida && salida.dataset.id && usuarioPuedeEditarStockRestringido()) editarConteoRapido();
                 return;
             }
             if (event.key && event.key.length === 1) {
@@ -6019,7 +6159,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 if (estado) estado.textContent = salida && salida.dataset.id ? '✓ Referencia leída' : '● Lector listo';
                 // Algunos lectores no envían Enter. Si el código llegó con la
                 // velocidad de un escáner y existe, abrirlo automáticamente.
-                if (pareceScanner && caja.value === valorLeido && salida && salida.dataset.id) editarConteoRapido();
+                if (pareceScanner && caja.value === valorLeido && salida && salida.dataset.id && usuarioPuedeEditarStockRestringido()) editarConteoRapido();
             }, 180);
         };
         if (!window._capturaScannerConteoInstalada) {
@@ -6048,10 +6188,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if(!p){salida.innerHTML='<b style="color:#b54708">No encontramos esa referencia.</b><br><span style="font-size:.82em">Revisa el código e inténtalo de nuevo.</span>';return;}
             const foto=(p.imagenes||[])[0]||'';
             const tallas=(p.tallasObj||[]).map(t=>'<span style="display:inline-block;margin:3px;padding:4px 8px;border-radius:14px;background:#f0fdf4;border:1px solid #86efac;color:#166534;font-weight:800;font-size:.8em">'+t.nombre+' · '+(Number(t.stock)||0)+'</span>').join('');
-            salida.innerHTML='<div style="display:flex;gap:12px;align-items:center;text-align:left"><img src="'+foto+'" onerror="this.style.display=\'none\'" style="width:76px;height:76px;object-fit:cover;border-radius:10px;background:#f4f4f4"><div style="min-width:0"><b style="color:#25324a">'+(p.nombre||'Sin nombre')+'</b><div style="font-size:.82em;color:#667085;margin:3px 0">Ref. '+(p.codigo||'')+'</div><div>'+tallas+'</div></div></div><button onclick="editarConteoRapido()" style="width:100%;margin-top:12px;padding:11px;border:0;border-radius:9px;background:#168d55;color:#fff;font-weight:900;cursor:pointer">✏️ Contar y ajustar tallas</button>';
+            const accion = usuarioPuedeEditarStockRestringido()
+                ? '<button onclick="editarConteoRapido()" style="width:100%;margin-top:12px;padding:11px;border:0;border-radius:9px;background:#168d55;color:#fff;font-weight:900;cursor:pointer">✏️ Contar y ajustar tallas</button>'
+                : '<div style="margin-top:12px;padding:9px;border-radius:9px;background:#eff6ff;color:#1d4ed8;font-size:.82em;font-weight:900">👁️ Solo consulta · No puedes cambiar estas cantidades</div>';
+            salida.innerHTML='<div style="display:flex;gap:12px;align-items:center;text-align:left"><img src="'+foto+'" onerror="this.style.display=\'none\'" style="width:76px;height:76px;object-fit:cover;border-radius:10px;background:#f4f4f4"><div style="min-width:0"><b style="color:#25324a">'+(p.nombre||'Sin nombre')+'</b><div style="font-size:.82em;color:#667085;margin:3px 0">Ref. '+(p.codigo||'')+'</div><div>'+tallas+'</div></div></div>'+accion;
             salida.dataset.id=p.id;
         };
         window.editarConteoRapido = function(){
+            if (!usuarioPuedeEditarStockRestringido()) return alert('Tu acceso es solo de consulta. No puedes modificar las cantidades.');
             const salida=document.getElementById('conteo-rapido-resultado'); const id=salida&&salida.dataset.id;
             if(!id)return; window._conteoRapidoActivo=true; cerrarConteoRapido(); abrirEditarStockGina(id);
         };
@@ -11060,6 +11204,69 @@ ${ped.comprobanteUrl ? `
             const sobran = diferencias.filter(f => f.diferencia > 0).reduce((s,f)=>s+f.diferencia,0);
             panel.style.display = 'block';
             panel.innerHTML = '<h3 style="color:#6b21a8;margin:0 0 8px;">Comparación con el stock oficial</h3><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"><span style="background:#fff1f2;color:#b42318;padding:7px 10px;border-radius:14px;font-weight:900;">Faltan '+faltan+'</span><span style="background:#fffaeb;color:#9a6700;padding:7px 10px;border-radius:14px;font-weight:900;">Sobran '+sobran+'</span><span style="background:#f3e8ff;color:#6b21a8;padding:7px 10px;border-radius:14px;font-weight:900;">Diferencias '+diferencias.length+'</span></div><div style="overflow:auto;border:1.5px solid #e5d5f4;border-radius:10px;max-height:360px;"><table style="width:100%;border-collapse:collapse;font-size:.79em;min-width:760px;"><thead style="position:sticky;top:0;background:#f3e8ff;color:#6b21a8;"><tr><th style="padding:9px;text-align:left;">Referencia</th><th style="text-align:left;">Prenda</th><th>Talla</th><th>Stock</th><th>Mudanza</th><th>Diferencia</th><th style="text-align:left;">Resultado</th></tr></thead><tbody>'+diferencias.map(f => '<tr style="border-bottom:1px solid #eee;"><td style="padding:8px;font-weight:900;">'+escapeHtml(f.ref)+'</td><td>'+escapeHtml(f.nombre)+'</td><td style="text-align:center;">'+escapeHtml(f.talla)+'</td><td style="text-align:center;">'+f.stock+'</td><td style="text-align:center;">'+f.contado+'</td><td style="text-align:center;font-weight:950;color:'+(f.diferencia<0?'#b42318':'#9a6700')+';">'+(f.diferencia>0?'+':'')+f.diferencia+'</td><td>'+escapeHtml(f.estado)+'</td></tr>').join('')+'</tbody></table></div>';
+            const referenciasDiferentes = Array.from(new Set(diferencias.map(function(f){ return f.ref; }))).filter(function(ref){ return !!inventarioMudanza[ref]; });
+            if (referenciasDiferentes.length) {
+                panel.insertAdjacentHTML('beforeend', '<div style="margin-top:13px;background:#fff7ed;border:1.5px solid #fdba74;border-radius:11px;padding:12px;"><div style="font-weight:950;color:#9a3412;margin-bottom:4px;">Aplicar conteo al stock, prenda por prenda</div><div style="font-size:.78em;color:#7c2d12;margin-bottom:9px;">Cada botón reemplaza todas las tallas de una sola referencia. Nada se aplica automáticamente.</div><div style="display:flex;gap:7px;flex-wrap:wrap;">'+referenciasDiferentes.map(function(ref){ const registro=inventarioMudanza[ref]||{}; return '<button id="btn-aplicar-mudanza-'+encodeURIComponent(ref)+'" onclick="reemplazarStockDesdeMudanza(\''+encodeURIComponent(ref)+'\')" style="border:0;background:#c2410c;color:white;border-radius:8px;padding:8px 11px;font-weight:900;cursor:pointer;">Aplicar '+escapeHtml(ref)+' · '+escapeHtml(registro.nombre||'Prenda')+'</button>'; }).join('')+'</div></div>');
+            }
+        };
+
+        window.reemplazarStockDesdeMudanza = async function(refCodificada) {
+            if (!esYohanaInventario()) return alert('Esta función es exclusiva de Yohana.');
+            const ref = decodeURIComponent(refCodificada);
+            const registro = inventarioMudanza[ref];
+            if (!registro) return alert('No encontré esa referencia en el inventario de mudanza.');
+            const producto = await buscarProductoMudanzaEnStockOficial(ref);
+            if (!producto || !producto.id) return alert('La referencia '+ref+' no existe en el stock oficial. No se realizó ningún cambio.');
+            const nuevasCantidades = TALLAS_MUDANZA.map(function(talla) {
+                return { talla:talla, cantidad:Math.max(0, parseInt((registro.tallas || {})[talla], 10) || 0) };
+            }).filter(function(item){ return item.cantidad > 0; });
+            const totalAnterior = (producto.tallasObj || []).reduce(function(s,t){ return s + Math.max(0,parseInt(t.stock,10)||0); },0);
+            const totalNuevo = nuevasCantidades.reduce(function(s,item){ return s + item.cantidad; },0);
+            const detalleNuevo = nuevasCantidades.length ? nuevasCantidades.map(function(item){ return item.talla+': '+item.cantidad; }).join(' · ') : 'sin unidades';
+            if (!confirm('Vas a reemplazar el stock oficial de '+ref+' — '+(registro.nombre || producto.nombre || 'Prenda')+'.\n\nStock actual: '+totalAnterior+' unidades\nConteo de mudanza: '+totalNuevo+' unidades\n'+detalleNuevo+'\n\nLas tallas que no estén en el conteo quedarán eliminadas del stock. ¿Confirmas este reemplazo individual?')) return;
+            const boton = document.getElementById('btn-aplicar-mudanza-'+encodeURIComponent(ref));
+            if (boton) { boton.disabled=true; boton.textContent='⏳ Aplicando '+ref+'...'; }
+            try {
+                const firestore = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const referenciaDocumento = firestore.doc(db, 'productos', producto.id);
+                const snap = await firestore.getDoc(referenciaDocumento);
+                if (!snap.exists()) throw new Error('La prenda ya no existe en Firebase.');
+                const actual = Object.assign({}, producto, snap.data(), { id:producto.id });
+                const anterioresPorTalla = new Map((actual.tallasObj || []).map(function(t){ return [normalizarTallaMudanza(t.nombre), t]; }));
+                const tallasNuevas = nuevasCantidades.map(function(item) {
+                    const anterior = anterioresPorTalla.get(item.talla) || {};
+                    return Object.assign({}, anterior, { nombre:item.talla, stock:item.cantidad });
+                });
+                await firestore.setDoc(referenciaDocumento, {
+                    tallasObj:tallasNuevas,
+                    stockTotal:totalNuevo,
+                    actualizadoEn:new Date().toISOString(),
+                    actualizadoDesde:'inventario_mudanza'
+                }, { merge:true });
+                const confirmado = await firestore.getDoc(referenciaDocumento);
+                if (!confirmado.exists()) throw new Error('Firebase no confirmó el reemplazo.');
+                const datosConfirmados = confirmado.data();
+                const totalConfirmado = (datosConfirmados.tallasObj || []).reduce(function(s,t){ return s+Math.max(0,parseInt(t.stock,10)||0); },0);
+                if (totalConfirmado !== totalNuevo) throw new Error('La cantidad confirmada por Firebase no coincide con el conteo.');
+                const indice = (productosDB || []).findIndex(function(p){ return String(p.id) === String(producto.id); });
+                const actualizado = Object.assign({}, actual, datosConfirmados, { id:producto.id });
+                if (indice >= 0) productosDB[indice] = actualizado;
+                else productosDB.push(actualizado);
+                window.productosDB = productosDB;
+                localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                registro.aplicadoEn = new Date().toISOString();
+                registro.aplicadoTotal = totalNuevo;
+                guardarDatosInventarioMudanza();
+                if (typeof registrarActividadGestionDirecta === 'function') await registrarActividadGestionDirecta('reemplazar_stock_mudanza','producto',ref,{ productoId:producto.id, totalAnterior:totalAnterior, totalNuevo:totalNuevo, tallas:tallasNuevas });
+                renderStockActual();
+                renderizarCatalogo();
+                mostrarComparacionMudanza();
+                alert('✅ La referencia '+ref+' quedó actualizada con '+totalNuevo+' unidades del inventario de mudanza.');
+            } catch(error) {
+                console.error('Error reemplazando stock desde mudanza:', error);
+                alert('No se pudo reemplazar la referencia '+ref+': '+(error.message || error));
+                if (boton) { boton.disabled=false; boton.textContent='Aplicar '+ref; }
+            }
         };
 
         window.exportarInventarioMudanzaExcel = function() {
@@ -11214,6 +11421,8 @@ ${ped.comprobanteUrl ? `
             if (tabEl) tabEl.classList.add('activo');
             if (tab === 'inventario') {
                 actualizarPermisoEtiquetasEntrada();
+                actualizarPermisoBalanceInventario();
+                cargarStockCompletoConsultaAngela();
                 cargarHistorialInventario();
                 cargarHistorialSalidas();
                 actualizarPanelMigracionR2();
