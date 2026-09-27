@@ -5236,6 +5236,64 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             console.log('✅ Stock devuelto y confirmado en Firebase para pedido #' + pedido.num);
         }
 
+        const CLAVE_DEVOLUCIONES_STOCK_PENDIENTES = 'superkidsDevolucionesStockPendientesV1';
+        let procesandoDevolucionesStockPendientes = false;
+
+        function leerDevolucionesStockPendientes() {
+            try { return JSON.parse(localStorage.getItem(CLAVE_DEVOLUCIONES_STOCK_PENDIENTES) || '{}') || {}; }
+            catch (e) { return {}; }
+        }
+
+        function encolarDevolucionStockPedido(pedido) {
+            const cola = leerDevolucionesStockPendientes();
+            cola[String(pedido.num)] = {
+                pedido: JSON.parse(JSON.stringify(pedido)),
+                encoladoEn: new Date().toISOString()
+            };
+            localStorage.setItem(CLAVE_DEVOLUCIONES_STOCK_PENDIENTES, JSON.stringify(cola));
+        }
+
+        async function procesarDevolucionesStockPendientes() {
+            if (procesandoDevolucionesStockPendientes || !navigator.onLine) return;
+            const cola = leerDevolucionesStockPendientes();
+            const numeros = Object.keys(cola);
+            if (!numeros.length) return;
+            procesandoDevolucionesStockPendientes = true;
+            try {
+                for (const numero of numeros) {
+                    const guardado = cola[numero] && cola[numero].pedido;
+                    if (!guardado) { delete cola[numero]; continue; }
+                    const actual = historialPedidos.find(p => String(p.num) === String(numero)) || guardado;
+                    if (actual.stockDevuelto) { delete cola[numero]; continue; }
+                    actual.estado = 'cancelado';
+                    try {
+                        await devolverStockPedido(actual);
+                        actual.stockDevolucionPendiente = false;
+                        delete actual.stockDevolucionPendienteEn;
+                        delete cola[numero];
+                        localStorage.setItem(CLAVE_DEVOLUCIONES_STOCK_PENDIENTES, JSON.stringify(cola));
+                        localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+                        await persistirPedidoEnFirebase(actual);
+                    } catch (error) {
+                        console.warn('Devolución de stock pendiente para pedido #'+numero+':', error.message || error);
+                    }
+                }
+                renderizarPedidosPanel();
+            } finally {
+                procesandoDevolucionesStockPendientes = false;
+            }
+        }
+
+        window.addEventListener('online', function() {
+            setTimeout(procesarDevolucionesStockPendientes, 1200);
+        });
+        window.addEventListener('superkids-conexion-restaurada', function() {
+            setTimeout(procesarDevolucionesStockPendientes, 1200);
+        });
+        document.addEventListener('DOMContentLoaded', function() {
+            if (navigator.onLine) setTimeout(procesarDevolucionesStockPendientes, 2500);
+        });
+
         async function persistirPedidoEnFirebase(pedido, numAnteriorPedido, propagarError) {
             try {
                 const { collection, query, where, getDocs, doc, setDoc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
@@ -7285,14 +7343,28 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     await devolverStockPedido(pedido);
                     pedido.estado = 'cancelado';
                 } catch (error) {
-                    pedido.estado = estadoAnterior;
-                    pedido.stockDevuelto = false;
-                    delete pedido.stockDevueltoEn;
-                    localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                    await persistirPedidoEnFirebase(pedido);
-                    renderizarPedidosPanel();
-                    alert(error.message || 'No se pudo devolver el stock. El pedido no fue anulado.');
-                    return;
+                    if (!navigator.onLine) {
+                        // La anulación se conserva y la devolución transaccional
+                        // se ejecutará automáticamente al recuperar internet.
+                        pedido.estado = 'cancelado';
+                        pedido.stockDevuelto = false;
+                        pedido.stockDevolucionPendiente = true;
+                        pedido.stockDevolucionPendienteEn = new Date().toISOString();
+                        encolarDevolucionStockPedido(pedido);
+                        localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+                        await persistirPedidoEnFirebase(pedido);
+                        renderizarPedidosPanel();
+                        alert('Pedido anulado sin conexión. La devolución al stock quedó pendiente y se hará automáticamente cuando vuelva internet.');
+                    } else {
+                        pedido.estado = estadoAnterior;
+                        pedido.stockDevuelto = false;
+                        delete pedido.stockDevueltoEn;
+                        localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+                        await persistirPedidoEnFirebase(pedido);
+                        renderizarPedidosPanel();
+                        alert(error.message || 'No se pudo devolver el stock. El pedido no fue anulado.');
+                        return;
+                    }
                 }
             }
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
