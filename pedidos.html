@@ -10913,6 +10913,31 @@ ${ped.comprobanteUrl ? `
             }
         }
 
+        function prepararInventarioMudanzaParaNube(origen) {
+            // Firebase rechaza mapas con una clave vacía. Algunos Excel antiguos
+            // dejaron registros como tallas[""]; no eliminamos cantidades:
+            // si existe alguna, queda conservada bajo PENDIENTE.
+            const copia = JSON.parse(JSON.stringify(origen || {}));
+            Object.keys(copia).forEach(function(ref) {
+                const registro = copia[ref];
+                if (!registro || typeof registro !== 'object') return;
+                const tallasOriginales = registro.tallas && typeof registro.tallas === 'object' ? registro.tallas : {};
+                const tallasLimpias = {};
+                let cantidadPendiente = 0;
+                Object.keys(tallasOriginales).forEach(function(talla) {
+                    const nombre = String(talla == null ? '' : talla).trim();
+                    const cantidad = Math.max(0, parseInt(tallasOriginales[talla], 10) || 0);
+                    if (!nombre) cantidadPendiente += cantidad;
+                    else if (cantidad) tallasLimpias[nombre] = (parseInt(tallasLimpias[nombre], 10) || 0) + cantidad;
+                });
+                if (cantidadPendiente) {
+                    tallasLimpias.PENDIENTE = (parseInt(tallasLimpias.PENDIENTE, 10) || 0) + cantidadPendiente;
+                }
+                registro.tallas = tallasLimpias;
+            });
+            return copia;
+        }
+
         function actualizarEstadoSincronizacionMudanza(texto, color) {
             const estado = document.getElementById('mudanza-sync-estado');
             if (estado) { estado.textContent = texto || ''; estado.style.color = color || '#667085'; }
@@ -10947,8 +10972,14 @@ ${ped.comprobanteUrl ? `
                     actualizarEstadoSincronizacionMudanza('☁️ Sincronizado desde otro dispositivo', '#168653');
                 } else {
                     const ahora = new Date().toISOString();
-                    await f.setDoc(refNube, { datos:inventarioMudanza, actualizadoEn:ahora, actualizadoPor:(window.usuarioActual && window.usuarioActual.nombre)||'Yohana', version:1 });
+                    const datosSegurosNube = prepararInventarioMudanzaParaNube(inventarioMudanza);
+                    await f.setDoc(refNube, { datos:datosSegurosNube, actualizadoEn:ahora, actualizadoPor:(window.usuarioActual && window.usuarioActual.nombre)||'Yohana', version:2 });
+                    // Guardar también la forma corregida en este equipo para que
+                    // el error no reaparezca en la próxima sincronización.
+                    inventarioMudanza = datosSegurosNube;
+                    localStorage.setItem(CLAVE_INVENTARIO_MUDANZA, JSON.stringify(inventarioMudanza));
                     localStorage.setItem(CLAVE_FECHA_MUDANZA_LOCAL, ahora);
+                    renderizarInventarioMudanza();
                     actualizarEstadoSincronizacionMudanza('☁️ Guardado y sincronizado', '#168653');
                 }
             } catch(error) {
