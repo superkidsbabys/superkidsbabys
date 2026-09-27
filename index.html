@@ -266,7 +266,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
     try {
       if (!auth.currentUser) throw new Error('La sesión se cerró. Vuelve a iniciar sesión.');
       const idProducto = String(producto && producto.id || '').trim();
-      if (!idProducto) throw new Error('La prenda no tiene un identificador válido.');
+      const idDocumento = String(producto && (producto._firebaseId || producto.id) || '').trim();
+      if (!idProducto || !idDocumento) throw new Error('La prenda no tiene un identificador válido.');
       // JSON elimina cualquier campo undefined, que Firebase rechaza y antes
       // hacía que la edición pareciera guardada aunque no llegara a la nube.
       const datosLimpios = JSON.parse(JSON.stringify({
@@ -282,7 +283,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         stockTotal: (producto.tallasObj||[]).reduce((s,t)=>s+Math.max(0,parseInt(t.stock,10)||0),0),
         actualizadoEn: new Date().toISOString()
       }));
-      const referenciaDocumento = doc(db, 'productos', idProducto);
+      const referenciaDocumento = doc(db, 'productos', idDocumento);
       await setDoc(referenciaDocumento, datosLimpios, { merge:true });
 
       // Confirmar la lectura inmediatamente. Solo después de esta comprobación
@@ -302,7 +303,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
       };
       const tallasEsperadas = firmaTallas(datosLimpios.tallasObj);
       const tallasGuardadas = firmaTallas(guardado.tallasObj);
-      if (String(guardado.codigo == null ? '' : guardado.codigo).trim() !== datosLimpios.codigo || tallasGuardadas !== tallasEsperadas) {
+      const camposCoinciden =
+        String(guardado.nombre || '') === String(datosLimpios.nombre || '') &&
+        String(guardado.codigo == null ? '' : guardado.codigo).trim() === datosLimpios.codigo &&
+        String(guardado.categoria || '') === String(datosLimpios.categoria || '') &&
+        String(guardado.genero || '') === String(datosLimpios.genero || '') &&
+        Number(guardado.precio || 0) === Number(datosLimpios.precio || 0) &&
+        tallasGuardadas === tallasEsperadas;
+      if (!camposCoinciden) {
         throw new Error('Firebase devolvió una versión diferente. Intenta guardar nuevamente.');
       }
       window._ultimoErrorGuardarProducto = '';
@@ -3960,22 +3968,28 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             if (window.datosQuemados) return;
             let p;
             try {
-                const respuesta = await fetch(
-                    'https://superkids-pagos-api.superkids-babys.workers.dev/catalogo-publico?editar=' +
-                    encodeURIComponent(id) + '&t=' + Date.now(),
-                    { cache: 'no-store' }
-                );
-                if (!respuesta.ok) throw new Error('No se pudo consultar el inventario');
-                const datos = await respuesta.json();
-                p = Array.isArray(datos.productos)
-                    ? datos.productos.find(function(producto) { return String(producto.id) === String(id); })
-                    : null;
-                if (!p) throw new Error('La prenda no aparece en el catálogo vigente');
+                if (!window.usuarioActual) throw new Error('Tu sesión venció. Inicia sesión nuevamente.');
+                // Abrir siempre la versión real de Firebase. La copia pública
+                // puede tardar en actualizarse y antes restauraba datos viejos.
+                const snapProductos = await getDocs(collection(db, 'productos'));
+                const documentoProducto = snapProductos.docs.find(function(documento) {
+                    const datos = documento.data() || {};
+                    return String(documento.id) === String(id) ||
+                        String(datos.id || '') === String(id) ||
+                        String(datos._firebaseId || '') === String(id);
+                });
+                if (!documentoProducto) throw new Error('La prenda no aparece en Firebase');
+                const datosProducto = documentoProducto.data() || {};
+                p = Object.assign({}, datosProducto, {
+                    id: datosProducto.id || documentoProducto.id,
+                    _firebaseId: documentoProducto.id
+                });
 
                 // Sustituir también la copia de esta pestaña para impedir que al
                 // guardar se restaure accidentalmente un stock anterior.
                 const indiceActual = productosDB.findIndex(function(producto) {
-                    return String(producto.id) === String(id);
+                    return String(producto.id) === String(id) ||
+                        String(producto._firebaseId || '') === String(documentoProducto.id);
                 });
                 if (indiceActual >= 0) productosDB[indiceActual] = p;
                 else productosDB.push(p);
