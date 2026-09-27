@@ -1,52 +1,70 @@
-const CACHE_VERSION = 'superkids-pwa-v2';
-const ARCHIVOS_BASE = [
-  './',
-  './index.html',
-  './instalar.html',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+const VERSION = 'superkids-compartido-offline-20260927-v3';
+const CACHE_APP = VERSION + '-app';
+const CACHE_RECURSOS = VERSION + '-recursos';
+const ARCHIVOS_APP = ['./', './index.html', './pedidos.html', './manifest.json', './manifest-admin.json', './pwa.js', './icons/icon-192.png', './icons/icon-512.png'];
+const LIBRERIAS = [
+  'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js',
+  'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js',
+  'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'
 ];
 
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_VERSION)
-      .then(cache => cache.addAll(ARCHIVOS_BASE))
-      .then(() => self.skipWaiting())
-  );
+self.addEventListener('install', event => event.waitUntil((async () => {
+  const app = await caches.open(CACHE_APP);
+  await Promise.allSettled(ARCHIVOS_APP.map(url => app.add(url)));
+  const recursos = await caches.open(CACHE_RECURSOS);
+  await Promise.allSettled(LIBRERIAS.map(url => recursos.add(url)));
+  await self.skipWaiting();
+})()));
+
+self.addEventListener('activate', event => event.waitUntil((async () => {
+  const nombres = await caches.keys();
+  await Promise.all(nombres.filter(n => (n.startsWith('superkids-compartido-offline-') || n.startsWith('superkids-gestion-offline-')) && n !== CACHE_APP && n !== CACHE_RECURSOS).map(n => caches.delete(n)));
+  await self.clients.claim();
+})()));
+
+self.addEventListener('message', event => {
+  const datos = event.data || {};
+  if (datos.tipo !== 'GUARDAR_PANTALLA' || !datos.url) return;
+  event.waitUntil((async () => {
+    try {
+      const respuesta = await fetch(datos.url, { cache: 'reload' });
+      if (respuesta && respuesta.ok) {
+        const cache = await caches.open(CACHE_APP);
+        await cache.put(datos.url, respuesta.clone());
+      }
+    } catch (e) {}
+  })());
 });
 
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE_VERSION).map(key => caches.delete(key))))
-      .then(() => self.clients.claim())
-  );
-});
+async function navegacion(request) {
+  const cache = await caches.open(CACHE_APP);
+  try {
+    const respuesta = await fetch(request);
+    if (respuesta.ok) await cache.put(request, respuesta.clone());
+    return respuesta;
+  } catch (e) {
+    return (await cache.match(request, { ignoreSearch:true })) ||
+      (await cache.match(new URL(request.url).pathname.endsWith('pedidos.html') ? './pedidos.html' : './index.html')) ||
+      (await cache.match('./')) ||
+      new Response('<h2 style="font-family:sans-serif;text-align:center;margin-top:20vh">Sin conexión. Abre la aplicación una vez con internet para guardarla.</h2>', { headers:{'Content-Type':'text/html; charset=utf-8'} });
+  }
+}
+
+async function cachePrimero(request) {
+  const cache = await caches.open(CACHE_RECURSOS);
+  const guardada = await cache.match(request);
+  if (guardada) return guardada;
+  const respuesta = await fetch(request);
+  if (respuesta && (respuesta.ok || respuesta.type === 'opaque')) await cache.put(request, respuesta.clone());
+  return respuesta;
+}
 
 self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) return;
-
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE_VERSION).then(cache => cache.put('./index.html', copy));
-          return response;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
-      if (response.ok) {
-        const copy = response.clone();
-        caches.open(CACHE_VERSION).then(cache => cache.put(event.request, copy));
-      }
-      return response;
-    }))
-  );
+  const request = event.request;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  if (request.mode === 'navigate') return event.respondWith(navegacion(request));
+  if (url.hostname === 'www.gstatic.com' && url.pathname.includes('/firebasejs/')) return event.respondWith(cachePrimero(request));
+  if (request.destination === 'image') return event.respondWith(cachePrimero(request));
+  if (url.origin === self.location.origin) return event.respondWith(cachePrimero(request));
 });
