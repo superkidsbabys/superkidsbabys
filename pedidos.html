@@ -257,6 +257,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             });
             const balance = document.getElementById('btn-balance-inventario');
             if (balance) balance.style.display = 'none';
+            const inventarioOfertas = document.getElementById('btn-inventario-entregado-venta');
+            if (inventarioOfertas) inventarioOfertas.style.display = 'none';
           }
         }
       }
@@ -441,11 +443,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     <meta name="theme-color" content="#f5d6ed">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="SuperKids">
+    <meta name="application-name" content="SuperKids&Babys - Gestión">
+    <meta name="apple-mobile-web-app-title" content="Gestión SuperKids">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <link rel="manifest" href="./manifest-admin.json">
-    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
-    <link rel="apple-touch-icon" href="./icons/icon-192.png">
+    <link rel="manifest" href="./manifest-admin.json?v=20260927-logo">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
+    <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
     <script src="./pwa.js?v=20260713-gestion-install" defer></script>
     <title>SuperKids &amp; Babys - Panel de Gestión</title>
     <style id="dynamic-theme">:root { --color-banner: #f5d6ed; --color-texto-banner: #1c1717; --color-fondo: #fbeaf8; --color-tarjeta: #f9e2ed; --color-texto: #2a2222; --color-precio: #ff5cd6; --textura-banner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E"); --textura-size: 20px 20px; --tamano-titulo: 32px; --tamano-descripcion: 14px; --tamano-logo: 130px; --color-btn-carrito: #35c700; --color-btn-carrito-texto: #ffffff; --color-etiqueta-desc: #e74c3c; --color-etiqueta-desc-texto: #ffffff; --opacidad-etiqueta-desc: 0.7; }</style>
@@ -1753,6 +1756,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
                             <button onclick="abrirConteoRapido()" style="background:linear-gradient(135deg,#168d55,#27ae60);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:900;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(22,141,85,.25);">📦 Conteo rápido</button>
                             <button id="btn-reporte-conteo-rapido" onclick="exportarReporteConteoRapido()" style="display:none;background:linear-gradient(135deg,#b7791f,#d69e2e);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:900;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(183,121,31,.25);">📋 Reporte de conteos</button>
+                            <button id="btn-inventario-entregado-venta" onclick="abrirInventarioEntregadoVenta()" style="display:none;background:linear-gradient(135deg,#be185d,#db2777);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:900;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(190,24,93,.25);">🏷️ Inventario Ofertas</button>
                             <button id="btn-balance-inventario" onclick="abrirBalanceInventario()" style="display:none;background:linear-gradient(135deg,#0f766e,#0891b2);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:900;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(8,145,178,.25);">💰 Balance $ / USD</button>
                             <button id="btn-exportar-stock-excel" onclick="exportarStockActualExcel()" style="background:linear-gradient(135deg,#1d8f4e,#29b765);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(29,143,78,.3);">📊 Exportar Excel</button>
                             <button id="btn-exportar-stock-pdf" onclick="exportarStockActualPDF()" style="background:linear-gradient(135deg,#8e44ad,#9b59b6);color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:800;font-size:0.88em;font-family:Nunito,sans-serif;box-shadow:0 3px 10px rgba(142,68,173,0.3);">🖨️ Exportar PDF</button>
@@ -5670,6 +5674,133 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (boton) boton.style.display = puedeVerBalanceInventario() ? 'inline-block' : 'none';
         }
 
+        const CLAVE_ENTREGAS_VENTA = 'superkidsInventarioEntregadoVentaV1';
+        let borradorEntregaVenta = [];
+
+        function esYohanaEntregaVenta() {
+            return !!(window.usuarioActual && window.usuarioActual.uid === UID_YOHANA);
+        }
+
+        function actualizarPermisoInventarioEntregadoVenta() {
+            const boton = document.getElementById('btn-inventario-entregado-venta');
+            if (boton) boton.style.display = esYohanaEntregaVenta() ? 'inline-block' : 'none';
+        }
+
+        function leerEntregasVenta() {
+            try { return JSON.parse(localStorage.getItem(CLAVE_ENTREGAS_VENTA) || '[]') || []; }
+            catch(error) { return []; }
+        }
+
+        function guardarEntregasVenta(lista) {
+            localStorage.setItem(CLAVE_ENTREGAS_VENTA, JSON.stringify(lista || []));
+        }
+
+        window.abrirInventarioEntregadoVenta = function() {
+            if (!esYohanaEntregaVenta()) return alert('Esta función es exclusiva de Yohana.');
+            let modal = document.getElementById('modal-inventario-entregado-venta');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'modal-inventario-entregado-venta';
+                modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:100040;background:rgba(30,15,25,.7);padding:14px;box-sizing:border-box;overflow:auto;font-family:Nunito,sans-serif;';
+                modal.innerHTML = '<div style="max-width:1050px;margin:2vh auto;background:white;border-radius:18px;padding:20px;box-shadow:0 24px 70px #0006;">'
+                    + '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;"><div><h2 style="margin:0;color:#be185d;">🏷️ Inventario Ofertas</h2><p style="margin:5px 0;color:#667085;font-size:.83em;">Control independiente. Las prendas agregadas aquí no descuentan el stock oficial; el descuento ocurre cuando haces los pedidos vendidos.</p></div><button onclick="cerrarInventarioEntregadoVenta()" style="border:0;background:#f2f4f7;border-radius:50%;width:36px;height:36px;font-size:1.1em;font-weight:900;cursor:pointer;">✕</button></div>'
+                    + '<div style="display:grid;grid-template-columns:1fr 170px;gap:9px;margin:15px 0 10px;"><label style="font-size:.78em;font-weight:900;color:#9d174d;">Persona que recibe<input id="entrega-venta-persona" placeholder="Nombre de la persona" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:10px;border:1.5px solid #f9a8d4;border-radius:9px;font-weight:800;"></label><label style="font-size:.78em;font-weight:900;color:#9d174d;">Fecha<input id="entrega-venta-fecha" type="date" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:10px;border:1.5px solid #f9a8d4;border-radius:9px;font-weight:800;"></label></div>'
+                    + '<div style="background:#fdf2f8;border:1.5px solid #fbcfe8;border-radius:12px;padding:12px;"><div style="display:grid;grid-template-columns:minmax(180px,1fr) 120px 110px 130px auto;gap:8px;align-items:end;">'
+                    + '<label style="font-size:.76em;font-weight:900;color:#9d174d;">Referencia<input id="entrega-venta-ref" autocomplete="off" placeholder="Escanea o escribe" oninput="buscarReferenciaEntregaVenta()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();buscarReferenciaEntregaVenta();}" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:10px;border:1.5px solid #f472b6;border-radius:8px;font-weight:900;"></label>'
+                    + '<label style="font-size:.76em;font-weight:900;color:#9d174d;">Talla<select id="entrega-venta-talla" style="display:block;width:100%;margin-top:4px;padding:10px;border:1.5px solid #f9a8d4;border-radius:8px;background:white;font-weight:800;"><option value="">Selecciona</option></select></label>'
+                    + '<label style="font-size:.76em;font-weight:900;color:#9d174d;">Cantidad<input id="entrega-venta-cantidad" type="number" min="1" value="1" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:10px;border:1.5px solid #f9a8d4;border-radius:8px;font-weight:900;"></label>'
+                    + '<label style="font-size:.76em;font-weight:900;color:#9d174d;">Precio unidad<input id="entrega-venta-precio" type="number" min="0" placeholder="Precio" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:10px;border:1.5px solid #f9a8d4;border-radius:8px;font-weight:900;"></label>'
+                    + '<button onclick="agregarPrendaEntregaVenta()" style="border:0;background:#db2777;color:white;border-radius:8px;padding:11px 13px;font-weight:950;cursor:pointer;white-space:nowrap;">+ Agregar</button></div><div id="entrega-venta-producto" style="min-height:24px;margin-top:7px;color:#667085;font-size:.78em;font-weight:800;">Escanea una referencia.</div></div>'
+                    + '<div id="entrega-venta-resumen" style="margin:12px 0;"></div><div style="overflow:auto;border:1.5px solid #fbcfe8;border-radius:10px;"><table style="width:100%;border-collapse:collapse;min-width:700px;font-size:.8em;"><thead style="background:#fce7f3;color:#9d174d;"><tr><th style="padding:8px;text-align:left;">Referencia</th><th style="text-align:left;">Prenda</th><th>Talla</th><th>Cantidad</th><th>Precio unidad</th><th>Total</th><th></th></tr></thead><tbody id="entrega-venta-tbody"></tbody></table></div>'
+                    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;"><button onclick="guardarEntregaVenta()" style="flex:1;min-width:220px;border:0;background:#be185d;color:white;border-radius:9px;padding:11px;font-weight:950;cursor:pointer;">💾 Guardar entrega sin descontar stock</button><button onclick="limpiarBorradorEntregaVenta()" style="border:1px solid #fda4af;background:white;color:#be123c;border-radius:9px;padding:10px 13px;font-weight:900;cursor:pointer;">Limpiar</button></div>'
+                    + '<div style="border-top:1px solid #fbcfe8;margin-top:18px;padding-top:14px;"><h3 style="margin:0 0 9px;color:#9d174d;">Inventarios Ofertas guardados</h3><div id="entrega-venta-historial"></div></div></div>';
+                document.body.appendChild(modal);
+            }
+            if (!document.getElementById('entrega-venta-fecha').value) document.getElementById('entrega-venta-fecha').value = new Date().toISOString().slice(0,10);
+            modal.style.display = 'block';
+            renderizarBorradorEntregaVenta();
+            renderizarHistorialEntregaVenta();
+            cargarEntregasVentaFirebase();
+            setTimeout(function(){ document.getElementById('entrega-venta-ref').focus(); },50);
+        };
+
+        window.cerrarInventarioEntregadoVenta = function() {
+            const modal = document.getElementById('modal-inventario-entregado-venta');
+            if (modal) modal.style.display = 'none';
+        };
+
+        window.buscarReferenciaEntregaVenta = function() {
+            const ref = String((document.getElementById('entrega-venta-ref') || {}).value || '').trim();
+            const info = document.getElementById('entrega-venta-producto');
+            const select = document.getElementById('entrega-venta-talla');
+            if (!ref) { if(info) info.textContent='Escanea una referencia.'; if(select)select.innerHTML='<option value="">Selecciona</option>'; return; }
+            const producto = buscarProductoCatalogoPorReferencia(ref);
+            if (!producto) { if(info) info.innerHTML='<span style="color:#b42318;">No encontramos esa referencia en el stock oficial.</span>'; if(select)select.innerHTML='<option value="">No encontrada</option>'; return; }
+            const opciones = (producto.tallasObj || []).filter(function(t){ return Math.max(0,parseInt(t.stock,10)||0)>0; });
+            select.innerHTML = opciones.map(function(t){ return '<option value="'+escapeHtmlAttr(t.nombre)+'">'+escapeHtml(t.nombre)+' · disponibles '+Math.max(0,parseInt(t.stock,10)||0)+'</option>'; }).join('') || '<option value="">Sin unidades disponibles</option>';
+            document.getElementById('entrega-venta-precio').value = Math.max(0,parseInt(producto.precio,10)||0);
+            info.innerHTML = '<strong style="color:#9d174d;">'+escapeHtml(producto.nombre || 'Sin nombre')+'</strong> · Stock oficial solo para consulta; no se modificará.';
+        };
+
+        window.agregarPrendaEntregaVenta = function() {
+            const ref = String((document.getElementById('entrega-venta-ref') || {}).value || '').trim();
+            const producto = buscarProductoCatalogoPorReferencia(ref);
+            if (!producto) return alert('Busca primero una referencia válida.');
+            const talla = String((document.getElementById('entrega-venta-talla') || {}).value || '').trim();
+            const cantidad = Math.max(0,parseInt((document.getElementById('entrega-venta-cantidad') || {}).value,10)||0);
+            const precio = Math.max(0,parseInt((document.getElementById('entrega-venta-precio') || {}).value,10)||0);
+            if (!talla || !cantidad) return alert('Selecciona una talla y una cantidad.');
+            const stockTalla = (producto.tallasObj || []).find(function(t){ return normalizarTallaValor(t.nombre)===normalizarTallaValor(talla); });
+            const disponible = Math.max(0,parseInt(stockTalla && stockTalla.stock,10)||0);
+            const existente = borradorEntregaVenta.find(function(item){ return _ipNormalizar(item.ref)===_ipNormalizar(ref) && normalizarTallaValor(item.talla)===normalizarTallaValor(talla); });
+            const totalSolicitado = cantidad + (existente ? existente.cantidad : 0);
+            if (totalSolicitado > disponible && !confirm('El stock oficial muestra '+disponible+' unidades de '+talla+', pero estás entregando '+totalSolicitado+'.\n\nEsto no descontará stock. ¿Deseas agregarlo de todos modos?')) return;
+            if (existente) { existente.cantidad=totalSolicitado; existente.precio=precio; }
+            else borradorEntregaVenta.push({ ref:String(producto.codigo || ref), productoId:producto.id || '', nombre:producto.nombre || '', talla:talla, cantidad:cantidad, precio:precio, stockConsultado:disponible });
+            document.getElementById('entrega-venta-ref').value=''; document.getElementById('entrega-venta-cantidad').value='1'; document.getElementById('entrega-venta-precio').value='';
+            document.getElementById('entrega-venta-talla').innerHTML='<option value="">Selecciona</option>'; document.getElementById('entrega-venta-producto').textContent='Escanea otra referencia.';
+            renderizarBorradorEntregaVenta(); document.getElementById('entrega-venta-ref').focus();
+        };
+
+        function renderizarBorradorEntregaVenta() {
+            const tbody=document.getElementById('entrega-venta-tbody'); if(!tbody)return;
+            tbody.innerHTML=borradorEntregaVenta.map(function(item,indice){ return '<tr style="border-bottom:1px solid #fce7f3;"><td style="padding:8px;font-weight:900;color:#9d174d;">'+escapeHtml(item.ref)+'</td><td>'+escapeHtml(item.nombre)+'</td><td style="text-align:center;">'+escapeHtml(item.talla)+'</td><td style="text-align:center;font-weight:900;">'+item.cantidad+'</td><td style="text-align:right;">'+formatMoney(item.precio)+'</td><td style="text-align:right;font-weight:900;">'+formatMoney(item.precio*item.cantidad)+'</td><td style="text-align:center;"><button onclick="eliminarPrendaEntregaVenta('+indice+')" style="border:0;background:#fff1f2;color:#be123c;border-radius:7px;padding:5px 8px;font-weight:900;cursor:pointer;">Quitar</button></td></tr>'; }).join('') || '<tr><td colspan="7" style="padding:22px;text-align:center;color:#98a2b3;font-weight:800;">Aún no agregas prendas.</td></tr>';
+            const unidades=borradorEntregaVenta.reduce(function(s,i){return s+i.cantidad;},0), valor=borradorEntregaVenta.reduce(function(s,i){return s+i.cantidad*i.precio;},0);
+            const resumen=document.getElementById('entrega-venta-resumen'); if(resumen)resumen.innerHTML='<span style="display:inline-block;background:#fdf2f8;color:#9d174d;border:1px solid #fbcfe8;border-radius:16px;padding:7px 11px;font-weight:900;margin-right:6px;">'+unidades+' unidades</span><span style="display:inline-block;background:#fdf2f8;color:#9d174d;border:1px solid #fbcfe8;border-radius:16px;padding:7px 11px;font-weight:900;">Valor '+formatMoney(valor)+'</span>';
+        }
+
+        window.eliminarPrendaEntregaVenta=function(indice){ borradorEntregaVenta.splice(indice,1); renderizarBorradorEntregaVenta(); };
+        window.limpiarBorradorEntregaVenta=function(){ if(borradorEntregaVenta.length&&!confirm('¿Limpiar las prendas de esta entrega?'))return; borradorEntregaVenta=[]; renderizarBorradorEntregaVenta(); };
+
+        window.guardarEntregaVenta = async function() {
+            if (!esYohanaEntregaVenta()) return alert('Esta función es exclusiva de Yohana.');
+            const persona=String(document.getElementById('entrega-venta-persona').value||'').trim(), fecha=document.getElementById('entrega-venta-fecha').value;
+            if(!persona||!fecha) return alert('Escribe la persona que recibe y la fecha.');
+            if(!borradorEntregaVenta.length) return alert('Agrega al menos una prenda.');
+            const entrega={id:'entrega-'+Date.now(),persona:persona,fecha:fecha,items:JSON.parse(JSON.stringify(borradorEntregaVenta)),unidades:borradorEntregaVenta.reduce(function(s,i){return s+i.cantidad;},0),valor:borradorEntregaVenta.reduce(function(s,i){return s+i.cantidad*i.precio;},0),creadoEn:new Date().toISOString(),creadoPor:'Yohana',descuentaStock:false};
+            const lista=leerEntregasVenta(); lista.unshift(entrega); guardarEntregasVenta(lista);
+            try { const f=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'); await f.setDoc(f.doc(db,'inventarios_entregados_venta',entrega.id),entrega); }
+            catch(error){ console.warn('Entrega guardada localmente; Firebase no disponible:',error); }
+            borradorEntregaVenta=[]; document.getElementById('entrega-venta-persona').value=''; renderizarBorradorEntregaVenta(); renderizarHistorialEntregaVenta(); alert('✅ Inventario Ofertas guardado. El stock oficial no fue modificado.');
+        };
+
+        async function cargarEntregasVentaFirebase(){
+            if(!esYohanaEntregaVenta())return;
+            try{const f=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');const snap=await f.getDocs(f.collection(db,'inventarios_entregados_venta'));const mapa={};leerEntregasVenta().forEach(function(e){mapa[e.id]=e;});snap.forEach(function(d){mapa[d.id]=Object.assign({id:d.id},d.data());});const lista=Object.values(mapa).sort(function(a,b){return new Date(b.creadoEn||b.fecha)-new Date(a.creadoEn||a.fecha);});guardarEntregasVenta(lista);renderizarHistorialEntregaVenta();}catch(error){console.warn('Historial de entregas solo local:',error);}
+        }
+
+        function renderizarHistorialEntregaVenta(){
+            const cont=document.getElementById('entrega-venta-historial');if(!cont)return;const lista=leerEntregasVenta();
+            cont.innerHTML=lista.map(function(e){return '<div style="border:1px solid #fbcfe8;border-radius:10px;padding:10px;margin-bottom:8px;background:#fffafd;"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><div><strong style="color:#9d174d;">'+escapeHtml(e.persona)+'</strong><div style="font-size:.75em;color:#667085;">'+escapeHtml(e.fecha||'')+' · '+(e.unidades||0)+' unidades · '+formatMoney(e.valor||0)+'</div></div><button onclick="exportarEntregaVentaExcel(\''+encodeURIComponent(e.id)+'\')" style="border:0;background:#168653;color:white;border-radius:7px;padding:7px 10px;font-weight:900;cursor:pointer;">📊 Exportar</button></div></div>';}).join('')||'<div style="color:#98a2b3;font-size:.82em;">No hay entregas guardadas.</div>';
+        }
+
+        window.exportarEntregaVentaExcel=function(idCodificado){
+            const id=decodeURIComponent(idCodificado),e=leerEntregasVenta().find(function(x){return x.id===id;});if(!e)return alert('No encontré la entrega.');
+            const filas=(e.items||[]).map(function(i){return '<tr><td>'+escapeHtml(i.ref)+'</td><td>'+escapeHtml(i.nombre)+'</td><td>'+escapeHtml(i.talla)+'</td><td>'+i.cantidad+'</td><td>'+i.precio+'</td><td>'+(i.precio*i.cantidad)+'</td></tr>';}).join('');
+            const html='<html><head><meta charset="UTF-8"><style>body{font-family:Arial}table{border-collapse:collapse}th{background:#be185d;color:white}th,td{border:1px solid #ddd;padding:8px}.n{mso-number-format:"0"}</style></head><body><h1>Inventario Ofertas</h1><p>Persona: '+escapeHtml(e.persona)+' · Fecha: '+escapeHtml(e.fecha)+'</p><p>Esta entrega no descuenta el inventario oficial.</p><table><tr><th>Referencia</th><th>Prenda</th><th>Talla</th><th>Cantidad</th><th>Precio unidad</th><th>Total</th></tr>'+filas+'</table></body></html>';
+            const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Inventario_Ofertas_'+String(e.persona).replace(/[^a-z0-9]+/gi,'_')+'_'+e.fecha+'.xls';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
+        };
+
         async function cargarStockCompletoConsultaAngela() {
             if (!(window.usuarioActual && window.usuarioActual.uid === UID_ANGELA)) return;
             if (window._cargandoStockAngela) return window._cargandoStockAngela;
@@ -7134,9 +7265,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const estadoAnterior = normalizarEstadoPedido(pedido.estado);
             nuevoEstado = normalizarEstadoPedido(nuevoEstado);
             const esAngelaDespachos = window.usuarioActual && window.usuarioActual.uid === UID_ANGELA;
-            if (esAngelaDespachos && nuevoEstado !== estadoAnterior && nuevoEstado !== 'enviado') {
+            const estadosPermitidosAngela = ['enviado', 'entregado', 'cancelado'];
+            if (esAngelaDespachos && nuevoEstado !== estadoAnterior && !estadosPermitidosAngela.includes(nuevoEstado)) {
                 renderizarPedidosPanel();
-                alert('Ángela solamente puede mover pedidos al estado Enviado.');
+                alert('Ángela solamente puede mover pedidos a Enviado, Entregado o Anulado.');
+                return;
+            }
+            if (esAngelaDespachos && estadoAnterior === 'cancelado' && nuevoEstado !== 'cancelado') {
+                renderizarPedidosPanel();
+                alert('Un pedido anulado no puede cambiarse nuevamente desde el usuario de Ángela.');
                 return;
             }
             pedido.estado = nuevoEstado;
@@ -7146,6 +7283,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     // ningún listener puede volver a tratarlo como pedido nuevo
                     // mientras se está devolviendo su inventario.
                     localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+                    await persistirPedidoEnFirebase(pedido, null, true);
                     await devolverStockPedido(pedido);
                     pedido.estado = 'cancelado';
                 } catch (error) {
@@ -7160,11 +7298,23 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 }
             }
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-            await persistirPedidoEnFirebase(pedido);
-            await registrarActividadGestionDirecta('cambiar_estado_pedido','pedido',pedido.num,{
-                cliente: pedido.nom || '', estadoAnterior: estadoAnterior,
-                estadoNuevo: nuevoEstado, stockDevuelto: !!pedido.stockDevuelto
-            });
+            try {
+                await persistirPedidoEnFirebase(pedido, null, true);
+            } catch(errorPersistencia) {
+                pedido.estado = estadoAnterior;
+                localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+                renderizarPedidosPanel();
+                alert('No se pudo guardar el nuevo estado en Firebase: '+(errorPersistencia.message || errorPersistencia));
+                return;
+            }
+            try {
+                await registrarActividadGestionDirecta('cambiar_estado_pedido','pedido',pedido.num,{
+                    cliente: pedido.nom || '', estadoAnterior: estadoAnterior,
+                    estadoNuevo: nuevoEstado, stockDevuelto: !!pedido.stockDevuelto
+                });
+            } catch(errorActividad) {
+                console.warn('El estado se guardó, pero no se registró la actividad:', errorActividad);
+            }
             renderizarPedidosPanel();
         }
 
@@ -7940,7 +8090,11 @@ ${ped.comprobanteUrl ? `
                 // antes de aplicar la promocion de 4 mamelucos por $85.000.
                 recalcularTotalPedidoConEnvio(ped);
                 const estadoActual = normalizarEstadoPedido(ped.estado);
-                const opcionesEstado = ESTADOS_PEDIDO.map(e => `<option value="${e.valor}" ${estadoActual === e.valor ? 'selected' : ''}>${e.label}</option>`).join('');
+                const esAngelaEstados = window.usuarioActual && window.usuarioActual.uid === UID_ANGELA;
+                const estadosVisibles = esAngelaEstados
+                    ? ESTADOS_PEDIDO.filter(function(e) { return e.valor === estadoActual || ['enviado','entregado','cancelado'].includes(e.valor); })
+                    : ESTADOS_PEDIDO;
+                const opcionesEstado = estadosVisibles.map(e => `<option value="${e.valor}" ${estadoActual === e.valor ? 'selected' : ''}>${e.label}</option>`).join('');
                 let htmlItems = agruparItemsPorProductoParaVista(ped.items).map((g) => {
                     let prodImg = productosDB.find(x => x.id === g.id_prod);
                     let imgBase = g.imagen || (prodImg && prodImg.imagenes && prodImg.imagenes[0]);
@@ -11439,6 +11593,7 @@ ${ped.comprobanteUrl ? `
             if (tab === 'inventario') {
                 actualizarPermisoEtiquetasEntrada();
                 actualizarPermisoBalanceInventario();
+                actualizarPermisoInventarioEntregadoVenta();
                 cargarStockCompletoConsultaAngela();
                 cargarHistorialInventario();
                 cargarHistorialSalidas();
