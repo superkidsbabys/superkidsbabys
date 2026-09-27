@@ -1,4 +1,4 @@
-const VERSION = 'superkids-gestion-offline-20260927-v1';
+const VERSION = 'superkids-gestion-offline-20260927-v2';
 const CACHE_APP = VERSION + '-app';
 const CACHE_LIBRERIAS = VERSION + '-librerias';
 const ARCHIVOS_APP = [
@@ -35,6 +35,21 @@ self.addEventListener('activate', function (evento) {
   })());
 });
 
+self.addEventListener('message', function (evento) {
+  const datos = evento.data || {};
+  if (datos.tipo !== 'GUARDAR_PANTALLA' || !datos.url) return;
+  evento.waitUntil((async function () {
+    try {
+      const respuesta = await fetch(datos.url, { cache: 'reload' });
+      if (respuesta && respuesta.ok) {
+        const cache = await caches.open(CACHE_APP);
+        await cache.put(datos.url, respuesta.clone());
+        await cache.put('./pantalla-gestion-offline', respuesta.clone());
+      }
+    } catch (error) {}
+  })());
+});
+
 async function redPrimero(solicitud) {
   const cache = await caches.open(CACHE_APP);
   try {
@@ -42,7 +57,15 @@ async function redPrimero(solicitud) {
     if (respuesta && respuesta.ok) cache.put(solicitud, respuesta.clone());
     return respuesta;
   } catch (error) {
-    return (await cache.match(solicitud)) || (await cache.match('./pedidos.html'));
+    const exacta = await cache.match(solicitud, { ignoreSearch: true });
+    if (exacta) return exacta;
+    const guardada = await cache.match('./pantalla-gestion-offline');
+    if (guardada) return guardada;
+    const pedidos = await cache.match('./pedidos.html');
+    if (pedidos) return pedidos;
+    const raiz = await cache.match('./');
+    if (raiz) return raiz;
+    return new Response('<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Gestión sin conexión</title><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:15vh 20px;background:#fff8fb;color:#7e2248"><h2>Gestión se está preparando para trabajar offline</h2><p>Conecta internet una vez, abre Gestión y espera diez segundos antes de volver a desconectarte.</p></body></html>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   }
 }
 

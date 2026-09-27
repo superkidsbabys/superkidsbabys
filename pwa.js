@@ -41,8 +41,15 @@
 
   if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw-gestion.js', { scope: './' })
-        .then(function (registro) { registro.update().catch(function () {}); })
+      navigator.serviceWorker.register('./sw-gestion.js?v=20260927-offline-v2', { scope: './' })
+        .then(async function (registro) {
+          registro.update().catch(function () {});
+          // Guardar la dirección exacta que abrió la usuaria. En algunos
+          // servidores pedidos.html se publica con otro nombre o ruta.
+          var listo = await navigator.serviceWorker.ready;
+          var trabajador = listo.active || registro.active || registro.waiting;
+          if (trabajador) trabajador.postMessage({ tipo: 'GUARDAR_PANTALLA', url: location.href });
+        })
         .catch(function (error) { console.warn('Modo offline no pudo instalarse:', error.message); });
     });
   }
