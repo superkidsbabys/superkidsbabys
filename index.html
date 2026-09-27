@@ -3971,7 +3971,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (!window.usuarioActual) throw new Error('Tu sesión venció. Inicia sesión nuevamente.');
                 // Abrir siempre la versión real de Firebase. La copia pública
                 // puede tardar en actualizarse y antes restauraba datos viejos.
-                const snapProductos = await getDocs(collection(db, 'productos'));
+                // Este editor vive en un script clásico, mientras las funciones
+                // principales de Firebase se importan en un módulo separado.
+                // Importarlas aquí evita el error "getDocs is not defined".
+                const firestoreEdicion = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const dbEdicion = window.db;
+                if (!dbEdicion) throw new Error('Firebase todavía no está listo. Espera un momento e intenta nuevamente.');
+                const snapProductos = await firestoreEdicion.getDocs(
+                    firestoreEdicion.collection(dbEdicion, 'productos')
+                );
                 const documentoProducto = snapProductos.docs.find(function(documento) {
                     const datos = documento.data() || {};
                     return String(documento.id) === String(id) ||
@@ -4110,7 +4118,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         function agregarFilaTallaEdit(nom = '', stk = '', imgIndex = '', precio = '') {
             const div = document.createElement('div'); div.className = 'fila-talla';
-            div.innerHTML = `<input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color" value="${nom}"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="${stk}"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1" value="${imgIndex || ''}" title="Numero de foto para esta talla/color"><input type="number" class="inp-talla-precio-edit" placeholder="Precio" min="0" value="${precio || ''}" title="Precio solo para esta talla; vacío = precio general"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>`;
+            div.innerHTML = `<input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color (ej. ÚNICA)" value="${nom}" title="Escribe la talla o el color. En cobijas puede ser ÚNICA"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="${stk}" title="Cantidad disponible"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1" value="${imgIndex || ''}" title="Número de foto para esta talla/color"><input type="number" class="inp-talla-precio-edit" placeholder="Precio opcional" min="0" value="${precio || ''}" title="Precio solo para esta talla; vacío = precio general"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>`;
             document.getElementById('contenedor-edit-tallas-stock').appendChild(div);
         }
 
@@ -4302,6 +4310,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     let stk = parseInt(fila.querySelector('.inp-talla-stock-edit').value);
                     let imgIndex = parseInt((fila.querySelector('.inp-talla-img-index-edit') || {value:''}).value);
                     let precioTalla = parseInt((fila.querySelector('.inp-talla-precio-edit') || {value:''}).value);
+                    const esAccesorioSinTalla = p.genero === 'Accesorios' || /cobija|pañalera|accesorio/i.test(String(p.categoria || '')+' '+String(p.nombre || ''));
+                    if (!nom && !isNaN(stk) && stk > 0 && esAccesorioSinTalla) {
+                        nom = 'ÚNICA';
+                        fila.querySelector('.inp-talla-nombre-edit').value = nom;
+                    }
+                    if (!nom && !isNaN(stk) && stk > 0) {
+                        throw new Error('Escribe la talla o el color de la fila que tiene '+stk+' unidades.');
+                    }
                     let tallaObj = { nombre: nom, stock: stk };
                     if (!isNaN(imgIndex) && imgIndex > 0) tallaObj.imgIndex = imgIndex;
                     if (!isNaN(precioTalla) && precioTalla > 0) tallaObj.precio = precioTalla;
