@@ -5892,8 +5892,36 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             return isFinite(numero) ? Math.max(0, numero) : 0;
         }
 
+        let productosBalanceInventarioCompleto = [];
+
+        async function cargarProductosBalanceInventarioCompleto() {
+            try {
+                const f = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                let snap;
+                if (navigator.onLine && typeof f.getDocsFromServer === 'function') {
+                    snap = await f.getDocsFromServer(f.collection(db, 'productos'));
+                } else {
+                    snap = await f.getDocs(f.collection(db, 'productos'));
+                }
+                const completos = snap.docs.map(function(documento) {
+                    return Object.assign({ id:documento.id, _firebaseId:documento.id }, documento.data());
+                });
+                if (completos.length) {
+                    productosBalanceInventarioCompleto = completos;
+                    localStorage.setItem('superkidsProductosBalanceCompletoV1', JSON.stringify(completos));
+                }
+            } catch (error) {
+                console.warn('Balance usando respaldo local:', error.message || error);
+                try {
+                    productosBalanceInventarioCompleto = JSON.parse(localStorage.getItem('superkidsProductosBalanceCompletoV1') || '[]') || [];
+                } catch (e) { productosBalanceInventarioCompleto = []; }
+            }
+            return productosBalanceInventarioCompleto;
+        }
+
         function calcularBalanceInventario() {
-            const productos = window.productosDB || (typeof productosDB !== 'undefined' ? productosDB : []);
+            const productosLocales = window.productosDB || (typeof productosDB !== 'undefined' ? productosDB : []);
+            const productos = productosBalanceInventarioCompleto.length ? productosBalanceInventarioCompleto : productosLocales;
             let referencias = 0, unidades = 0, valorPesos = 0, unidadesSinPrecio = 0;
             const categorias = {};
             productos.forEach(function(producto) {
@@ -5924,7 +5952,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             return new Intl.NumberFormat('en-US', { style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2 }).format(valor || 0);
         }
 
-        window.abrirBalanceInventario = function() {
+        window.abrirBalanceInventario = async function() {
             if (!puedeVerBalanceInventario()) return alert('Este balance está disponible únicamente para Yohana y Bibiana.');
             let modal = document.getElementById('modal-balance-inventario');
             if (!modal) {
@@ -5941,6 +5969,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const tasa = Math.max(1, parseFloat(localStorage.getItem('superkidsTasaDolarInventario') || '4000') || 4000);
             document.getElementById('balance-tasa-dolar').value = Math.round(tasa);
             modal.style.display = 'block';
+            const contenidoBalance = document.getElementById('balance-inventario-contenido');
+            if (contenidoBalance) contenidoBalance.innerHTML = '<div style="padding:28px;text-align:center;color:#0f766e;font-weight:900;">⏳ Leyendo todo el inventario de Firebase…</div>';
+            await cargarProductosBalanceInventarioCompleto();
             actualizarBalanceInventario();
         };
 
