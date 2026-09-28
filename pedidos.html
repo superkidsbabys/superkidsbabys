@@ -11053,6 +11053,37 @@ ${ped.comprobanteUrl ? `
             return copia;
         }
 
+        function resumenDatosMudanza(datos) {
+            const registros = Object.values(datos && typeof datos === 'object' ? datos : {});
+            return {
+                referencias: registros.filter(function(r){ return r && Object.values(r.tallas || {}).some(function(n){ return (parseInt(n,10)||0)>0; }); }).length,
+                unidades: registros.reduce(function(total,r){ return total + Object.values((r && r.tallas) || {}).reduce(function(s,n){ return s+(parseInt(n,10)||0); },0); },0)
+            };
+        }
+
+        function mejorRespaldoInventarioMudanza() {
+            try {
+                const lista = JSON.parse(localStorage.getItem(CLAVE_RESPALDOS_MUDANZA) || '[]') || [];
+                return lista.map(function(r){ return Object.assign({},r,{ resumen:resumenDatosMudanza(r.datos) }); })
+                    .filter(function(r){ return r.resumen.unidades>0; })
+                    .sort(function(a,b){ return b.resumen.unidades-a.resumen.unidades || new Date(b.fecha||0)-new Date(a.fecha||0); })[0] || null;
+            } catch(e) { return null; }
+        }
+
+        window.recuperarRespaldoInventarioMudanza = async function() {
+            const respaldo = mejorRespaldoInventarioMudanza();
+            if (!respaldo) return alert('No encontramos un respaldo local con unidades en este dispositivo. No agregues prendas todavía; revisaremos el otro dispositivo o el Excel exportado.');
+            const mensaje = 'Encontramos un respaldo de '+respaldo.resumen.referencias+' referencias y '+respaldo.resumen.unidades+' unidades.\n\nFecha: '+new Date(respaldo.fecha).toLocaleString('es-CO')+'\nMotivo: '+(respaldo.motivo||'Respaldo automático')+'\n\n¿Deseas restaurarlo y sincronizarlo?';
+            if (!confirm(mensaje)) return;
+            inventarioMudanza = prepararInventarioMudanzaParaNube(respaldo.datos);
+            respaldarInventarioMudanza('Copia restaurada antes de sincronizar');
+            localStorage.setItem(CLAVE_INVENTARIO_MUDANZA, JSON.stringify(inventarioMudanza));
+            localStorage.setItem(CLAVE_FECHA_MUDANZA_LOCAL, new Date().toISOString());
+            renderizarInventarioMudanza();
+            await sincronizarInventarioMudanzaNube(true);
+            alert('✅ Respaldo recuperado. Verifica las referencias y unidades antes de continuar el conteo.');
+        };
+
         function actualizarEstadoSincronizacionMudanza(texto, color) {
             const estado = document.getElementById('mudanza-sync-estado');
             if (estado) { estado.textContent = texto || ''; estado.style.color = color || '#667085'; }
@@ -11078,7 +11109,27 @@ ${ped.comprobanteUrl ? `
                 const fechaLocal = new Date(fechaLocalTexto || 0).getTime() || 0;
                 const datosNube = snap.exists() ? (snap.data() || {}) : {};
                 const fechaNube = new Date(datosNube.actualizadoEn || 0).getTime() || 0;
+                const resumenLocal = resumenDatosMudanza(inventarioMudanza);
+                const resumenNube = resumenDatosMudanza(datosNube.datos);
+                const respaldoDisponible = mejorRespaldoInventarioMudanza();
+                // Nunca permitir que un conjunto vacío sustituya información real.
+                if (resumenLocal.unidades === 0 && resumenNube.unidades > 0) {
+                    inventarioMudanza = prepararInventarioMudanzaParaNube(datosNube.datos);
+                    localStorage.setItem(CLAVE_INVENTARIO_MUDANZA, JSON.stringify(inventarioMudanza));
+                    localStorage.setItem(CLAVE_FECHA_MUDANZA_LOCAL, datosNube.actualizadoEn || new Date().toISOString());
+                    renderizarInventarioMudanza();
+                    actualizarEstadoSincronizacionMudanza('☁️ Inventario recuperado desde la nube', '#168653');
+                    return;
+                }
+                if (resumenLocal.unidades === 0 && resumenNube.unidades === 0 && respaldoDisponible) {
+                    actualizarEstadoSincronizacionMudanza('⚠️ Hay un respaldo disponible. Pulsa Recuperar respaldo; el inventario vacío no se subió.', '#b42318');
+                    return;
+                }
                 if (!forzarSubida && snap.exists() && fechaNube > fechaLocal) {
+                    if (resumenNube.unidades === 0 && resumenLocal.unidades > 0) {
+                        actualizarEstadoSincronizacionMudanza('⚠️ Se bloqueó una actualización vacía de la nube. Tu conteo local está protegido.', '#b42318');
+                        return;
+                    }
                     if (Object.keys(inventarioMudanza || {}).length) respaldarInventarioMudanza('Antes de recibir sincronización de la nube');
                     inventarioMudanza = datosNube.datos && typeof datosNube.datos === 'object' ? datosNube.datos : {};
                     localStorage.setItem(CLAVE_INVENTARIO_MUDANZA, JSON.stringify(inventarioMudanza));
@@ -11217,7 +11268,7 @@ ${ped.comprobanteUrl ? `
                     + '<div id="mudanza-producto" style="margin-top:10px;min-height:42px;color:#667085;font-size:.84em;font-weight:800;">Conecta el lector y escanea una referencia.</div></div>'
                     + '<div id="mudanza-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin:13px 0;"></div>'
                     + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:10px;background:#fffaf5;border:1.5px solid #fed7aa;border-radius:11px;"><input id="mudanza-buscar-lista" type="search" placeholder="Buscar por referencia o nombre de la prenda..." oninput="filtrarListaInventarioMudanza()" onkeydown="if(event.key===\'Enter\')abrirPrimeraCoincidenciaMudanza(event)" style="flex:1;min-width:240px;padding:10px 12px;border:1.5px solid #fb923c;border-radius:9px;font-family:Nunito,sans-serif;font-weight:800;"><button type="button" onclick="limpiarBusquedaInventarioMudanza()" style="border:1px solid #fdba74;background:white;color:#9a3412;border-radius:9px;padding:9px 12px;font-weight:900;cursor:pointer;">Limpiar</button><span id="mudanza-busqueda-estado" style="font-size:.78em;color:#667085;font-weight:800;"></span></div>'
-                    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:7px;"><button onclick="mostrarComparacionMudanza()" style="border:0;background:#7e22ce;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">🔎 Comparar con stock</button><button onclick="exportarInventarioMudanzaExcel()" style="border:0;background:#168653;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">📊 Exportar Excel</button><button id="btn-importar-mudanza" onclick="seleccionarExcelInventarioMudanza()" style="border:0;background:#2563eb;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">📥 Importar Excel</button><input id="archivo-importar-mudanza" type="file" accept=".xlsx,.xls" onchange="importarExcelInventarioMudanza(event)" style="display:none;"><button onclick="sincronizarInventarioMudanzaNube(false)" style="border:0;background:#0369a1;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">☁️ Sincronizar celular/PC</button><button onclick="reiniciarInventarioMudanza()" style="border:1px solid #fda4af;background:white;color:#be123c;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">Vaciar conteo</button></div><div id="mudanza-sync-estado" style="min-height:18px;margin-bottom:8px;font-size:.76em;color:#667085;font-weight:900;">Comprobando sincronización…</div>'
+                    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:7px;"><button onclick="mostrarComparacionMudanza()" style="border:0;background:#7e22ce;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">🔎 Comparar con stock</button><button onclick="exportarInventarioMudanzaExcel()" style="border:0;background:#168653;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">📊 Exportar Excel</button><button id="btn-importar-mudanza" onclick="seleccionarExcelInventarioMudanza()" style="border:0;background:#2563eb;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">📥 Importar Excel</button><input id="archivo-importar-mudanza" type="file" accept=".xlsx,.xls" onchange="importarExcelInventarioMudanza(event)" style="display:none;"><button onclick="sincronizarInventarioMudanzaNube(false)" style="border:0;background:#0369a1;color:white;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">☁️ Sincronizar celular/PC</button><button onclick="recuperarRespaldoInventarioMudanza()" style="border:1.5px solid #16a34a;background:#f0fdf4;color:#166534;border-radius:9px;padding:10px 14px;font-weight:950;cursor:pointer;">♻️ Recuperar respaldo</button><button onclick="reiniciarInventarioMudanza()" style="border:1px solid #fda4af;background:white;color:#be123c;border-radius:9px;padding:10px 14px;font-weight:900;cursor:pointer;">Vaciar conteo</button></div><div id="mudanza-sync-estado" style="min-height:18px;margin-bottom:8px;font-size:.76em;color:#667085;font-weight:900;">Comprobando sincronización…</div>'
                     + '<div style="overflow:auto;border:1.5px solid #fed7aa;border-radius:11px;max-height:440px;"><table style="border-collapse:collapse;min-width:1900px;width:100%;font-size:.76em;"><thead id="mudanza-thead" style="position:sticky;top:0;background:#ffedd5;color:#9a3412;z-index:2;"></thead><tbody id="mudanza-tbody"></tbody></table></div>'
                     + '<div id="mudanza-comparacion" style="display:none;margin-top:16px;"></div></div>';
                 document.body.appendChild(modal);
