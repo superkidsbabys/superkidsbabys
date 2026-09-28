@@ -1942,6 +1942,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             <label>Etiqueta Especial:</label> <input type="text" id="edit-prod-etiqueta" placeholder="Ej: Oferta, Nuevo">
             <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; margin-top: 10px;">
                 <label>📏 Editar Tallas y Cantidades</label>
+                <button type="button" id="btn-reemplazar-tallas-mudanza" onclick="reemplazarTallasDesdeInventarioMudanza()" style="display:none;margin:8px 0 10px;border:0;background:#ea580c;color:white;border-radius:8px;padding:9px 12px;font-weight:900;cursor:pointer;">📦 Reemplazar con Inventario de mudanza</button>
                 <div id="contenedor-edit-tallas-stock"><div class="fila-talla"><input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color" value="0M"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="4"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button></div><div class="fila-talla"><input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color" value="9M"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="2"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button></div></div>
                 <button type="button" class="btn-secundario" style="margin-top: 10px;" onclick="agregarFilaTallaEdit()">+ AñAñadir otro renglón</button>
             </div>
@@ -4049,6 +4050,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             let contTallas = document.getElementById('contenedor-edit-tallas-stock'); contTallas.innerHTML = '';
             if (p.tallasObj && p.tallasObj.length > 0) p.tallasObj.forEach(t => agregarFilaTallaEdit(t.nombre, t.stock, t.imgIndex || '', t.precio || ''));
             else agregarFilaTallaEdit('', '');
+            const botonMudanza = document.getElementById('btn-reemplazar-tallas-mudanza');
+            if (botonMudanza) botonMudanza.style.display = (window.usuarioActual && window.usuarioActual.uid === 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3') ? 'inline-block' : 'none';
             document.getElementById('modal-editar-producto').style.display = 'block';
 
             // ── MODO SOLO PRECIO para Bibiana ──
@@ -4285,6 +4288,62 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         // ══════════════════════════════
 
         function cerrarModalEditar() { document.getElementById('modal-editar-producto').style.display = 'none'; }
+
+        async function reemplazarTallasDesdeInventarioMudanza() {
+            if (!(window.usuarioActual && window.usuarioActual.uid === 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3')) {
+                return alert('Esta función es exclusiva de Yohana.');
+            }
+            const referencia = String((document.getElementById('edit-prod-codigo') || {}).value || '').trim();
+            if (!referencia) return alert('La prenda no tiene una referencia para buscar en Inventario de mudanza.');
+            const boton = document.getElementById('btn-reemplazar-tallas-mudanza');
+            if (boton) { boton.disabled = true; boton.textContent = '⏳ Consultando Inventario de mudanza…'; }
+            try {
+                let datosMudanza = {};
+                try {
+                    const f = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                    const snap = await f.getDoc(f.doc(window.db, 'config_tienda', 'inventario_mudanza_yohana'));
+                    if (snap.exists()) datosMudanza = (snap.data() || {}).datos || {};
+                } catch (errorNube) {
+                    console.warn('Inventario de mudanza en nube no disponible:', errorNube.message || errorNube);
+                }
+                if (!Object.keys(datosMudanza).length) {
+                    try { datosMudanza = JSON.parse(localStorage.getItem('superkidsInventarioMudanzaV1') || '{}') || {}; }
+                    catch (e) { datosMudanza = {}; }
+                }
+                const normalizarRef = function(valor) { return String(valor == null ? '' : valor).trim().replace(/^0+(?=\d)/,'').toUpperCase(); };
+                const clave = Object.keys(datosMudanza).find(function(k) {
+                    const registro = datosMudanza[k] || {};
+                    return normalizarRef(k) === normalizarRef(referencia) || normalizarRef(registro.ref) === normalizarRef(referencia);
+                });
+                const registro = clave ? datosMudanza[clave] : null;
+                const tallas = Object.entries((registro && registro.tallas) || {})
+                    .map(function(par){ return { nombre:String(par[0] || '').trim(), stock:Math.max(0,parseInt(par[1],10)||0) }; })
+                    .filter(function(t){ return t.nombre && t.stock>0 && t.nombre !== 'PENDIENTE'; });
+                if (!tallas.length) return alert('La referencia '+referencia+' no tiene tallas con cantidades en Inventario de mudanza.');
+                const detalle = tallas.map(function(t){ return t.nombre+': '+t.stock; }).join('\n');
+                if (!confirm('Se reemplazarán las tallas del formulario para la referencia '+referencia+':\n\n'+detalle+'\n\nTodavía podrás revisarlas antes de guardar. ¿Continuar?')) return;
+                const anteriores = {};
+                document.querySelectorAll('#contenedor-edit-tallas-stock .fila-talla').forEach(function(fila) {
+                    const nombre = String((fila.querySelector('.inp-talla-nombre-edit') || {}).value || '').trim().toUpperCase();
+                    if (!nombre) return;
+                    anteriores[nombre] = {
+                        imgIndex:(fila.querySelector('.inp-talla-img-index-edit') || {}).value || '',
+                        precio:(fila.querySelector('.inp-talla-precio-edit') || {}).value || ''
+                    };
+                });
+                const contenedor = document.getElementById('contenedor-edit-tallas-stock');
+                contenedor.innerHTML = '';
+                tallas.forEach(function(t) {
+                    const anterior = anteriores[t.nombre.toUpperCase()] || {};
+                    agregarFilaTallaEdit(t.nombre, t.stock, anterior.imgIndex || '', anterior.precio || '');
+                });
+                alert('✅ Tallas copiadas al formulario. Revísalas y pulsa Guardar Cambios cuando estén correctas.');
+            } catch (error) {
+                alert('No fue posible consultar Inventario de mudanza.\n\n'+(error.message || error));
+            } finally {
+                if (boton) { boton.disabled = false; boton.textContent = '📦 Reemplazar con Inventario de mudanza'; }
+            }
+        }
 
         async function guardarEdicionProducto() {
             let id = document.getElementById('edit-prod-id').value;
