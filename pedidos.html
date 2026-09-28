@@ -7640,6 +7640,47 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             document.body.style.overflow = document.body.dataset.overflowAntesFactura || '';
         }
 
+        function imprimirEtiquetaEnvio(numPed) {
+            const ped = historialPedidos.find(function(p){ return String(p.num) === String(numPed); });
+            if (!ped) return alert('No se encontró el pedido.');
+            const seguro = function(valor, vacio) { return escapeHtml(String(valor == null || valor === '' ? (vacio || '—') : valor)); };
+            const numero = seguro(ped.numOrden || ('SK' + ped.num));
+            const transportadora = seguro(ped.transportadora || 'Por definir');
+            const destino = [ped.ciudad, ped.departamento].filter(Boolean).join(', ');
+            const vent = abrirFacturaEnApp();
+            vent.document.open();
+            vent.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Etiqueta-${numero}</title><style>
+              @page{size:letter portrait;margin:0.35in}
+              *{box-sizing:border-box}
+              body{margin:0;background:#eceff3;font-family:Arial,Helvetica,sans-serif;color:#111;padding:18px}
+              .etiqueta{width:100%;max-width:7.8in;height:4.8in;margin:0 auto;background:white;border:3px solid #111;border-radius:10px;padding:22px 26px;display:flex;flex-direction:column;justify-content:space-between}
+              .cabecera{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;border-bottom:3px solid #111;padding-bottom:13px}
+              .marca{font-size:21px;font-weight:900}.pedido{font-size:25px;font-weight:900;text-align:right}.transportadora{font-size:15px;font-weight:800;text-align:right;margin-top:4px}
+              .nombre{font-size:27px;font-weight:900;text-transform:uppercase;margin:14px 0 10px}
+              .dato{font-size:20px;line-height:1.45;margin:3px 0}.dato strong{display:inline-block;min-width:132px}
+              .destino{margin-top:10px;border:2px solid #111;border-radius:8px;padding:10px 14px;font-size:25px;font-weight:900;text-align:center;text-transform:uppercase}
+              .nota{font-size:12px;text-align:center;color:#444;margin-top:8px}
+              .acciones{text-align:center;margin-top:14px}.acciones button{border:0;border-radius:9px;padding:11px 24px;background:#168653;color:white;font-size:16px;font-weight:900;cursor:pointer}
+              @media print{body{background:white;padding:0}.acciones{display:none}.etiqueta{margin:0;width:100%;height:4.8in;max-width:none;border-radius:0}.nota{display:none}}
+            </style></head><body>
+              <section class="etiqueta">
+                <div>
+                  <div class="cabecera"><div class="marca">SUPERKIDS &amp; BABYS<br><span style="font-size:13px;font-weight:700">DATOS DE ENVÍO</span></div><div><div class="pedido">${numero}</div><div class="transportadora">${transportadora}</div></div></div>
+                  <div class="nombre">${seguro(ped.nom,'SIN NOMBRE')}</div>
+                  <div class="dato"><strong>CC/NIT:</strong> ${seguro(ped.cc)}</div>
+                  <div class="dato"><strong>Teléfono:</strong> ${seguro(ped.tel)}</div>
+                  <div class="dato"><strong>Correo:</strong> ${seguro(ped.correo)}</div>
+                  <div class="dato"><strong>Dirección/oficina:</strong> ${seguro(ped.dir)}</div>
+                  <div class="dato"><strong>Barrio:</strong> ${seguro(ped.barrio)}</div>
+                  <div class="destino">${seguro(destino,'CIUDAD POR DEFINIR')}</div>
+                </div>
+                <div class="nota">Una etiqueta por media página · Recorta por el borde negro y pega en el paquete.</div>
+              </section>
+              <div class="acciones"><button onclick="window.print()">🖨️ Imprimir etiqueta</button></div>
+            </body></html>`);
+            vent.document.close();
+        }
+
         function imprimirFactura(numPed) {
             let ped = historialPedidos.find(p => p.num === numPed); if (!ped) return;
 
@@ -8277,6 +8318,7 @@ ${ped.comprobanteUrl ? `
                     '</div>' +
                     '<div class="tp-body">' +
                       '<div class="tp-datos-completo">' + datosCliente +
+                        '<button type="button" onclick="imprimirEtiquetaEnvio(' + ped.num + ')" style="display:block;width:100%;margin-top:9px;padding:8px 11px;border:0;border-radius:8px;background:#0f766e;color:white;font-family:Nunito,sans-serif;font-size:0.82em;font-weight:950;cursor:pointer;">🖨️ Imprimir datos de envío</button>' +
                         '<button type="button" onclick="abrirEditarDatosClientePedido(' + ped.num + ')" style="display:block;margin-top:8px;padding:6px 10px;border:1.5px solid #c084fc;border-radius:8px;background:white;color:#7e22ce;font-family:Nunito,sans-serif;font-size:0.8em;font-weight:800;cursor:pointer;">✏️ Editar datos del cliente</button>' +
                         (puedeEditarPrendasPedido() ? '<button type="button" onclick="abrirEditarPrendasPedido(' + ped.num + ')" style="display:block;margin-top:7px;padding:7px 11px;border:1.5px solid #34a66f;border-radius:8px;background:#effaf4;color:#187548;font-family:Nunito,sans-serif;font-size:0.8em;font-weight:900;cursor:pointer;">👗 Editar prendas y tallas</button>' : '') +
                       '</div>' +
