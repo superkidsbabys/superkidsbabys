@@ -7758,26 +7758,40 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
               @page{size:letter portrait;margin:0.35in}
               *{box-sizing:border-box}
               body{margin:0;background:#eceff3;font-family:Arial,Helvetica,sans-serif;color:#111;padding:18px}
-              .etiqueta{width:100%;max-width:7.8in;height:4.8in;margin:0 auto;background:white;border:3px solid #111;border-radius:10px;padding:22px 26px;display:flex;flex-direction:column;justify-content:space-between}
-              .cabecera{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;border-bottom:3px solid #111;padding-bottom:13px}
-              .marca{font-size:21px;font-weight:900}.pedido{font-size:25px;font-weight:900;text-align:right}.transportadora{font-size:15px;font-weight:800;text-align:right;margin-top:4px}
-              .nombre{font-size:27px;font-weight:900;text-transform:uppercase;margin:14px 0 10px}
-              .dato{font-size:20px;line-height:1.45;margin:3px 0}.dato strong{display:inline-block;min-width:132px}
-              .destino{margin-top:10px;border:2px solid #111;border-radius:8px;padding:10px 14px;font-size:25px;font-weight:900;text-align:center;text-transform:uppercase}
-              .nota{font-size:12px;text-align:center;color:#444;margin-top:8px}
+              .etiqueta{width:100%;max-width:7.8in;height:4.8in;margin:0 auto;background:white;border:3px solid #111;border-radius:10px;padding:14px 18px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
+              .cabecera{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:7px}
+              .marca{font-size:17px;font-weight:900}.pedido{font-size:20px;font-weight:900;text-align:right}.transportadora{font-size:12px;font-weight:800;text-align:right;margin-top:2px}
+              .seccion-titulo{font-size:11px;font-weight:900;letter-spacing:.7px;margin:7px 0 2px;color:#444}
+              .nombre{font-size:20px;font-weight:900;text-transform:uppercase;margin:2px 0 4px}
+              .datos-destinatario{display:grid;grid-template-columns:1fr 1fr;column-gap:18px}
+              .dato{font-size:14px;line-height:1.25;margin:2px 0}.dato strong{display:inline-block;min-width:94px}
+              .dato.ancho{grid-column:1/-1}
+              .destino{margin-top:6px;border:2px solid #111;border-radius:7px;padding:6px 10px;font-size:19px;font-weight:900;text-align:center;text-transform:uppercase}
+              .remitente{margin-top:7px;border-top:2px solid #111;padding-top:6px;display:grid;grid-template-columns:92px 1fr 1fr;gap:3px 10px;align-items:start;font-size:11.5px;line-height:1.25}
+              .remitente-titulo{grid-row:1/3;font-size:11px;font-weight:900;letter-spacing:.5px;color:#444}.remitente strong{font-weight:900}.remitente-direccion{grid-column:2/-1}
+              .nota{font-size:9px;text-align:center;color:#555;margin-top:4px}
               .acciones{text-align:center;margin-top:14px}.acciones button{border:0;border-radius:9px;padding:11px 24px;background:#168653;color:white;font-size:16px;font-weight:900;cursor:pointer}
               @media print{body{background:white;padding:0}.acciones{display:none}.etiqueta{margin:0;width:100%;height:4.8in;max-width:none;border-radius:0}.nota{display:none}}
             </style></head><body>
               <section class="etiqueta">
                 <div>
-                  <div class="cabecera"><div class="marca">SUPERKIDS &amp; BABYS<br><span style="font-size:13px;font-weight:700">DATOS DE ENVÍO</span></div><div><div class="pedido">${numero}</div><div class="transportadora">${transportadora}</div></div></div>
+                  <div class="cabecera"><div class="marca">SUPERKIDS &amp; BABYS<br><span style="font-size:10px;font-weight:700">DATOS DE ENVÍO</span></div><div><div class="pedido">${numero}</div><div class="transportadora">${transportadora}</div></div></div>
+                  <div class="seccion-titulo">DESTINATARIO</div>
                   <div class="nombre">${seguro(ped.nom,'SIN NOMBRE')}</div>
-                  <div class="dato"><strong>CC/NIT:</strong> ${seguro(ped.cc)}</div>
-                  <div class="dato"><strong>Teléfono:</strong> ${seguro(ped.tel)}</div>
-                  <div class="dato"><strong>Correo:</strong> ${seguro(ped.correo)}</div>
-                  <div class="dato"><strong>Dirección/oficina:</strong> ${seguro(ped.dir)}</div>
-                  <div class="dato"><strong>Barrio:</strong> ${seguro(ped.barrio)}</div>
+                  <div class="datos-destinatario">
+                    <div class="dato"><strong>CC/NIT:</strong> ${seguro(ped.cc)}</div>
+                    <div class="dato"><strong>Teléfono:</strong> ${seguro(ped.tel)}</div>
+                    <div class="dato ancho"><strong>Correo:</strong> ${seguro(ped.correo)}</div>
+                    <div class="dato ancho"><strong>Dirección:</strong> ${seguro(ped.dir)}</div>
+                    <div class="dato ancho"><strong>Barrio:</strong> ${seguro(ped.barrio)}</div>
+                  </div>
                   <div class="destino">${seguro(destino,'CIUDAD POR DEFINIR')}</div>
+                  <div class="remitente">
+                    <div class="remitente-titulo">REMITENTE</div>
+                    <div><strong>Myriam Altuzarra DeMorales</strong></div>
+                    <div><strong>CC:</strong> 41613270 &nbsp;·&nbsp; <strong>Cel:</strong> 312 402 1441</div>
+                    <div class="remitente-direccion"><strong>Dirección:</strong> Calle 122 #15-9, Edificio Epicentro, oficina 303 · Bogotá</div>
+                  </div>
                 </div>
                 <div class="nota">Una etiqueta por media página · Recorta por el borde negro y pega en el paquete.</div>
               </section>
