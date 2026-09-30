@@ -5095,7 +5095,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
-        async function cargarProductoCompletoParaStock(item) {
+        async function cargarProductoCompletoParaStock(item, forzarFirebase) {
             item = item || {};
             const ids = [item.id_prod, item.id].filter(Boolean).map(String);
             const codigo = String(item.cod ?? item.codigo ?? '').trim();
@@ -5103,7 +5103,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 ids.includes(String(p.id)) || ids.includes(String(p._firebaseId || '')) ||
                 (codigo && String(p.codigo || '').trim() === codigo)
             );
-            if (existente) return existente;
+            if (existente && !forzarFirebase) return existente;
             const { doc, getDoc, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
             let documento = null;
             for (const id of ids) {
@@ -5124,10 +5124,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 id: datos.id || documento.id,
                 _firebaseId: documento.id
             });
-            productosDB.push(producto);
+            if (existente) Object.assign(existente, producto);
+            else productosDB.push(producto);
             window.productosDB = productosDB;
             localStorage.setItem('productosV36', JSON.stringify(productosDB));
-            return producto;
+            return existente || producto;
         }
 
         async function devolverStockPedido(pedido) {
@@ -6984,7 +6985,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             cont.innerHTML = (ped.items || []).map((item, idx) => {
                 const prod = productosDB.find(p => String(p.id) === String(item.id_prod)) || productosDB.find(p => String(p.codigo || '') === String(item.cod || ''));
                 const actual = normalizarTallaValor(item.talla);
-                const opciones = prod && prod.tallasObj ? prod.tallasObj.filter(t => (parseInt(t.stock,10)||0) > 0 || normalizarTallaValor(t.nombre) === actual).map(t => '<option value="'+escapeHtmlAttr(t.nombre)+'"'+(normalizarTallaValor(t.nombre)===actual?' selected':'')+'>'+t.nombre+' ('+(parseInt(t.stock,10)||0)+' disponibles)</option>').join('') : '<option>'+escapeHtmlAttr(item.talla || 'Única')+'</option>';
+                const opciones = prod && prod.tallasObj ? prod.tallasObj.filter(t => (parseInt(t.stock,10)||0) > 0 || normalizarTallaValor(t.nombre) === actual).map(t => '<option value="'+escapeHtmlAttr(t.nombre)+'"'+(normalizarTallaValor(t.nombre)===actual?' selected':'')+'>'+t.nombre+' ('+(parseInt(t.stock,10)||0)+' adicionales disponibles)</option>').join('') : '<option>'+escapeHtmlAttr(item.talla || 'Única')+'</option>';
                 const precioActual = Math.max(0, parseInt(item.precio,10) || 0);
                 const cantidadActual = Math.max(1, parseInt(item.cant || item.cantidad,10) || 1);
                 const campoPrecio = '<label style="font-size:.72em;font-weight:900;color:'+(permitePrecio?'#166534':'#98a2b3')+';">Precio unitario<input type="number" min="0" step="1000" value="'+precioActual+'" '+(permitePrecio?'':'disabled title="Tu usuario no tiene permiso para cambiar precios"')+' onchange="cambiarPrecioProductoPedido('+ped.num+','+idx+',this.value,this)" style="display:block;width:100%;box-sizing:border-box;margin-top:3px;padding:8px;border:1.5px solid '+(permitePrecio?'#86efac':'#e5e7eb')+';border-radius:8px;background:'+(permitePrecio?'#f0fdf4':'#f8fafc')+';font:inherit;font-size:.82em;font-weight:900;color:#166534;"></label>';
@@ -7006,20 +7007,32 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 return;
             }
             if (nueva === anterior) return;
-            const prod = productosDB.find(p => String(p.id) === String(item.id_prod)) || productosDB.find(p => String(p.codigo || '') === String(item.cod || ''));
+            let prod = productosDB.find(p => String(p.id) === String(item.id_prod)) || productosDB.find(p => String(p.codigo || '') === String(item.cod || ''));
             if (!prod || !Array.isArray(prod.tallasObj)) {
                 alert('No se encontró esta prenda en el inventario.');
                 if (input) input.value = anterior;
                 return;
             }
-            const talla = prod.tallasObj.find(t => normalizarTallaValor(t.nombre) === normalizarTallaValor(item.talla));
+            let talla = prod.tallasObj.find(t => normalizarTallaValor(t.nombre) === normalizarTallaValor(item.talla));
             if (!talla) {
                 alert('No se encontró la talla '+String(item.talla || '')+' en el inventario.');
                 if (input) input.value = anterior;
                 return;
             }
             const diferencia = nueva - anterior;
-            const disponibles = parseInt(talla.stock,10) || 0;
+            let disponibles = parseInt(talla.stock,10) || 0;
+            if (!ped.stockDevuelto && diferencia > 0 && disponibles < diferencia && navigator.onLine) {
+                try {
+                    const actualizado = await cargarProductoCompletoParaStock(item, true);
+                    if (actualizado) {
+                        prod = actualizado;
+                        talla = (prod.tallasObj || []).find(t => normalizarTallaValor(t.nombre) === normalizarTallaValor(item.talla));
+                        disponibles = talla ? (parseInt(talla.stock,10) || 0) : 0;
+                    }
+                } catch(error) {
+                    console.log('No se pudo refrescar el stock antes de cambiar la cantidad:', error);
+                }
+            }
             if (!ped.stockDevuelto && diferencia > 0 && disponibles < diferencia) {
                 alert('No hay suficientes unidades de la talla '+talla.nombre+'. Disponibles para agregar: '+disponibles+'.');
                 if (input) input.value = anterior;
@@ -8374,7 +8387,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                     const verificacion = obtenerEstadoVerificacionPrenda(ped.num, g.cod || 'S/N', g.cantidad || 1);
                     const textoVerificacion = verificacion.completa ? '✓ Verificada '+verificacion.cantidad+'/'+verificacion.requerida : '▣ Escanear '+verificacion.cantidad+'/'+verificacion.requerida;
                     const estiloVerificacion = verificacion.completa ? 'background:#dcfce7;color:#166534;border-color:#86efac;' : 'background:#fff7ed;color:#c2410c;border-color:#fdba74;';
-                    return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.cantidad > 1 ? '(' + g.cantidad + ') ' : ''}${g.nom}</div><div style="font-size:0.72em;color:#888;">Tallas: ${tallasTxt} · REF: ${g.cod || 'S/N'}</div>${descuentoUnitarioVista ? '<div style="font-size:.7em;color:#b06b00;font-weight:850;margin-top:2px;">Mayorista P/U: '+formatMoney(precioUnitarioVista)+'</div>' : ''}<button type="button" class="control-verificacion-despacho" onclick="abrirVerificacionPrendaPedido(${Number(ped.num)},'${encodeURIComponent(g.cod || 'S/N')}','${encodeURIComponent(g.nom || '')}','${encodeURIComponent(tallasTxt)}',${Number(g.cantidad || 1)})" style="margin-top:5px;border:1.5px solid;border-radius:8px;padding:5px 9px;font-size:.73em;font-weight:950;cursor:pointer;${estiloVerificacion}">${textoVerificacion}</button></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(totalGrupoVista)}</span></div>`;
+                    return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.cantidad > 1 ? '(' + g.cantidad + ') ' : ''}${g.nom}</div><div style="font-size:0.72em;color:#888;">Tallas: ${tallasTxt} · REF: ${g.cod || 'S/N'}</div><div style="font-size:.7em;color:${descuentoUnitarioVista?'#b06b00':'#667085'};font-weight:850;margin-top:2px;">${descuentoUnitarioVista?'Mayorista P/U':'Precio P/U'}: ${formatMoney(precioUnitarioVista)}</div><button type="button" class="control-verificacion-despacho" onclick="abrirVerificacionPrendaPedido(${Number(ped.num)},'${encodeURIComponent(g.cod || 'S/N')}','${encodeURIComponent(g.nom || '')}','${encodeURIComponent(tallasTxt)}',${Number(g.cantidad || 1)})" style="margin-top:5px;border:1.5px solid;border-radius:8px;padding:5px 9px;font-size:.73em;font-weight:950;cursor:pointer;${estiloVerificacion}">${textoVerificacion}</button></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(totalGrupoVista)}</span></div>`;
                 }).join('');
 
                 const numFact = ped.numOrden || ('SK' + String(ped.numFactura || ped.num).padStart(5, '0'));
