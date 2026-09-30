@@ -6795,23 +6795,35 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         function recalcularTotalPedidoConEnvio(ped) {
             const promo = calcularDescuentoMamelucosPedido(ped.items || []);
             const subtotalPromocion = promo.bruto - promo.descuento;
-            const porcentaje = Math.max(0, Math.min(100, parseFloat(ped.descuentoPorcentaje || 0) || 0));
+            const esMayorista = ped.descuentoTipo === 'mayorista_3000';
+            const porcentaje = esMayorista ? 0 : Math.max(0, Math.min(100, parseFloat(ped.descuentoPorcentaje || 0) || 0));
             const descuentoPorcentajeValor = Math.round(subtotalPromocion * porcentaje / 100);
+            const unidades = (ped.items || []).reduce(function(total,item) {
+                return total + Math.max(1, parseInt(item.cant || item.cantidad, 10) || 1);
+            }, 0);
+            const descuentoMayoristaValor = esMayorista ? Math.min(subtotalPromocion, unidades * 3000) : 0;
             const envio = parseInt(String(ped.valorEnvio || '0').replace(/[^0-9]/g, ''), 10) || 0;
             ped.subtotalBruto = promo.bruto;
             ped.cantidadPromoMamelucos = promo.cantidadPromo;
             ped.descuentoPromocion = promo.descuento;
             ped.descuentoPorcentaje = porcentaje;
             ped.descuentoPorcentajeValor = descuentoPorcentajeValor;
-            ped.tot = subtotalPromocion - descuentoPorcentajeValor + envio;
+            ped.descuentoMayoristaValor = descuentoMayoristaValor;
+            ped.tot = subtotalPromocion - descuentoPorcentajeValor - descuentoMayoristaValor + envio;
             ped.actualizadoEn = new Date().toISOString();
         }
 
-        async function cambiarDescuentoPedido(numPed, porcentaje) {
+        async function cambiarDescuentoPedido(numPed, valor) {
             if (!puedeEditarPrendasPedido()) return alert('No tienes permiso para aplicar descuentos.');
             const ped = historialPedidos.find(p => String(p.num) === String(numPed));
             if (!ped) return;
-            ped.descuentoPorcentaje = Math.max(0, Math.min(100, parseFloat(porcentaje) || 0));
+            if (String(valor) === 'mayorista_3000') {
+                ped.descuentoTipo = 'mayorista_3000';
+                ped.descuentoPorcentaje = 0;
+            } else {
+                ped.descuentoTipo = '';
+                ped.descuentoPorcentaje = Math.max(0, Math.min(100, parseFloat(valor) || 0));
+            }
             recalcularTotalPedidoConEnvio(ped);
             await guardarEdicionPrendasPedidoFirebase(ped, []);
             renderizarPedidosPanel();
@@ -6932,7 +6944,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 }
                 const q = query(collection(db, 'pedidos'), where('num', '==', ped.num));
                 const snap = await getDocs(q);
-                const cambios = { items: ped.items, tot: ped.tot, subtotalBruto: ped.subtotalBruto || 0, cantidadPromoMamelucos: ped.cantidadPromoMamelucos || 0, descuentoPromocion: ped.descuentoPromocion || 0, descuentoPorcentaje: ped.descuentoPorcentaje || 0, descuentoPorcentajeValor: ped.descuentoPorcentajeValor || 0, actualizadoEn: ped.actualizadoEn };
+                const cambios = { items: ped.items, tot: ped.tot, subtotalBruto: ped.subtotalBruto || 0, cantidadPromoMamelucos: ped.cantidadPromoMamelucos || 0, descuentoPromocion: ped.descuentoPromocion || 0, descuentoPorcentaje: ped.descuentoPorcentaje || 0, descuentoPorcentajeValor: ped.descuentoPorcentajeValor || 0, descuentoTipo: ped.descuentoTipo || '', descuentoMayoristaValor: ped.descuentoMayoristaValor || 0, actualizadoEn: ped.actualizadoEn };
                 const tareas = [];
                 snap.forEach(ds => tareas.push(updateDoc(ds.ref, cambios)));
                 await Promise.all(tareas);
@@ -7712,6 +7724,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         function imprimirFactura(numPed) {
             let ped = historialPedidos.find(p => p.num === numPed); if (!ped) return;
+            const descuentoUnitarioMayorista = ped.descuentoTipo === 'mayorista_3000' ? 3000 : 0;
 
             // Buscar imagen de cada producto en productosDB
             let htmlProductos = ped.items.map(i => {
@@ -7729,7 +7742,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <span style="font-size:0.9em;color:#888;">Talla: ${i.talla || 'Única'}</span>
                   </td>
                   <td style="padding:10px 8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;text-align:right;font-weight:bold;color:#333;font-size:1em;">
-                    <span class="precio-editable" contenteditable="true" spellcheck="false" data-precio="${i.precio}" oninput="recalcularTotal()" style="display:inline-block;border:1.5px dashed #c9a0dc;border-radius:6px;padding:2px 8px;cursor:pointer;color:#8e44ad;min-width:60px;">${formatMoney(i.precio)}</span>
+                    <span class="precio-editable" contenteditable="true" spellcheck="false" data-precio="${i.precio}" data-descuento-unitario="${descuentoUnitarioMayorista}" oninput="recalcularTotal()" style="display:inline-block;border:1.5px dashed #c9a0dc;border-radius:6px;padding:2px 8px;cursor:pointer;color:#8e44ad;min-width:60px;">${formatMoney(Math.max(0,(parseInt(i.precio,10)||0)-descuentoUnitarioMayorista))}</span>
                   </td>
                 </tr>`;
             }).join('');
@@ -7762,7 +7775,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     const foto = posicion === 0 ? `<td rowspan="${grupo.lineas.length}" style="padding:10px 8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;width:98px;"><img src="${imgUrl}" alt="foto" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:block;border:2px solid #e8d5f5;" onerror="this.src='https://via.placeholder.com/80x80?text=Sin+foto'"></td>` : '';
                     const cantidadLinea = Math.max(1, parseInt(i.cant || i.cantidad, 10) || 1);
                     const ref = posicion === 0 ? `<div style="font-weight:800;color:#333;margin-bottom:3px;">${cantidadReferencia > 1 ? '(' + cantidadReferencia + ') ' : ''}${base.nom || ''}</div><div style="font-size:.76em;color:#777;margin-bottom:3px;">REF: <strong style="color:#8e44ad;">${i.cod || 'S/N'}</strong></div>` : '';
-                    return `<tr>${foto}<td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;font-size:.88em;color:#555;">${ref}<span>Talla: <strong>${i.talla || 'Unica'}${cantidadLinea > 1 ? ' (' + cantidadLinea + ')' : ''}</strong></span><button type="button" onclick="quitarPrendaFactura(${linea.indice})" style="margin-left:7px;border:1px solid #efb0b0;background:#fff4f4;color:#b3261e;border-radius:6px;padding:2px 6px;cursor:pointer;font-size:.76em;font-weight:800;">Eliminar</button></td><td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;text-align:right;font-weight:bold;color:#333;font-size:1em;"><span class="precio-editable" contenteditable="true" spellcheck="false" data-precio="${i.precio}" data-cantidad="${cantidadLinea}" oninput="recalcularTotal()" style="display:inline-block;border:1.5px dashed #c9a0dc;border-radius:6px;padding:2px 8px;cursor:pointer;color:#8e44ad;min-width:60px;">${formatMoney(i.precio)}</span></td></tr>`;
+                    const precioUnitarioVisible = Math.max(0,(parseInt(i.precio,10)||0)-descuentoUnitarioMayorista);
+                    return `<tr>${foto}<td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;font-size:.88em;color:#555;">${ref}<span>Talla: <strong>${i.talla || 'Unica'}${cantidadLinea > 1 ? ' (' + cantidadLinea + ')' : ''}</strong></span><button type="button" onclick="quitarPrendaFactura(${linea.indice})" style="margin-left:7px;border:1px solid #efb0b0;background:#fff4f4;color:#b3261e;border-radius:6px;padding:2px 6px;cursor:pointer;font-size:.76em;font-weight:800;">Eliminar</button></td><td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;text-align:right;font-weight:bold;color:#333;font-size:1em;"><span class="precio-editable" contenteditable="true" spellcheck="false" data-precio="${i.precio}" data-descuento-unitario="${descuentoUnitarioMayorista}" data-cantidad="${cantidadLinea}" oninput="recalcularTotal()" style="display:inline-block;border:1.5px dashed #c9a0dc;border-radius:6px;padding:2px 8px;cursor:pointer;color:#8e44ad;min-width:60px;">${formatMoney(precioUnitarioVisible)}</span></td></tr>`;
                 }).join('');
             }).join('');
 
@@ -7776,7 +7790,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 const imgUrl = imgBase ? imgBase.replace('/image/upload/', '/image/upload/f_auto,q_auto,w_160/') : 'https://via.placeholder.com/80x80?text=Sin+foto';
                 const tallasTxt = (g.tallas || []).join(', ');
                 const cantidadGrupo = g.cantidad || 1;
-                const precioUnitario = Math.round((g.totalPrecio || 0) / cantidadGrupo);
+                const precioUnitario = Math.max(0,Math.round((g.totalPrecio || 0) / cantidadGrupo)-descuentoUnitarioMayorista);
+                const totalGrupoVisible = Math.max(0,(g.totalPrecio || 0)-(descuentoUnitarioMayorista*cantidadGrupo));
                 return `<tr>
                   <td style="padding:10px 8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;width:98px;">
                     <img src="${imgUrl}" alt="foto" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:block;border:2px solid #e8d5f5;" onerror="this.src='https://via.placeholder.com/80x80?text=Sin+foto'">
@@ -7786,7 +7801,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <div style="font-size:.92em;color:#777;">Tallas: <strong style="color:#8e44ad;">${tallasTxt}</strong> · REF: ${g.cod || 'S/N'}</div>
                   </td>
                   <td style="padding:8px;border-bottom:1px solid #f0e6fb;vertical-align:middle;text-align:right;font-weight:bold;color:#333;font-size:1em;white-space:nowrap;">
-                    ${cantidadGrupo > 1 ? `<span style="font-size:.72em;font-weight:600;color:#a479c4;margin-right:8px;">P/U: ${formatMoney(precioUnitario)}</span>` : ''}${formatMoney(g.totalPrecio)}
+                    ${cantidadGrupo > 1 ? `<span style="font-size:.72em;font-weight:600;color:#a479c4;margin-right:8px;">P/U: ${formatMoney(precioUnitario)}</span>` : ''}${formatMoney(totalGrupoVisible)}
                   </td>
                 </tr>`;
             }).join('');
@@ -7794,10 +7809,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const promoFactura = calcularDescuentoMamelucosPedido(ped.items || []);
             const descuentoPromoFactura = promoFactura.descuento;
             const descuentoPctFactura = Math.round((promoFactura.bruto - descuentoPromoFactura) * (parseFloat(ped.descuentoPorcentaje || 0) || 0) / 100);
-            const subtotalReal = promoFactura.bruto - descuentoPromoFactura - descuentoPctFactura;
             const cantidadTotalPrendas = (ped.items || []).reduce(function(total, item) {
                 return total + Math.max(1, parseInt(item.cant || item.cantidad, 10) || 1);
             }, 0);
+            const descuentoMayoristaFactura = ped.descuentoTipo === 'mayorista_3000' ? Math.min(promoFactura.bruto - descuentoPromoFactura, cantidadTotalPrendas * 3000) : 0;
+            const subtotalReal = promoFactura.bruto - descuentoPromoFactura - descuentoPctFactura - descuentoMayoristaFactura;
             const resumenReferenciasFactura = gruposLimpios.map(function(g) {
                 return '<strong>REF ' + escapeHtml(g.cod || 'S/N') + ':</strong> ' + g.cantidad + ' prenda' + (g.cantidad === 1 ? '' : 's');
             }).join(' &nbsp;·&nbsp; ');
@@ -7900,6 +7916,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
   <div class="resumen-fila"><span>Subtotal productos</span><span id="subtotal-bruto">${formatMoney(promoFactura.bruto)}</span></div>
   ${descuentoPromoFactura > 0 ? `<div class="resumen-fila" style="color:#168653;font-weight:800;"><span>Promoción mamelucos</span><span id="descuento-promocion">−${formatMoney(descuentoPromoFactura)}</span></div>` : ''}
   ${descuentoPctFactura > 0 ? `<div class="resumen-fila" style="color:#b06b00;font-weight:800;"><span>Descuento adicional ${ped.descuentoPorcentaje}%</span><span id="descuento-adicional">−${formatMoney(descuentoPctFactura)}</span></div>` : ''}
+  ${descuentoMayoristaFactura > 0 ? `<div class="resumen-fila" style="color:#b06b00;font-weight:800;"><span>Descuento mayorista ($3.000 × ${cantidadTotalPrendas} prendas)</span><span id="descuento-mayorista">−${formatMoney(descuentoMayoristaFactura)}</span></div>` : ''}
   <div class="resumen-fila"><span>Total prendas con descuento</span><span id="subtotal-productos" data-sub="${subtotalReal}">${formatMoney(subtotalReal)}</span></div>
   <div class="resumen-fila"><span>Valor de envío</span><input id="fac-valor-envio" type="text" value="${ped.valorEnvio || ''}" placeholder="$ 0" oninput="recalcularTotal()" style="width:90px;text-align:right;border:1px dashed #c9a0dc;border-radius:6px;padding:2px 7px;font-size:0.9em;font-weight:700;color:#8e44ad;background:#fdf8ff;outline:none;"></div>
   <div class="resumen-fila"><span>TOTAL DEL PEDIDO</span><span id="total-final">${formatMoney(subtotalReal + envioInicial)}</span></div>
@@ -7928,17 +7945,20 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             scriptEl.textContent = 'function recalcularTotal(){' +
                 '  var subEl=document.getElementById("subtotal-productos");' +
                 '  var bruto=0;' +
-                '  document.querySelectorAll(".precio-editable").forEach(function(el){ bruto += (parseInt((el.textContent||"0").replace(/[^0-9]/g,""))||0) * (parseInt(el.dataset.cantidad||"1")||1); });' +
+                '  document.querySelectorAll(".precio-editable").forEach(function(el){ var cant=parseInt(el.dataset.cantidad||"1")||1; var neto=parseInt((el.textContent||"0").replace(/[^0-9]/g,""))||0; var desc=parseInt(el.dataset.descuentoUnitario||"0")||0; bruto += (neto+desc)*cant; });' +
                 '  var descuentoPromo=' + JSON.stringify(descuentoPromoFactura) + ';' +
                 '  var porcentaje=' + JSON.stringify(parseFloat(ped.descuentoPorcentaje || 0) || 0) + ';' +
                 '  var descuentoAdicional=Math.round(Math.max(0,bruto-descuentoPromo)*porcentaje/100);' +
-                '  var sub=Math.max(0,bruto-descuentoPromo-descuentoAdicional);' +
+                '  var descuentoMayorista=' + JSON.stringify(ped.descuentoTipo === 'mayorista_3000' ? cantidadTotalPrendas * 3000 : 0) + ';' +
+                '  var sub=Math.max(0,bruto-descuentoPromo-descuentoAdicional-descuentoMayorista);' +
                 '  var brutoEl=document.getElementById("subtotal-bruto");' +
                 '  if(brutoEl)brutoEl.textContent="$"+bruto.toLocaleString("es-CO");' +
                 '  var promoEl=document.getElementById("descuento-promocion");' +
                 '  if(promoEl)promoEl.textContent="−$"+descuentoPromo.toLocaleString("es-CO");' +
                 '  var descEl=document.getElementById("descuento-adicional");' +
                 '  if(descEl)descEl.textContent="−$"+descuentoAdicional.toLocaleString("es-CO");' +
+                '  var mayEl=document.getElementById("descuento-mayorista");' +
+                '  if(mayEl)mayEl.textContent="−$"+descuentoMayorista.toLocaleString("es-CO");' +
                 '  if(subEl){ subEl.dataset.sub=String(sub); subEl.textContent="$"+sub.toLocaleString("es-CO"); }' +
                 '  var envioEl=document.getElementById("fac-valor-envio");' +
                 '  var envio=envioEl?parseInt((envioEl.value||"0").replace(/[^0-9]/g,""))||0:0;' +
@@ -8019,7 +8039,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 '  var precios = document.querySelectorAll(".precio-editable");' +
                 '  var sub = 0;' +
                 '  var preciosItems = [];' +
-                '  precios.forEach(function(el){ var precio = parseInt(el.textContent.replace(/[^0-9]/g,""))||0; preciosItems.push(precio); sub += precio; });' +
+                '  precios.forEach(function(el){ var precioVisible = parseInt(el.textContent.replace(/[^0-9]/g,""))||0; var descuentoUnitario=parseInt(el.dataset.descuentoUnitario||"0")||0; var precio=precioVisible+descuentoUnitario; preciosItems.push(precio); sub += precioVisible*(parseInt(el.dataset.cantidad||"1")||1); });' +
                 '  var envioEl = document.getElementById("fac-valor-envio");' +
                 '  var guiaEl  = document.getElementById("fac-guia");' +
                 '  var transpEl = document.getElementById("fac-transportadora");' +
@@ -8294,13 +8314,16 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                         ? `<img src="${thumb}" onclick="abrirFotoGrande('${encodeURIComponent(imgBase)}','${encodeURIComponent(g.id_prod || '')}')" title="Toca para ampliar" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1.5px solid #f0d6fb;cursor:zoom-in;" onerror="this.style.display='none'">`
                         : `<div style="width:44px;height:44px;border-radius:6px;background:#f5e6fb;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2em;">👗</div>`;
                     const tallasTxt = g.tallas.join(', ');
+                    const descuentoUnitarioVista = ped.descuentoTipo === 'mayorista_3000' ? 3000 : 0;
+                    const precioUnitarioVista = Math.max(0,Math.round((g.totalPrecio || 0)/(g.cantidad || 1))-descuentoUnitarioVista);
+                    const totalGrupoVista = Math.max(0,(g.totalPrecio || 0)-(descuentoUnitarioVista*(g.cantidad || 1)));
                     // Las prendas facturadas no se eliminan desde la tarjeta:
                     // ese botón devolvía stock y podía descuadrar una curva por
                     // un toque accidental. Los ajustes se hacen en el editor.
                     const verificacion = obtenerEstadoVerificacionPrenda(ped.num, g.cod || 'S/N', g.cantidad || 1);
                     const textoVerificacion = verificacion.completa ? '✓ Verificada '+verificacion.cantidad+'/'+verificacion.requerida : '▣ Escanear '+verificacion.cantidad+'/'+verificacion.requerida;
                     const estiloVerificacion = verificacion.completa ? 'background:#dcfce7;color:#166534;border-color:#86efac;' : 'background:#fff7ed;color:#c2410c;border-color:#fdba74;';
-                    return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.cantidad > 1 ? '(' + g.cantidad + ') ' : ''}${g.nom}</div><div style="font-size:0.72em;color:#888;">Tallas: ${tallasTxt} · REF: ${g.cod || 'S/N'}</div><button type="button" class="control-verificacion-despacho" onclick="abrirVerificacionPrendaPedido(${Number(ped.num)},'${encodeURIComponent(g.cod || 'S/N')}','${encodeURIComponent(g.nom || '')}','${encodeURIComponent(tallasTxt)}',${Number(g.cantidad || 1)})" style="margin-top:5px;border:1.5px solid;border-radius:8px;padding:5px 9px;font-size:.73em;font-weight:950;cursor:pointer;${estiloVerificacion}">${textoVerificacion}</button></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(g.totalPrecio)}</span></div>`;
+                    return `<div class="tp-item-fila" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5e6f8;">${imgTag}<div style="flex:1;min-width:0;"><div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.cantidad > 1 ? '(' + g.cantidad + ') ' : ''}${g.nom}</div><div style="font-size:0.72em;color:#888;">Tallas: ${tallasTxt} · REF: ${g.cod || 'S/N'}</div>${descuentoUnitarioVista ? '<div style="font-size:.7em;color:#b06b00;font-weight:850;margin-top:2px;">Mayorista P/U: '+formatMoney(precioUnitarioVista)+'</div>' : ''}<button type="button" class="control-verificacion-despacho" onclick="abrirVerificacionPrendaPedido(${Number(ped.num)},'${encodeURIComponent(g.cod || 'S/N')}','${encodeURIComponent(g.nom || '')}','${encodeURIComponent(tallasTxt)}',${Number(g.cantidad || 1)})" style="margin-top:5px;border:1.5px solid;border-radius:8px;padding:5px 9px;font-size:.73em;font-weight:950;cursor:pointer;${estiloVerificacion}">${textoVerificacion}</button></div><span style="font-size:0.82em;font-weight:700;color:#8e44ad;white-space:nowrap;">${formatMoney(totalGrupoVista)}</span></div>`;
                 }).join('');
 
                 const numFact = ped.numOrden || ('SK' + String(ped.numFactura || ped.num).padStart(5, '0'));
@@ -8378,9 +8401,11 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                           var promo = calcularDescuentoMamelucosPedido(ped.items || []);
                           var pct = parseFloat(ped.descuentoPorcentaje || 0) || 0;
                           var pctValor = Math.round((promo.bruto - promo.descuento) * pct / 100);
+                          var descuentoMayorista = ped.descuentoTipo === 'mayorista_3000' ? unidadesPedidoVista * 3000 : 0;
                           var lineas = '';
                           if (promo.descuento > 0) lineas += '<div style="color:#168653;font-size:.78em;font-weight:800;">Promoción mamelucos: −' + formatMoney(promo.descuento) + '</div>';
                           if (pctValor > 0) lineas += '<div style="color:#b06b00;font-size:.78em;font-weight:800;">Descuento adicional ' + pct + '%: −' + formatMoney(pctValor) + '</div>';
+                          if (descuentoMayorista > 0) lineas += '<div style="color:#b06b00;font-size:.78em;font-weight:800;">Descuento mayorista ($3.000 × ' + unidadesPedidoVista + ' prendas): −' + formatMoney(descuentoMayorista) + '</div>';
                           return lineas;
                       })() +
                       '<div class="tp-total">' + (function() {
@@ -8392,7 +8417,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                               return 'Total prendas: ' + formatMoney(ped.tot) + ' &nbsp;·&nbsp; <span style="color:#aaa;font-size:0.88em;">+ envío a calcular</span>';
                           }
                       })() + '</div>' +
-                      (puedeEditarPrendasPedido() ? '<div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:7px;"><span style="font-size:.76em;font-weight:800;color:#7e22ce;">Descuento especial:</span><select onchange="cambiarDescuentoPedido(' + ped.num + ',this.value)" style="padding:6px 8px;border:1.5px solid #d8b4fe;border-radius:8px;background:white;color:#7e22ce;font-weight:900;"><option value="0"'+(!(ped.descuentoPorcentaje>0)?' selected':'')+'>Sin descuento</option><option value="5"'+(Number(ped.descuentoPorcentaje)===5?' selected':'')+'>5%</option><option value="10"'+(Number(ped.descuentoPorcentaje)===10?' selected':'')+'>10%</option><option value="15"'+(Number(ped.descuentoPorcentaje)===15?' selected':'')+'>15%</option></select></div>' : '') +
+                      (puedeEditarPrendasPedido() ? '<div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:7px;"><span style="font-size:.76em;font-weight:800;color:#7e22ce;">Descuento especial:</span><select onchange="cambiarDescuentoPedido(' + ped.num + ',this.value)" style="padding:6px 8px;border:1.5px solid #d8b4fe;border-radius:8px;background:white;color:#7e22ce;font-weight:900;"><option value="0"'+(!(ped.descuentoPorcentaje>0)&&ped.descuentoTipo!=='mayorista_3000'?' selected':'')+'>Sin descuento</option><option value="mayorista_3000"'+(ped.descuentoTipo==='mayorista_3000'?' selected':'')+'>Mayorista: −$3.000 por prenda</option><option value="5"'+(Number(ped.descuentoPorcentaje)===5?' selected':'')+'>5%</option><option value="10"'+(Number(ped.descuentoPorcentaje)===10?' selected':'')+'>10%</option><option value="15"'+(Number(ped.descuentoPorcentaje)===15?' selected':'')+'>15%</option></select></div>' : '') +
                       htmlSelectorAsesoraPedido(ped) +
                       htmlGuiaEnvio +
                       htmlConfirmacionCliente(ped) +
