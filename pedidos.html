@@ -4774,7 +4774,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 }
                 const q = query(collection(db, 'pedidos'), where('num', '==', ped.num));
                 const snap = await getDocs(q);
-                await Promise.all(snap.docs.map(d => updateDoc(doc(db, 'pedidos', d.id), { items: ped.items, tot: ped.tot, comisionRecaudo: ped.comisionRecaudo || 0, totalEnvioComision: ped.totalEnvioComision || 0, importeAdelantado: ped.importeAdelantado || 0, aPagarAlRecibir: ped.aPagarAlRecibir ?? ped.tot, subtotalPrendas: ped.subtotalPrendas || 0, actualizadoEn: new Date().toISOString() })));
+                await Promise.all(snap.docs.map(d => updateDoc(doc(db, 'pedidos', d.id), { items: ped.items, tot: ped.tot, actualizadoEn: new Date().toISOString() })));
             } catch(e) { console.log('Error sync Firebase al eliminar grupo:', e); }
 
             await registrarActividadGestionDirecta('eliminar_prenda_pedido','pedido',ped.num,{
@@ -6400,9 +6400,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }, true);
         }
         window.buscarConteoRapido = function(){
-            const lectura=leerCodigoInternoTalla((document.getElementById('conteo-rapido-codigo')||{value:''}).value);
-            const codigo=lectura.ref.toLowerCase();
-            const salida=document.getElementById('conteo-rapido-resultado'); if(!salida)return; delete salida.dataset.id;
+            const codigo=(document.getElementById('conteo-rapido-codigo')||{value:''}).value.trim().toLowerCase();
+            const salida=document.getElementById('conteo-rapido-resultado'); if(!salida)return;
             if(!codigo){salida.textContent='Escribe una referencia para encontrar la prenda.';return;}
             const p=(window.productosDB||[]).find(x=>String(x.codigo||'').trim().toLowerCase()===codigo);
             if(!p){salida.innerHTML='<b style="color:#b54708">No encontramos esa referencia.</b><br><span style="font-size:.82em">Revisa el código e inténtalo de nuevo.</span>';return;}
@@ -6412,7 +6411,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 ? '<button onclick="editarConteoRapido()" style="width:100%;margin-top:12px;padding:11px;border:0;border-radius:9px;background:#168d55;color:#fff;font-weight:900;cursor:pointer">✏️ Contar y ajustar tallas</button>'
                 : '<div style="margin-top:12px;padding:9px;border-radius:9px;background:#eff6ff;color:#1d4ed8;font-size:.82em;font-weight:900">👁️ Solo consulta · No puedes cambiar estas cantidades</div>';
             salida.innerHTML='<div style="display:flex;gap:12px;align-items:center;text-align:left"><img src="'+foto+'" onerror="this.style.display=\'none\'" style="width:76px;height:76px;object-fit:cover;border-radius:10px;background:#f4f4f4"><div style="min-width:0"><b style="color:#25324a">'+(p.nombre||'Sin nombre')+'</b><div style="font-size:.82em;color:#667085;margin:3px 0">Ref. '+(p.codigo||'')+'</div><div>'+tallas+'</div></div></div>'+accion;
-            if (lectura.talla) salida.insertAdjacentHTML('afterbegin','<p style="font-weight:900;color:#166534;">Talla escaneada: '+escapeHtml(lectura.talla)+'</p>');
             salida.dataset.id=p.id;
         };
         window.editarConteoRapido = function(){
@@ -6746,9 +6744,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             var idx = historialPedidos.findIndex(function(p){ return p.num === numPed; });
             if (idx === -1) return;
             historialPedidos[idx].tipoVenta = valor;
-            if (valor !== 'Recaudo') historialPedidos[idx].modalidadInter = '';
-            recalcularTotalPedidoConEnvio(historialPedidos[idx]);
-            renderizarPedidosPanel();
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
             if (typeof persistirPedidoEnFirebase === 'function') {
                 persistirPedidoEnFirebase(historialPedidos[idx]);
@@ -6758,13 +6753,18 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         // ── SCE: SINCRONIZACIÓN PREFACTURA → APP ──
         window.cambiarTransportadora = function(numPed, valor) {
-            const ped = historialPedidos.find(p => String(p.num) === String(numPed));
-            if (!ped) return;
-            ped.transportadora = valor;
-            recalcularTotalPedidoConEnvio(ped);
+            let idx = historialPedidos.findIndex(p => p.num === numPed); if (idx === -1) return;
+            historialPedidos[idx].transportadora = valor;
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-            if (typeof persistirPedidoEnFirebase === 'function') persistirPedidoEnFirebase(ped);
-            renderizarPedidosPanel();
+            // Sincronizar con Firebase sin bloquear
+            (async function() {
+                try {
+                    const { collection, query, where, getDocs, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                    const q = query(collection(db, 'pedidos'), where('num', '==', numPed));
+                    const snap = await getDocs(q);
+                    snap.forEach(async docSnap => { await updateDoc(docSnap.ref, { transportadora: valor }); });
+                } catch(e) { console.log('Error sync transportadora Firebase:', e); }
+            })();
         };
 
         function puedeEditarPrendasPedido() {
@@ -6793,41 +6793,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             return { bruto, cantidadPromo, descuento: Math.max(0, cantidadPromo * 25000 - valorPromo) };
         }
 
-        function esInterPedido(ped) {
-            return String(ped.transportadora || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z]/g,'') === 'interrapidisimo';
-        }
-        function esPagoCasaContado(ped) {
-            return esInterPedido(ped) && ped.tipoVenta === 'Recaudo' && ped.modalidadInter === 'contado';
-        }
-        function actualizarImportesEntrega(ped) {
-            const envio = parseInt(String(ped.valorEnvio || '0').replace(/[^0-9]/g,''),10) || 0;
-            ped.totalEnvioComision = envio + (Number(ped.comisionRecaudo) || 0);
-            ped.importeAdelantado = esPagoCasaContado(ped) ? ped.totalEnvioComision : 0;
-            ped.aPagarAlRecibir = Math.max(0, (Number(ped.tot) || 0) - ped.importeAdelantado);
-        }
-        window.cambiarModalidadInter = function(numPed, valor) {
-            if (!['contado','contraentrega'].includes(valor)) return;
-            const ped = historialPedidos.find(p => String(p.num) === String(numPed));
-            if (!ped || !esInterPedido(ped)) return;
-            ped.modalidadInter = valor;
-            ped.tipoVenta = 'Recaudo';
-            recalcularTotalPedidoConEnvio(ped);
-            localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-            if (typeof persistirPedidoEnFirebase === 'function') persistirPedidoEnFirebase(ped);
-            renderizarPedidosPanel();
-        };
-        function selectorModalidadInter(ped) {
-            if (!esInterPedido(ped)) return '';
-            const modo = ped.tipoVenta === 'Recaudo' ? (ped.modalidadInter || 'contraentrega') : '';
-            return '<div style="margin:8px 0;"><label style="font-weight:800;">Pago en casa · Interrapidísimo<select onchange="cambiarModalidadInter('+Number(ped.num)+',this.value)" style="display:block;width:100%;padding:8px;border:1px solid #a8d8ea;border-radius:8px;"><option value="">Selecciona modalidad</option><option value="contado"'+(modo==='contado'?' selected':'')+'>Pago en casa contado</option><option value="contraentrega"'+(modo==='contraentrega'?' selected':'')+'>Pago en casa contraentrega</option></select></label></div>';
-        }
-
-        function calcularComisionRecaudo(ped, subtotal) {
-            const limpio = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
-            return limpio(ped.tipoVenta) === 'recaudo' && limpio(ped.transportadora) === 'interrapidisimo'
-                ? Math.round(Math.max(0, Number(subtotal) || 0) * 7 / 100) : 0;
-        }
-
         function recalcularTotalPedidoConEnvio(ped) {
             const promo = calcularDescuentoMamelucosPedido(ped.items || []);
             const subtotalPromocion = promo.bruto - promo.descuento;
@@ -6845,10 +6810,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             ped.descuentoPorcentaje = porcentaje;
             ped.descuentoPorcentajeValor = descuentoPorcentajeValor;
             ped.descuentoMayoristaValor = descuentoMayoristaValor;
-            ped.subtotalPrendas = Math.max(0, subtotalPromocion - descuentoPorcentajeValor - descuentoMayoristaValor);
-            ped.comisionRecaudo = calcularComisionRecaudo(ped, ped.subtotalPrendas);
-            ped.tot = ped.subtotalPrendas + envio + ped.comisionRecaudo;
-            actualizarImportesEntrega(ped);
+            ped.tot = subtotalPromocion - descuentoPorcentajeValor - descuentoMayoristaValor + envio;
             ped.actualizadoEn = new Date().toISOString();
         }
 
@@ -6983,7 +6945,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 }
                 const q = query(collection(db, 'pedidos'), where('num', '==', ped.num));
                 const snap = await getDocs(q);
-                const cambios = { items: ped.items, tot: ped.tot, comisionRecaudo: ped.comisionRecaudo || 0, totalEnvioComision: ped.totalEnvioComision || 0, importeAdelantado: ped.importeAdelantado || 0, aPagarAlRecibir: ped.aPagarAlRecibir ?? ped.tot, subtotalPrendas: ped.subtotalPrendas || 0, subtotalBruto: ped.subtotalBruto || 0, cantidadPromoMamelucos: ped.cantidadPromoMamelucos || 0, descuentoPromocion: ped.descuentoPromocion || 0, descuentoPorcentaje: ped.descuentoPorcentaje || 0, descuentoPorcentajeValor: ped.descuentoPorcentajeValor || 0, descuentoTipo: ped.descuentoTipo || '', descuentoMayoristaValor: ped.descuentoMayoristaValor || 0, actualizadoEn: ped.actualizadoEn };
+                const cambios = { items: ped.items, tot: ped.tot, subtotalBruto: ped.subtotalBruto || 0, cantidadPromoMamelucos: ped.cantidadPromoMamelucos || 0, descuentoPromocion: ped.descuentoPromocion || 0, descuentoPorcentaje: ped.descuentoPorcentaje || 0, descuentoPorcentajeValor: ped.descuentoPorcentajeValor || 0, descuentoTipo: ped.descuentoTipo || '', descuentoMayoristaValor: ped.descuentoMayoristaValor || 0, actualizadoEn: ped.actualizadoEn };
                 const tareas = [];
                 snap.forEach(ds => tareas.push(updateDoc(ds.ref, cambios)));
                 await Promise.all(tareas);
@@ -7219,6 +7181,26 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             let prod = productosDB.find(x => String(x.id) === String(item.id_prod))
                 || productosDB.find(x => String(x.codigo || '') === String(item.cod || ''));
 
+            // Nunca se debe quitar una prenda de una factura activa sin haber
+            // confirmado primero el producto y la talla reales en Firebase.
+            // Una copia local incompleta podía eliminar el ítem sin devolver stock.
+            if (!ped.stockDevuelto) {
+                let tallaLocal = prod && Array.isArray(prod.tallasObj)
+                    ? prod.tallasObj.find(t => normalizarTallaValor(t.nombre) === normalizarTallaValor(item.talla))
+                    : null;
+                if (!prod || !tallaLocal) {
+                    try { prod = await cargarProductoCompletoParaStock(item, true); }
+                    catch(error) { console.log('No se pudo confirmar la prenda en Firebase:', error); }
+                    tallaLocal = prod && Array.isArray(prod.tallasObj)
+                        ? prod.tallasObj.find(t => normalizarTallaValor(t.nombre) === normalizarTallaValor(item.talla))
+                        : null;
+                }
+                if (!prod || !tallaLocal) {
+                    alert('No se quitó la prenda. No fue posible confirmar en Firebase la referencia '+String(item.cod || 'S/N')+' talla '+String(item.talla || '')+' para devolverla al stock.');
+                    return;
+                }
+            }
+
             if (!ped.stockDevuelto && prod && prod.tallasObj) {
                 const tallaItem = normalizarTallaValor(item.talla);
                 let tObj = (prod.tallasObj || []).find(t => normalizarTallaValor(t.nombre) === tallaItem);
@@ -7260,7 +7242,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 const q = query(collection(db, 'pedidos'), where('num', '==', ped.num));
                 const snap = await getDocs(q);
                 const updates = [];
-                snap.forEach(docSnap => updates.push(updateDoc(docSnap.ref, { items: ped.items, tot: ped.tot, comisionRecaudo: ped.comisionRecaudo || 0, totalEnvioComision: ped.totalEnvioComision || 0, importeAdelantado: ped.importeAdelantado || 0, aPagarAlRecibir: ped.aPagarAlRecibir ?? ped.tot, subtotalPrendas: ped.subtotalPrendas || 0, actualizadoEn: ped.actualizadoEn })));
+                snap.forEach(docSnap => updates.push(updateDoc(docSnap.ref, { items: ped.items, tot: ped.tot, actualizadoEn: ped.actualizadoEn })));
                 await Promise.all(updates);
                 console.log(stockDevueltoItem ? 'Stock devuelto y pedido actualizado en Firebase' : 'Pedido actualizado; no aplicaba devolucion de stock');
             } catch(e) {
@@ -7298,20 +7280,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 var pedidoActual = historialPedidos[idx];
                 var envioAnterior = parseInt(String(pedidoActual.valorEnvio || '0').replace(/[^0-9]/g, ''), 10) || 0;
                 var envioNuevo = parseInt(String(cambios.valorEnvio || '0').replace(/[^0-9]/g, ''), 10) || 0;
-                var subtotalActual = Math.max(0, (parseInt(pedidoActual.tot, 10) || 0) - envioAnterior - (Number(pedidoActual.comisionRecaudo) || 0));
+                var subtotalActual = Math.max(0, (parseInt(pedidoActual.tot, 10) || 0) - envioAnterior);
                 cambios = {
-                    modalidadInter: ['contado','contraentrega'].includes(cambios.modalidadInter) ? cambios.modalidadInter : (pedidoActual.modalidadInter || ''),
                     valorEnvio: String(cambios.valorEnvio || '').trim(),
                     transportadora: String(cambios.transportadora || pedidoActual.transportadora || '').trim(),
                     guia: String(cambios.guia || pedidoActual.guia || '').trim(),
                     tot: subtotalActual + envioNuevo,
                     actualizadoEn: new Date().toISOString()
                 };
-                cambios.subtotalPrendas = subtotalActual;
-                cambios.comisionRecaudo = calcularComisionRecaudo(Object.assign({}, pedidoActual, cambios), subtotalActual);
-                cambios.tot = subtotalActual + envioNuevo + cambios.comisionRecaudo;
                 Object.assign(pedidoActual, cambios);
-                actualizarImportesEntrega(pedidoActual);
             } else {
                 Object.assign(historialPedidos[idx], cambios);
                 if (Array.isArray(cambios.preciosItems) && historialPedidos[idx].items) {
@@ -7791,14 +7768,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         function imprimirEtiquetaEnvio(numPed) {
             const ped = historialPedidos.find(function(p){ return String(p.num) === String(numPed); });
             if (!ped) return alert('No se encontró el pedido.');
-            // Calcular solo una copia para imprimir; no guardar ni modificar el pedido.
-            let resumenRecaudo = '';
-            if (esInterPedido(ped) && ped.tipoVenta === 'Recaudo') {
-                const copia = Object.assign({}, ped);
-                recalcularTotalPedidoConEnvio(copia);
-                const contado = esPagoCasaContado(copia);
-                resumenRecaudo = '<div class="recaudo-envio"><div class="modalidad-recaudo">'+(contado ? 'PAGO EN CASA CONTADO' : 'PAGO EN CASA CONTRAENTREGA')+'</div><div class="detalle-recaudo">Valor prendas: '+formatMoney(copia.subtotalPrendas)+' · Valor envío: '+formatMoney(copia.totalEnvioComision)+'</div>'+(!contado ? '<div class="detalle-recaudo">Envío y prendas: se cobran al recibir.</div>' : '')+'<div class="total-recaudo">TOTAL A RECAUDAR AL RECIBIR: '+formatMoney(copia.aPagarAlRecibir)+'</div></div>';
-            }
             const seguro = function(valor, vacio) { return escapeHtml(String(valor == null || valor === '' ? (vacio || '—') : valor)); };
             const numero = seguro(ped.numOrden || ('SK' + ped.num));
             const transportadora = seguro(ped.transportadora || 'Por definir');
@@ -7809,7 +7778,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
               @page{size:letter portrait;margin:0.35in}
               *{box-sizing:border-box}
               body{margin:0;background:#eceff3;font-family:Arial,Helvetica,sans-serif;color:#111;padding:18px}
-              .etiqueta{width:100%;max-width:7.8in;height:auto;margin:0 auto;background:white;border:3px solid #111;border-radius:10px;padding:14px 18px;display:flex;flex-direction:column;justify-content:flex-start;}
+              .etiqueta{width:100%;max-width:7.8in;height:4.8in;margin:0 auto;background:white;border:3px solid #111;border-radius:10px;padding:14px 18px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
               .cabecera{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:7px}
               .marca{font-size:17px;font-weight:900}.pedido{font-size:20px;font-weight:900;text-align:right}.transportadora{font-size:12px;font-weight:800;text-align:right;margin-top:2px}
               .seccion-titulo{font-size:11px;font-weight:900;letter-spacing:.7px;margin:7px 0 2px;color:#444}
@@ -7818,12 +7787,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
               .dato{font-size:14px;line-height:1.25;margin:2px 0}.dato strong{display:inline-block;min-width:94px}
               .dato.ancho{grid-column:1/-1}
               .destino{margin-top:6px;border:2px solid #111;border-radius:7px;padding:6px 10px;font-size:19px;font-weight:900;text-align:center;text-transform:uppercase}
-              .remitente{margin-top:7px;border-top:2px solid #111;padding-top:6px;display:grid;grid-template-columns:100px 1fr 1fr;gap:4px 10px;align-items:start;font-size:14px;line-height:1.25}
-              .remitente-titulo{grid-row:1/3;font-size:13px;font-weight:900;letter-spacing:.5px;color:#444}.remitente strong{font-weight:900}.remitente-direccion{grid-column:2/-1}
-              .nota{font-size:9px;text-align:center;color:#555;margin-top:10px}
-              .recaudo-envio{margin-top:10px;border:2px solid #111;border-radius:7px;padding:9px 11px;break-inside:avoid}.modalidad-recaudo{font-size:16px;font-weight:900}.detalle-recaudo{font-size:12px;line-height:1.4;margin-top:3px}.total-recaudo{border-top:1px solid #111;margin-top:7px;padding-top:7px;font-size:19px;font-weight:900}
+              .remitente{margin-top:7px;border-top:2px solid #111;padding-top:6px;display:grid;grid-template-columns:92px 1fr 1fr;gap:3px 10px;align-items:start;font-size:11.5px;line-height:1.25}
+              .remitente-titulo{grid-row:1/3;font-size:11px;font-weight:900;letter-spacing:.5px;color:#444}.remitente strong{font-weight:900}.remitente-direccion{grid-column:2/-1}
+              .nota{font-size:9px;text-align:center;color:#555;margin-top:4px}
               .acciones{text-align:center;margin-top:14px}.acciones button{border:0;border-radius:9px;padding:11px 24px;background:#168653;color:white;font-size:16px;font-weight:900;cursor:pointer}
-              @media print{body{background:white;padding:0}.acciones{display:none}.etiqueta{margin:0;width:100%;height:auto;max-width:none;border-radius:0}.nota{display:none}}
+              @media print{body{background:white;padding:0}.acciones{display:none}.etiqueta{margin:0;width:100%;height:4.8in;max-width:none;border-radius:0}.nota{display:none}}
             </style></head><body>
               <section class="etiqueta">
                 <div>
@@ -7845,8 +7813,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <div class="remitente-direccion"><strong>Dirección:</strong> Calle 122 #15-9, Edificio Epicentro, oficina 303 · Bogotá</div>
                   </div>
                 </div>
-                ${resumenRecaudo}
-                <div class="nota">Recorta por el borde negro y pega en el paquete.</div>
+                <div class="nota">Una etiqueta por media página · Recorta por el borde negro y pega en el paquete.</div>
               </section>
               <div class="acciones"><button onclick="window.print()">🖨️ Imprimir etiqueta</button></div>
             </body></html>`);
@@ -8042,8 +8009,6 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
   <div><label>🚚 Transportadora</label><input id="fac-transportadora" type="text" value="${ped.transportadora || ''}" placeholder="Ej: Servientrega" oninput="recalcularTotal()"></div>
   <div><label>📋 Guía</label><input id="fac-guia" type="text" value="${ped.guia || ''}" placeholder="892341234"></div>
 </div>
-<div style="margin:8px 0;font-weight:800;">${esInterPedido(ped) && ped.tipoVenta === 'Recaudo' ? (esPagoCasaContado(ped) ? 'Pago en casa contado' : 'Pago en casa contraentrega') : ''}</div>
-<style>.resumen-total .resumen-fila{font-size:12px}.resumen-total .resumen-fila:last-child{font-size:18px;font-weight:900;margin-top:8px;padding-top:8px}@media print{.control-envio-base{display:none!important}}</style>
 <div class="resumen-total">
   <div class="resumen-fila" style="color:#8e44ad;font-weight:900;"><span>Cantidad de prendas</span><span>${cantidadTotalPrendas}</span></div>
   <div class="resumen-fila"><span>Subtotal productos</span><span id="subtotal-bruto">${formatMoney(promoFactura.bruto)}</span></div>
@@ -8051,9 +8016,8 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
   ${descuentoPctFactura > 0 ? `<div class="resumen-fila" style="color:#b06b00;font-weight:800;"><span>Descuento adicional ${ped.descuentoPorcentaje}%</span><span id="descuento-adicional">−${formatMoney(descuentoPctFactura)}</span></div>` : ''}
   ${descuentoMayoristaFactura > 0 ? `<div class="resumen-fila" style="color:#b06b00;font-weight:800;"><span>Descuento mayorista ($3.000 × ${cantidadTotalPrendas} prendas)</span><span id="descuento-mayorista">−${formatMoney(descuentoMayoristaFactura)}</span></div>` : ''}
   <div class="resumen-fila"><span>Total prendas con descuento</span><span id="subtotal-productos" data-sub="${subtotalReal}">${formatMoney(subtotalReal)}</span></div>
-  <div class="resumen-fila control-envio-base" style="font-size:12px;"><span>Editar envío base</span><input id="fac-valor-envio" type="text" value="${ped.valorEnvio || ''}" placeholder="$ 0" oninput="recalcularTotal()" style="width:90px;text-align:right;border:1px dashed #c9a0dc;border-radius:6px;padding:2px 7px;font-size:0.9em;font-weight:700;color:#8e44ad;background:#fdf8ff;outline:none;"></div>
-  <div class="resumen-fila" id="fila-envio-comision" style="font-size:12px;display:flex;"><span>Valor envío</span><span id="total-envio-comision">${formatMoney(envioInicial + calcularComisionRecaudo(ped, subtotalReal))}</span></div>
-  <div class="resumen-fila"><span id="etiqueta-total-entrega">${esInterPedido(ped) && ped.tipoVenta === 'Recaudo' ? 'TOTAL A RECAUDAR' : 'TOTAL DEL PEDIDO'}</span><span id="total-final">${formatMoney(esPagoCasaContado(ped) ? subtotalReal : subtotalReal + envioInicial + calcularComisionRecaudo(ped, subtotalReal))}</span></div>
+  <div class="resumen-fila"><span>Valor de envío</span><input id="fac-valor-envio" type="text" value="${ped.valorEnvio || ''}" placeholder="$ 0" oninput="recalcularTotal()" style="width:90px;text-align:right;border:1px dashed #c9a0dc;border-radius:6px;padding:2px 7px;font-size:0.9em;font-weight:700;color:#8e44ad;background:#fdf8ff;outline:none;"></div>
+  <div class="resumen-fila"><span>TOTAL DEL PEDIDO</span><span id="total-final">${formatMoney(subtotalReal + envioInicial)}</span></div>
 </div>
 <div class="soportes">
   <div class="soporte-col"><h4>🚚 Guía de envío</h4><div class="soporte-fotos">${htmlGuiaFactura}</div><input id="fac-archivo-guia" type="file" accept="image/*" style="display:none" onchange="subirGuiaDesdeFactura(this)"><button class="soporte-subir" onclick="document.getElementById('fac-archivo-guia').click()">📷 ${ped.guiaImagenUrl ? 'Reemplazar guía' : 'Subir guía'}</button></div>
@@ -8096,13 +8060,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 '  if(subEl){ subEl.dataset.sub=String(sub); subEl.textContent="$"+sub.toLocaleString("es-CO"); }' +
                 '  var envioEl=document.getElementById("fac-valor-envio");' +
                 '  var envio=envioEl?parseInt((envioEl.value||"0").replace(/[^0-9]/g,""))||0:0;' +
-                '  var tipo=document.getElementById("fac-tipo-venta-display"); var transp=document.getElementById("fac-transportadora");' +
-                '  var comision=('+calcularComisionRecaudo.toString()+')({tipoVenta:tipo?tipo.textContent:' + JSON.stringify(ped.tipoVenta || '') + ',transportadora:transp?transp.value:""},sub);' +
-                '  var inter=('+esInterPedido.toString()+')({transportadora:transp?transp.value:""}) && (tipo?tipo.textContent.trim():"")==="Recaudo";' +
-                '  var adelantado=inter && '+JSON.stringify(ped.modalidadInter === 'contado')+';' +
-                '  document.getElementById("fila-envio-comision").style.display="flex";document.getElementById("total-envio-comision").textContent="$"+(envio+comision).toLocaleString("es-CO");' +
-                '  document.getElementById("etiqueta-total-entrega").textContent=inter?"TOTAL A RECAUDAR":"TOTAL DEL PEDIDO";' +
-                '  var total=adelantado?sub:sub+envio+comision;' +
+                '  var total=sub+envio;' +
                 '  var elTot=document.getElementById("total-final");' +
                 '  if(elTot)elTot.textContent="$"+total.toLocaleString("es-CO");' +
                 '}';
@@ -8148,7 +8106,6 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 '  var tarjeta=document.createElement("div"); tarjeta.style.cssText="position:fixed;left:-10000px;top:0;width:680px;background:#fff;padding:28px;font-family:Segoe UI,sans-serif;color:#222;border:10px solid #f3d8ee;";' +
                 '  var cab=document.createElement("div");cab.style.cssText="text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:3px solid #8e44ad;";var marca=document.createElement("div");marca.style.cssText="font-size:25px;font-weight:900;color:#8e44ad;";marca.textContent="SuperKids&Babys";var subt=document.createElement("div");subt.style.cssText="font-size:13px;color:#777;";subt.textContent="Resumen de tu pedido";cab.appendChild(marca);cab.appendChild(subt);tarjeta.appendChild(cab);' +
                 '  [".encabezado",".tabla-limpia",".fila-envio",".resumen-total"].forEach(function(sel){var el=document.querySelector(sel);if(el){var clon=el.cloneNode(true);if(sel===".tabla-limpia")clon.style.display="table";tarjeta.appendChild(clon);}});' +
-                '  tarjeta.querySelectorAll(".control-envio-base").forEach(function(el){el.remove();});' +
                 '  tarjeta.querySelectorAll("input,textarea").forEach(function(inp){var span=document.createElement("span");span.textContent=inp.value||"—";span.style.cssText="display:block;font-size:13px;color:#333;font-weight:700;white-space:pre-wrap;";inp.replaceWith(span);});' +
                 '  tarjeta.querySelectorAll("[contenteditable]").forEach(function(el){el.removeAttribute("contenteditable");el.style.border="none";});' +
                 '  tarjeta.querySelectorAll("img").forEach(function(img){img.crossOrigin="anonymous";});' +
@@ -8310,7 +8267,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
         function obtenerEstadoVerificacionPrenda(numPedido, ref, requerida) {
             const datos = leerVerificacionesDespacho();
             const pedido = datos[String(numPedido)] || {};
-            const cantidad = Math.min(Math.max(0, parseInt(typeof pedido[claveReferenciaDespacho(ref)] === 'object' ? pedido[claveReferenciaDespacho(ref)].cantidad : pedido[claveReferenciaDespacho(ref)], 10) || 0), Math.max(1, parseInt(requerida, 10) || 1));
+            const cantidad = Math.min(Math.max(0, parseInt(pedido[claveReferenciaDespacho(ref)], 10) || 0), Math.max(1, parseInt(requerida, 10) || 1));
             const total = Math.max(1, parseInt(requerida, 10) || 1);
             return { cantidad:cantidad, requerida:total, completa:cantidad >= total };
         }
@@ -8376,9 +8333,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
         window.validarEscaneoPrendaPedido = function() {
             if (!verificacionDespachoActiva) return;
             const caja=document.getElementById('verificar-prenda-codigo'), mensaje=document.getElementById('verificar-prenda-mensaje');
-            const lectura=leerCodigoInternoTalla(caja && caja.value);
-            if (lectura.error) { if(mensaje)mensaje.textContent='Código incompleto. Escanea nuevamente.'; return; }
-            const leida=claveReferenciaDespacho(lectura.ref), esperada=claveReferenciaDespacho(verificacionDespachoActiva.ref);
+            const leida=claveReferenciaDespacho(caja && caja.value), esperada=claveReferenciaDespacho(verificacionDespachoActiva.ref);
             if (!leida) return;
             if (leida !== esperada) {
                 if (mensaje) { mensaje.style.background='#fff1f2'; mensaje.style.color='#b42318'; mensaje.style.border='2px solid #fda4af'; mensaje.innerHTML='❌ PRENDA EQUIVOCADA<br><span style="font-size:.9em;">Esperada: '+escapeHtml(verificacionDespachoActiva.ref)+' · Escaneada: '+escapeHtml(caja.value)+'</span>'; }
@@ -8386,29 +8341,8 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             }
             const datos=leerVerificacionesDespacho(), clavePedido=String(verificacionDespachoActiva.numPedido), claveRef=esperada;
             if(!datos[clavePedido])datos[clavePedido]={};
-            const pedido = historialPedidos.find(p => String(p.num) === clavePedido);
-            const requeridas = {};
-            ((pedido && pedido.items) || []).filter(i => claveReferenciaDespacho(i.cod || i.codigo || i.ref) === esperada).forEach(i => {
-                const t=normalizarTallaMudanza(i.talla); if(t)requeridas[t]=(requeridas[t]||0)+Math.max(1,parseInt(i.cant || i.cantidad,10)||1);
-            });
-            let talla = lectura.talla;
-            if (!talla) {
-                talla = prompt('Etiqueta antigua: no contiene talla. Escribe la talla que lees en la prenda. Tallas del pedido: '+Object.keys(requeridas).join(', '));
-                if (talla === null) return;
-                talla = normalizarTallaMudanza(talla);
-            }
-            const previo=datos[clavePedido][claveRef];
-            if (typeof previo === 'number' && previo > 0) { if(mensaje)mensaje.textContent='Hay un conteo anterior sin tallas. Pulsa Reiniciar conteo para verificar por talla.'; return; }
-            const detalle=previo && typeof previo === 'object' ? previo : {cantidad:0,tallas:{}};
-            detalle.tallas=detalle.tallas || {};
-            if (!requeridas[talla] || (detalle.tallas[talla] || 0) >= requeridas[talla]) {
-                if(mensaje){mensaje.style.background='#fff1f2';mensaje.style.color='#b42318';mensaje.textContent='Talla '+talla+': no corresponde al pedido o ya completaste su cantidad.';}
-                emitirAlertaPrendaErrada(); caja.select(); return;
-            }
-            if ((detalle.cantidad || 0) >= verificacionDespachoActiva.requerida) return;
-            detalle.tallas[talla]=(detalle.tallas[talla]||0)+1;
-            detalle.cantidad=Object.values(detalle.tallas).reduce((a,n)=>a+Number(n||0),0);
-            datos[clavePedido][claveRef]=detalle;
+            const actual=parseInt(datos[clavePedido][claveRef],10)||0;
+            datos[clavePedido][claveRef]=Math.min(verificacionDespachoActiva.requerida,actual+1);
             guardarVerificacionesDespacho(datos);
             const estado=obtenerEstadoVerificacionPrenda(verificacionDespachoActiva.numPedido,verificacionDespachoActiva.ref,verificacionDespachoActiva.requerida);
             if(mensaje){mensaje.style.background='#ecfdf3';mensaje.style.color='#166534';mensaje.style.border='2px solid #86efac';mensaje.innerHTML=estado.completa?'✅ PRENDA CORRECTA · VERIFICACIÓN COMPLETA':'✅ PRENDA CORRECTA · '+estado.cantidad+' DE '+estado.requerida;}
@@ -8548,7 +8482,6 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                         '<select onchange="cambiarTipoVenta(' + ped.num + ', this.value)" style="border:1.5px solid #c9a0dc;color:#8e44ad;background:#fdf8ff;">' + tipoVentaOpts + '</select>' +
                         '<select class="permiso-despachos-angela" onchange="cambiarTransportadora(' + ped.num + ', this.value)" style="border:1.5px solid #a8d8ea;color:#1a6a8a;background:#f0faff;">' + transpOpts + '</select>' +
                       '</div>' +
-                      selectorModalidadInter(ped) +
                       '<div class="tp-fila3">' +
                         '<button class="tp-btn-factura" onclick="imprimirFactura(' + ped.num + ')">📋 ' + numFact + '</button>' +
                         '<select class="select-estado-ped permiso-despachos-angela" onchange="cambiarEstadoPedido(' + ped.num + ', this.value)" style="flex:1;padding:5px 6px;border:1.5px solid #d8b4fe;border-radius:8px;font-size:0.76em;font-weight:700;color:#7e22ce;background:#fdf8ff;cursor:pointer;font-family:Nunito,sans-serif;">' + opcionesEstado + '</select>' +
@@ -8575,9 +8508,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                       })() +
                       '<div class="tp-total">' + (function() {
                           var envio = parseInt((ped.valorEnvio||'0').toString().replace(/[^0-9]/g,''))||0;
-                          var comision = Number(ped.comisionRecaudo) || 0;
-                          var subtotal = (ped.tot||0) - envio - comision;
-                          if (esInterPedido(ped) && ped.tipoVenta === 'Recaudo') return '<div style="font-size:13px;font-weight:900;margin-bottom:5px;">'+(esPagoCasaContado(ped)?'Pago en casa contado':'Pago en casa contraentrega')+'</div><div style="font-size:12px;line-height:1.5;font-weight:600;">Valor prendas: '+formatMoney(subtotal)+'<br>Envío base: '+formatMoney(envio)+'<br>Comisión recaudo Interrapidísimo (7 %): '+formatMoney(comision)+'<br><strong>Total envío + comisión: '+formatMoney(envio+comision)+'</strong></div><div style="margin-top:8px;padding-top:8px;border-top:1px solid #e9d5ff;font-size:17px;font-weight:900;">Total a recaudar: '+formatMoney(esPagoCasaContado(ped)?subtotal:ped.tot)+'</div>';
+                          var subtotal = (ped.tot||0) - envio;
                           if (envio > 0) {
                               return 'Prendas: ' + formatMoney(subtotal) + ' &nbsp;+&nbsp; Envío: ' + formatMoney(envio) + ' &nbsp;=&nbsp; <strong>Total: ' + formatMoney(ped.tot) + '</strong>';
                           } else {
@@ -8740,7 +8671,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             cont.innerHTML = '';
             granTotalPrendas = filtrados.reduce((s, ped) => {
                 const envio = parseInt((ped.valorEnvio || '0').toString().replace(/[^0-9]/g, '')) || 0;
-                return s + Math.max(0, (ped.tot || 0) - envio - (Number(ped.comisionRecaudo) || 0));
+                return s + Math.max(0, (ped.tot || 0) - envio);
             }, 0);
             const layoutDiv = document.createElement('div');
             layoutDiv.className = 'transp-layout-principal';
@@ -8780,7 +8711,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
 
                 subPrendas = pedidosGrupo.reduce((s, p) => {
                     const envio = parseInt((p.valorEnvio || '0').toString().replace(/[^0-9]/g, '')) || 0;
-                    return s + Math.max(0, (p.tot || 0) - envio - (Number(p.comisionRecaudo) || 0));
+                    return s + Math.max(0, (p.tot || 0) - envio);
                 }, 0);
                 const bg = bgMap[tr.key] || {emoji: '🚚', imgUrl: ''};
                 const logoHTML = bg.imgUrl
@@ -8836,7 +8767,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
 
                 subP = pedidos.reduce((s, p) => {
                     const envio = parseInt((p.valorEnvio || '0').toString().replace(/[^0-9]/g, '')) || 0;
-                    return s + Math.max(0, (p.tot || 0) - envio - (Number(p.comisionRecaudo) || 0));
+                    return s + Math.max(0, (p.tot || 0) - envio);
                 }, 0);
                 const colorHead = esSin ? '#b45309' : (color || '#8e44ad');
 
@@ -10601,7 +10532,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             // paga la clienta y no forma parte de las ventas del negocio.
             if (totalItems > 0) return totalItems;
             const valorEnvio = parseInt(String(pedido.valorEnvio || '0').replace(/[^0-9]/g, ''), 10) || 0;
-            return Math.max(0, totalPedido - valorEnvio - (Number(pedido.comisionRecaudo) || 0));
+            return Math.max(0, totalPedido - valorEnvio);
         }
 
         function construirBaseClientesDesdePedidos() {
@@ -10903,7 +10834,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 const envio = parseInt(String(ped.valorEnvio || '0').replace(/[^0-9]/g,''),10) || 0;
                 const bruto = (ped.items || []).reduce((s,i) => s + ((parseInt(i.precio,10)||0) * (parseInt(i.cant,10)||1)), 0);
                 const totalPedido = parseInt(String(ped.tot || '0').replace(/[^0-9]/g,''),10) || 0;
-                const neto = Math.max(0, totalPedido - envio - (Number(ped.comisionRecaudo) || 0));
+                const neto = Math.max(0, totalPedido - envio);
                 const prendas = (ped.items || []).reduce((s,i) => s + (parseInt(i.cant,10)||1), 0);
                 const numeroPedido = ped.numOrden || (ped.num != null && ped.num !== '' ? 'SK' + String(ped.num).padStart(5, '0') : 'Sin número');
                 pedidos.push({ fecha:iso, pedido:numeroPedido, guia:guia, prendas:prendas, bruto:bruto, descuentos:Math.max(0, bruto-neto), neto:neto, tipo:String(ped.tipoVenta || ''), asesora:String(ped.asesora || '') });
@@ -11642,7 +11573,6 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
         function mostrarProductoEncontradoMudanza(producto, salida) {
             const tallas = (producto.tallasObj || []).map(t => normalizarTallaMudanza(t.nombre || t.talla)).filter(Boolean).sort((a,b) => indiceTallaMudanza(a)-indiceTallaMudanza(b));
             if (tallas.length) document.getElementById('mudanza-talla').value = tallas[0];
-            seleccionarTallaCodigoMudanza();
             salida.innerHTML = '<b style="color:#9a3412;">'+escapeHtml(producto.nombre || 'Sin nombre')+'</b> · Ref. '+escapeHtml(producto.codigo || producto.ref || '')+'<br><span style="color:#667085;">Tallas en stock: '+escapeHtml(tallas.join(', ') || 'sin tallas')+'</span>';
         }
 
@@ -11651,18 +11581,15 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             const salida = document.getElementById('mudanza-producto');
             if (!caja || !salida) return;
             caja.value = caja.value.replace(/[\r\n\t]/g, '').trim();
-            const lectura = leerCodigoInternoTalla(caja.value);
-            if (lectura.error) { salida.textContent='Código por talla incompleto. Termina de escanear.'; return; }
-            const refBuscada = lectura.ref;
-            seleccionarTallaCodigoMudanza();
-            const producto = buscarProductoMudanza(refBuscada);
+            const refBuscada = _ipNormalizar(caja.value);
+            const producto = buscarProductoMudanza(caja.value);
             if (!caja.value) { salida.textContent = 'Conecta el lector y escanea una referencia.'; return; }
             if (producto) { mostrarProductoEncontradoMudanza(producto, salida); return; }
             salida.innerHTML = '<span style="color:#2563eb;">Buscando la referencia '+escapeHtml(refBuscada)+' en el stock oficial actualizado…</span>';
             buscarProductoMudanzaEnStockOficial(refBuscada).then(function(encontrado) {
                 const cajaActual = document.getElementById('mudanza-codigo');
                 const salidaActual = document.getElementById('mudanza-producto');
-                if (!cajaActual || !salidaActual || leerCodigoInternoTalla(cajaActual.value).ref !== refBuscada) return;
+                if (!cajaActual || !salidaActual || _ipNormalizar(cajaActual.value) !== refBuscada) return;
                 if (encontrado) { mostrarProductoEncontradoMudanza(encontrado, salidaActual); return; }
                 salidaActual.innerHTML = '<span style="color:#b42318;">No encontramos esa referencia en el stock oficial actualizado.</span> Puedes conservarla como referencia externa seleccionando una talla y agregándola.';
             });
@@ -11677,10 +11604,8 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
         };
 
         window.agregarAlInventarioMudanza = function() {
-            const lectura = leerCodigoInternoTalla((document.getElementById('mudanza-codigo') || {}).value);
-            if (lectura.error) return alert('Código por talla incompleto o inválido. Escanea nuevamente.');
-            const codigo = lectura.ref;
-            const talla = lectura.talla || normalizarTallaMudanza((document.getElementById('mudanza-talla') || {}).value);
+            const codigo = _ipNormalizar((document.getElementById('mudanza-codigo') || {}).value);
+            const talla = normalizarTallaMudanza((document.getElementById('mudanza-talla') || {}).value);
             const cantidad = Math.max(1, parseInt((document.getElementById('mudanza-cantidad') || {}).value, 10) || 1);
             if (!codigo) return alert('Escanea o escribe una referencia.');
             const producto = buscarProductoMudanza(codigo);
@@ -11749,35 +11674,6 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             });
         }
 
-        // Formato interno versionado y reversible: la misma referencia/talla
-        // siempre produce el mismo código, sin crear productos en el catálogo.
-        function codigoInternoTalla(ref, talla) {
-            const r = _ipNormalizar(ref), t = normalizarTallaMudanza(talla);
-            if (!r || !t) throw new Error('La etiqueta necesita referencia y talla.');
-            return 'SK1:'+encodeURIComponent(r)+':'+encodeURIComponent(t)+':';
-        }
-        function leerCodigoInternoTalla(valor) {
-            const raw = String(valor || '').replace(/[\r\n\t]/g,'').trim();
-            if (!raw.startsWith('SK1:')) return {ref:_ipNormalizar(raw),talla:null};
-            const partes = raw.split(':');
-            if (partes.length !== 4 || partes[3] !== '') return {ref:'',talla:null,error:true};
-            try {
-                const ref = _ipNormalizar(decodeURIComponent(partes[1]));
-                const talla = normalizarTallaMudanza(decodeURIComponent(partes[2]));
-                if (!ref || !talla) throw new Error('Código incompleto');
-                return {ref,talla};
-            } catch(e) { return {ref:'',talla:null,error:true}; }
-        }
-        function seleccionarTallaCodigoMudanza() {
-            const lectura = leerCodigoInternoTalla((document.getElementById('mudanza-codigo') || {}).value);
-            const selector = document.getElementById('mudanza-talla');
-            if (!lectura.talla || !selector) return;
-            if (!Array.from(selector.options).some(o => o.value === lectura.talla)) {
-                const opcion = document.createElement('option'); opcion.value=lectura.talla; opcion.textContent=lectura.talla; selector.appendChild(opcion);
-            }
-            selector.value = lectura.talla;
-        }
-
         function svgCodigoBarrasMudanza(valor) {
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             window.JsBarcode(svg, String(valor), { format:'CODE128', width:2, height:42, displayValue:false, margin:0, background:'#ffffff', lineColor:'#000000' });
@@ -11820,7 +11716,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             try {
                 await cargarCodigoBarrasMudanza();
                 const paginas = etiquetas.map(function(etiqueta) {
-                    return '<section class="etiqueta"><div class="codigo">'+svgCodigoBarrasMudanza(codigoInternoTalla(etiqueta.ref, etiqueta.talla))+'</div><div class="referencia">'+escapeHtml(etiqueta.ref)+'</div><div class="talla">'+escapeHtml(etiqueta.talla)+'</div></section>';
+                    return '<section class="etiqueta"><div class="codigo">'+svgCodigoBarrasMudanza(etiqueta.ref)+'</div><div class="referencia">'+escapeHtml(etiqueta.ref)+'</div><div class="talla">'+escapeHtml(etiqueta.talla)+'</div></section>';
                 }).join('');
                 ventana.document.open();
                 ventana.document.write('<!doctype html><html><head><meta charset="UTF-8"><title>Etiquetas '+escapeHtml(ref)+'</title><style>@page{size:89mm 28mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;background:white;font-family:Arial,sans-serif}.etiqueta{width:89mm;height:28mm;margin:0;padding:1.5mm 5mm;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;page-break-after:always;break-after:page}.etiqueta:last-child{page-break-after:auto;break-after:auto}.codigo{width:76mm;height:10.5mm;display:flex;align-items:center;justify-content:center}.codigo svg{width:100%;height:100%;display:block}.referencia{font-size:13pt;font-weight:800;line-height:1.05;margin-top:.4mm;letter-spacing:.6mm}.talla{font-size:18pt;font-weight:900;line-height:1.05;margin-top:.8mm}</style></head><body>'+paginas+'<script>window.addEventListener("load",function(){setTimeout(function(){window.print()},250)});window.addEventListener("afterprint",function(){window.close()});<\/script></body></html>');
@@ -11855,7 +11751,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             try {
                 await cargarCodigoBarrasMudanza();
                 const paginas = etiquetas.map(function(etiqueta) {
-                    return '<section class="etiqueta"><div class="codigo">'+svgCodigoBarrasMudanza(codigoInternoTalla(etiqueta.ref, etiqueta.talla))+'</div><div class="referencia">'+escapeHtml(etiqueta.ref)+'</div><div class="talla">'+escapeHtml(etiqueta.talla)+'</div></section>';
+                    return '<section class="etiqueta"><div class="codigo">'+svgCodigoBarrasMudanza(etiqueta.ref)+'</div><div class="referencia">'+escapeHtml(etiqueta.ref)+'</div><div class="talla">'+escapeHtml(etiqueta.talla)+'</div></section>';
                 }).join('');
                 ventana.document.open();
                 ventana.document.write('<!doctype html><html><head><meta charset="UTF-8"><title>Etiquetas '+escapeHtml(ref)+'</title><style>@page{size:89mm 28mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;background:white;font-family:Arial,sans-serif}.etiqueta{width:89mm;height:28mm;margin:0;padding:1.5mm 5mm;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;page-break-after:always;break-after:page}.etiqueta:last-child{page-break-after:auto;break-after:auto}.codigo{width:76mm;height:10.5mm;display:flex;align-items:center;justify-content:center}.codigo svg{width:100%;height:100%;display:block}.referencia{font-size:13pt;font-weight:800;line-height:1.05;margin-top:.4mm;letter-spacing:.6mm}.talla{font-size:18pt;font-weight:900;line-height:1.05;margin-top:.8mm}</style></head><body>'+paginas+'<script>window.addEventListener("load",function(){setTimeout(function(){window.print()},250)});window.addEventListener("afterprint",function(){window.close()});<\/script></body></html>');
@@ -11921,122 +11817,26 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             if (fila && fila.dataset.mudanzaRefUrl) editarReferenciaMudanza(fila.dataset.mudanzaRefUrl);
         };
 
-        // Lectura exclusiva para comparar: nunca modifica stock, conteos ni cachés.
-        let consultaCruceMudanza = null;
-        let solicitudVistaCruceMudanza = 0;
-        async function leerStockParaCruceMudanza() {
-            if (!navigator.onLine) throw new Error('Sin conexión: no se pudo verificar el stock oficial.');
-            if (consultaCruceMudanza) return consultaCruceMudanza;
-            consultaCruceMudanza = (async function() {
-                const f = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const snap = await f.getDocsFromServer(f.collection(db, 'productos'));
-                const productos = snap.docs.map(d => Object.assign({}, d.data(), { id:d.id }));
-                if (!productos.length) throw new Error('El stock oficial llegó vacío. No se calcularon faltantes.');
-                return { productos:productos, fecha:new Date().toLocaleString('es-CO') };
-            })();
-            try { return await consultaCruceMudanza; }
-            finally { consultaCruceMudanza = null; }
-        }
-
-        function filasComparacionMudanza(productos, conteo) {
-            if (!Array.isArray(productos)) throw new Error('Se requiere una lectura verificada del stock.');
+        function filasComparacionMudanza() {
             const mapa = new Map();
-            const referencias = new Set(productos.map(p => _ipNormalizar(p.codigo || p.ref)));
             function fila(ref,nombre,talla) { const clave=ref+'|'+talla; if(!mapa.has(clave)) mapa.set(clave,{ref,nombre:nombre||'',talla,stock:0,contado:0}); return mapa.get(clave); }
-            const problemas = new Map();
-            productos.forEach((p, indice) => {
-                const referencia = _ipNormalizar(p.codigo || p.ref);
-                const ref = referencia || ('Sin referencia · '+(p.id || indice));
-                let motivo = !referencia ? 'Producto sin referencia' : '';
-                if (!Array.isArray(p.tallasObj) || !p.tallasObj.length) motivo = motivo || 'Sin desglose de cantidades por talla';
-                else if (p.tallasObj.some(t => !t || !normalizarTallaMudanza(t.nombre || t.talla) || t.stock == null || String(t.stock).trim() === '' || !Number.isFinite(Number(t.stock)) || !Number.isInteger(Number(t.stock)) || Number(t.stock) < 0)) motivo = motivo || 'Talla o cantidad inválida/incompleta';
-                if (motivo) {
-                    problemas.set(ref, motivo);
-                    fila(ref, p.nombre, 'Revisar datos');
-                    return;
-                }
-                p.tallasObj.forEach(t => {
-                    const f = fila(ref,p.nombre,normalizarTallaMudanza(t.nombre || t.talla));
-                    f.stock += Number(t.stock);
-                });
-            });
-            Object.entries(conteo || {}).forEach(([clave,r]) => Object.keys(r.tallas||{}).forEach(t => { const f=fila(_ipNormalizar(r.ref || clave),r.nombre,normalizarTallaMudanza(t)); f.contado += Math.max(0,parseInt(r.tallas[t],10)||0); }));
-            return Array.from(mapa.values()).map(f => {
-                if (problemas.has(f.ref)) { f.stock=null; f.diferencia=null; f.revisar=true; f.estado=problemas.get(f.ref)+' · no se calcularon diferencias para esta referencia'; }
-                else if (!referencias.has(f.ref)) { f.stock=null; f.diferencia=null; f.estado='Referencia ausente del stock oficial · revisar'; }
-                else { f.diferencia=f.contado-f.stock; f.estado=f.diferencia===0?'Cuadra':(f.stock===0?'Solo en mudanza':(f.contado===0?'No encontrada en mudanza':(f.diferencia>0?'Sobra en mudanza':'Falta en mudanza'))); }
-                return f;
-            }).sort((a,b)=>a.ref.localeCompare(b.ref,'es',{numeric:true})||indiceTallaMudanza(a.talla)-indiceTallaMudanza(b.talla));
+            productosParaMudanza().forEach(p => { const ref=_ipNormalizar(p.codigo||p.ref); if(!ref)return; (p.tallasObj||[]).forEach(t => { const f=fila(ref,p.nombre,normalizarTallaMudanza(t.nombre||t.talla)); f.stock += Math.max(0,parseInt(t.stock,10)||0); }); });
+            Object.values(inventarioMudanza).forEach(r => Object.keys(r.tallas||{}).forEach(t => { const f=fila(r.ref,r.nombre,normalizarTallaMudanza(t)); f.contado += Math.max(0,parseInt(r.tallas[t],10)||0); }));
+            return Array.from(mapa.values()).map(f => { f.diferencia=f.contado-f.stock; f.estado=f.diferencia===0?'Cuadra':(f.stock===0?'Solo en mudanza':(f.contado===0?'No encontrada en mudanza':(f.diferencia>0?'Sobra en mudanza':'Falta en mudanza'))); return f; }).sort((a,b)=>a.ref.localeCompare(b.ref,'es',{numeric:true})||indiceTallaMudanza(a.talla)-indiceTallaMudanza(b.talla));
         }
 
-        const categoriasCruceMudanza = {
-            todas:'Todas las diferencias',
-            solo_stock:'Solo en stock',
-            solo_mudanza:'Solo en mudanza',
-            diferencias:'En ambos: tallas o cantidades',
-            revisar:'Por revisar: datos incompletos'
-        };
-        let filtroCruceMudanza = 'todas';
-        function categorizarFilasCruceMudanza(filas) {
-            const contadas = new Set(filas.filter(f => f.contado > 0).map(f => f.ref));
-            return filas.map(f => Object.assign({}, f, {
-                categoria:f.revisar ? 'revisar' : f.stock === null ? 'solo_mudanza' : (!contadas.has(f.ref) ? 'solo_stock' : 'diferencias')
-            }));
-        }
-        window.filtrarCategoriasCruceMudanza = function(categoria) {
-            filtroCruceMudanza = Object.hasOwn(categoriasCruceMudanza, categoria) ? categoria : 'todas';
-            const panel = document.getElementById('mudanza-comparacion');
-            if (!panel) return;
-            let visibles = 0;
-            panel.querySelectorAll('[data-cruce-categoria]').forEach(el => {
-                const mostrar = filtroCruceMudanza === 'todas' || el.dataset.cruceCategoria === filtroCruceMudanza;
-                el.style.display = mostrar ? '' : 'none';
-                if (mostrar && el.tagName === 'TR') visibles++;
-            });
-            panel.querySelectorAll('[data-cruce-filtro]').forEach(btn => {
-                const activo = btn.dataset.cruceFiltro === filtroCruceMudanza;
-                btn.setAttribute('aria-pressed', String(activo));
-                btn.style.background = activo ? '#7e22ce' : '#fff';
-                btn.style.color = activo ? '#fff' : '#6b21a8';
-            });
-            const vacio = document.getElementById('cruce-categoria-vacia');
-            if (vacio) vacio.style.display = visibles ? 'none' : 'block';
-        };
-
-        window.mostrarComparacionMudanza = async function() {
+        window.mostrarComparacionMudanza = function() {
             const panel = document.getElementById('mudanza-comparacion'); if (!panel) return;
-            const solicitud = ++solicitudVistaCruceMudanza;
-            panel.style.display = 'block';
-            panel.textContent = 'Consultando stock oficial…';
-            let lectura;
-            try { lectura = await leerStockParaCruceMudanza(); }
-            catch(error) {
-                if (solicitud === solicitudVistaCruceMudanza) panel.textContent = 'Cruce no verificado. '+error.message+' Tu conteo se conserva intacto.';
-                return;
-            }
-            if (solicitud !== solicitudVistaCruceMudanza) return;
-            const filas = categorizarFilasCruceMudanza(filasComparacionMudanza(lectura.productos, inventarioMudanza));
+            const filas = filasComparacionMudanza();
             const diferencias = filas.filter(f => f.diferencia !== 0);
             const faltan = diferencias.filter(f => f.diferencia < 0).reduce((s,f)=>s+Math.abs(f.diferencia),0);
             const sobran = diferencias.filter(f => f.diferencia > 0).reduce((s,f)=>s+f.diferencia,0);
             panel.style.display = 'block';
-            panel.innerHTML = '<h3 style="color:#6b21a8;margin:0 0 8px;">Comparación con el stock oficial</h3><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"><span style="background:#fff1f2;color:#b42318;padding:7px 10px;border-radius:14px;font-weight:900;">Faltan '+faltan+'</span><span style="background:#fffaeb;color:#9a6700;padding:7px 10px;border-radius:14px;font-weight:900;">Sobran '+sobran+'</span><span style="background:#f3e8ff;color:#6b21a8;padding:7px 10px;border-radius:14px;font-weight:900;">Diferencias '+diferencias.length+'</span></div><div style="overflow:auto;border:1.5px solid #e5d5f4;border-radius:10px;max-height:360px;"><table style="width:100%;border-collapse:collapse;font-size:.79em;min-width:760px;"><thead style="position:sticky;top:0;background:#f3e8ff;color:#6b21a8;"><tr><th style="padding:9px;text-align:left;">Referencia</th><th style="text-align:left;">Prenda</th><th>Talla</th><th>Stock</th><th>Mudanza</th><th>Diferencia</th><th style="text-align:left;">Resultado</th></tr></thead><tbody>'+diferencias.map(f => '<tr data-cruce-categoria="'+f.categoria+'" style="border-bottom:1px solid #eee;"><td style="padding:8px;font-weight:900;">'+escapeHtml(f.ref)+'</td><td>'+escapeHtml(f.nombre)+'</td><td style="text-align:center;">'+escapeHtml(f.talla)+'</td><td style="text-align:center;">'+(f.stock == null ? '—' : f.stock)+'</td><td style="text-align:center;">'+f.contado+'</td><td style="text-align:center;font-weight:950;color:'+(f.diferencia<0?'#b42318':'#9a6700')+';">'+(f.diferencia == null ? '—' : (f.diferencia>0?'+':'')+f.diferencia)+'</td><td>'+escapeHtml(f.categoria === 'diferencias' ? (f.contado === 0 ? 'Falta esta talla en mudanza' : (f.stock === 0 ? 'Talla contada sin unidades en stock' : f.estado)) : f.estado)+'</td></tr>').join('')+'</tbody></table></div>';
-            panel.insertAdjacentHTML('afterbegin', '<p style="color:#475467;">Stock consultado en el servidor: '+escapeHtml(lectura.fecha)+' · '+lectura.productos.length+' productos. Las referencias ausentes y los productos con datos incompletos no se suman a faltantes ni sobrantes. Revisa también la categoría Por revisar.</p>');
-            const botones = Object.entries(categoriasCruceMudanza).map(([clave,nombre]) => {
-                const cantidad = new Set(diferencias.filter(f => clave === 'todas' || f.categoria === clave).map(f => f.ref)).size;
-                return '<button type="button" data-cruce-filtro="'+clave+'" onclick="filtrarCategoriasCruceMudanza(this.dataset.cruceFiltro)" style="border:1.5px solid #c084fc;border-radius:9px;padding:10px;font-weight:900;cursor:pointer;">'+escapeHtml(nombre)+' · '+cantidad+' referencias</button>';
-            }).join('');
-            panel.insertAdjacentHTML('afterbegin', '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'+botones+'</div><p style="font-size:.85em;color:#475467;">Solo en stock: referencias con existencias y sin unidades contadas. Solo en mudanza: referencias contadas que no figuran en el stock oficial. En ambos: la referencia existe en stock y fue contada; se muestran las tallas con cantidades distintas, incluso si alguna está en cero.</p>');
-            const reportes = Object.entries(categoriasCruceMudanza).filter(([clave]) => clave !== 'todas').map(([clave,nombre]) =>
-                '<button type="button" data-reporte-cruce="'+clave+'" onclick="exportarInventarioMudanzaExcel(this.dataset.reporteCruce)" style="border:1px solid #168653;background:white;color:#166534;border-radius:8px;padding:9px;font-weight:900;cursor:pointer;">📊 '+escapeHtml(nombre)+'</button>'
-            ).join('');
-            panel.insertAdjacentHTML('afterbegin', '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px;margin-bottom:12px;"><strong>Descargar reportes individuales</strong><p style="margin:5px 0 9px;">Cada botón descarga un Excel únicamente con esa categoría.</p><div style="display:flex;gap:8px;flex-wrap:wrap;">'+reportes+'</div></div>');
-            panel.insertAdjacentHTML('beforeend', '<p id="cruce-categoria-vacia" style="display:none;padding:12px;color:#187548;">No hay diferencias en esta categoría.</p>');
-            const referenciasDiferentes = Array.from(new Set(diferencias.filter(f => f.diferencia !== null).map(function(f){ return f.ref; }))).filter(function(ref){ return !!inventarioMudanza[ref]; });
+            panel.innerHTML = '<h3 style="color:#6b21a8;margin:0 0 8px;">Comparación con el stock oficial</h3><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"><span style="background:#fff1f2;color:#b42318;padding:7px 10px;border-radius:14px;font-weight:900;">Faltan '+faltan+'</span><span style="background:#fffaeb;color:#9a6700;padding:7px 10px;border-radius:14px;font-weight:900;">Sobran '+sobran+'</span><span style="background:#f3e8ff;color:#6b21a8;padding:7px 10px;border-radius:14px;font-weight:900;">Diferencias '+diferencias.length+'</span></div><div style="overflow:auto;border:1.5px solid #e5d5f4;border-radius:10px;max-height:360px;"><table style="width:100%;border-collapse:collapse;font-size:.79em;min-width:760px;"><thead style="position:sticky;top:0;background:#f3e8ff;color:#6b21a8;"><tr><th style="padding:9px;text-align:left;">Referencia</th><th style="text-align:left;">Prenda</th><th>Talla</th><th>Stock</th><th>Mudanza</th><th>Diferencia</th><th style="text-align:left;">Resultado</th></tr></thead><tbody>'+diferencias.map(f => '<tr style="border-bottom:1px solid #eee;"><td style="padding:8px;font-weight:900;">'+escapeHtml(f.ref)+'</td><td>'+escapeHtml(f.nombre)+'</td><td style="text-align:center;">'+escapeHtml(f.talla)+'</td><td style="text-align:center;">'+f.stock+'</td><td style="text-align:center;">'+f.contado+'</td><td style="text-align:center;font-weight:950;color:'+(f.diferencia<0?'#b42318':'#9a6700')+';">'+(f.diferencia>0?'+':'')+f.diferencia+'</td><td>'+escapeHtml(f.estado)+'</td></tr>').join('')+'</tbody></table></div>';
+            const referenciasDiferentes = Array.from(new Set(diferencias.map(function(f){ return f.ref; }))).filter(function(ref){ return !!inventarioMudanza[ref]; });
             if (referenciasDiferentes.length) {
-                panel.insertAdjacentHTML('beforeend', '<div style="margin-top:13px;background:#fff7ed;border:1.5px solid #fdba74;border-radius:11px;padding:12px;"><div style="font-weight:950;color:#9a3412;margin-bottom:4px;">Aplicar conteo al stock, prenda por prenda</div><div style="font-size:.78em;color:#7c2d12;margin-bottom:9px;">Cada botón reemplaza todas las tallas de una sola referencia. Nada se aplica automáticamente.</div><div style="display:flex;gap:7px;flex-wrap:wrap;">'+referenciasDiferentes.map(function(ref){ const registro=inventarioMudanza[ref]||{}; return '<button data-cruce-categoria="'+(diferencias.find(f => f.ref === ref).categoria)+'" id="btn-aplicar-mudanza-'+encodeURIComponent(ref)+'" onclick="reemplazarStockDesdeMudanza(\''+encodeURIComponent(ref)+'\')" style="border:0;background:#c2410c;color:white;border-radius:8px;padding:8px 11px;font-weight:900;cursor:pointer;">Aplicar '+escapeHtml(ref)+' · '+escapeHtml(registro.nombre||'Prenda')+'</button>'; }).join('')+'</div></div>');
+                panel.insertAdjacentHTML('beforeend', '<div style="margin-top:13px;background:#fff7ed;border:1.5px solid #fdba74;border-radius:11px;padding:12px;"><div style="font-weight:950;color:#9a3412;margin-bottom:4px;">Aplicar conteo al stock, prenda por prenda</div><div style="font-size:.78em;color:#7c2d12;margin-bottom:9px;">Cada botón reemplaza todas las tallas de una sola referencia. Nada se aplica automáticamente.</div><div style="display:flex;gap:7px;flex-wrap:wrap;">'+referenciasDiferentes.map(function(ref){ const registro=inventarioMudanza[ref]||{}; return '<button id="btn-aplicar-mudanza-'+encodeURIComponent(ref)+'" onclick="reemplazarStockDesdeMudanza(\''+encodeURIComponent(ref)+'\')" style="border:0;background:#c2410c;color:white;border-radius:8px;padding:8px 11px;font-weight:900;cursor:pointer;">Aplicar '+escapeHtml(ref)+' · '+escapeHtml(registro.nombre||'Prenda')+'</button>'; }).join('')+'</div></div>');
             }
-            filtrarCategoriasCruceMudanza(filtroCruceMudanza);
         };
 
         window.reemplazarStockDesdeMudanza = async function(refCodificada) {
@@ -12115,35 +11915,17 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             }
         };
 
-        window.exportarInventarioMudanzaExcel = async function(categoria) {
-            const individual = categoria && categoria !== 'todas' && Object.hasOwn(categoriasCruceMudanza, categoria);
-            if (categoria && !individual && categoria !== 'todas') return;
-            const conteo = JSON.parse(JSON.stringify(inventarioMudanza));
-            const registros = Object.values(conteo).sort((a,b)=>String(a.ref).localeCompare(String(b.ref),'es',{numeric:true}));
-            if (!individual && !registros.length) return alert('Primero escanea algunas prendas.');
-            let filasComparacion = [], estadoCruce;
-            try {
-                const lectura = await leerStockParaCruceMudanza();
-                filasComparacion = categorizarFilasCruceMudanza(filasComparacionMudanza(lectura.productos, conteo)).filter(f => f.diferencia !== 0);
-                estadoCruce = 'Stock consultado en el servidor: '+lectura.fecha+' · '+lectura.productos.length+' productos. Referencias ausentes o con datos incompletos: revisar; no se incluyen en faltantes ni sobrantes.';
-            } catch(error) {
-                if (individual) return alert('No se pudo verificar el stock. No se descargó el reporte: '+error.message);
-                estadoCruce = 'CRUCE NO VERIFICADO: '+error.message+' Se exportó el conteo completo sin calcular diferencias.';
-                alert(estadoCruce);
-            }
-            if (individual) filasComparacion = filasComparacion.filter(f => f.categoria === categoria);
+        window.exportarInventarioMudanzaExcel = function() {
+            const registros = Object.values(inventarioMudanza).sort((a,b)=>String(a.ref).localeCompare(String(b.ref),'es',{numeric:true}));
+            if (!registros.length) return alert('Primero escanea algunas prendas.');
+            const filasComparacion = filasComparacionMudanza().filter(f => f.diferencia !== 0);
             const esc = v => escapeHtml(v == null ? '' : v);
             const encabezadoTallas = TALLAS_MUDANZA.map(t=>'<th>'+t+'</th>').join('');
             const cuerpo = registros.map(r => '<tr><td class="texto">'+esc(r.ref)+'</td><td class="texto">'+esc(r.nombre)+'</td>'+TALLAS_MUDANZA.map(t=>'<td class="num">'+(parseInt((r.tallas||{})[t],10)||0)+'</td>').join('')+'<td class="total">'+Object.values(r.tallas||{}).reduce((s,n)=>s+(parseInt(n,10)||0),0)+'</td></tr>').join('');
-            const comparacion = filasComparacion.map(f=>'<tr><td class="texto">'+esc(categoriasCruceMudanza[f.categoria])+'</td><td class="texto">'+esc(f.ref)+'</td><td class="texto">'+esc(f.nombre)+'</td><td>'+esc(f.talla)+'</td><td class="num">'+(f.stock == null ? '—' : f.stock)+'</td><td class="num">'+f.contado+'</td><td class="num">'+(f.diferencia == null ? '—' : f.diferencia)+'</td><td class="texto">'+esc(f.estado)+'</td></tr>').join('');
-            let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>body{font-family:Arial;color:#25324a}table{border-collapse:collapse;margin-bottom:28px}h1{color:#c2410c}h2{color:#6b21a8}th{background:#c2410c;color:white;border:1px solid #fed7aa;padding:8px;font-weight:bold}td{border:1px solid #eadfd6;padding:7px}.num{text-align:center;mso-number-format:"0"}.texto{mso-number-format:"\\@"}.total{background:#fff7ed;font-weight:bold;text-align:center}.comparacion th{background:#6b21a8}</style></head><body><h1>Inventario de mudanza — SuperKids &amp; Babys</h1><p>Generado el '+esc(new Date().toLocaleString('es-CO'))+' · Conteo independiente del stock oficial</p><table><tr><th>Referencia</th><th>Prenda</th>'+encabezadoTallas+'<th>Total</th></tr>'+cuerpo+'</table><h2>Diferencias frente al stock oficial</h2><p>'+esc(estadoCruce)+'</p><table class="comparacion"><tr><th>Categoría</th><th>Referencia</th><th>Prenda</th><th>Talla</th><th>Stock oficial</th><th>Conteo mudanza</th><th>Diferencia</th><th>Resultado</th></tr>'+comparacion+'</table></body></html>';
-            if (individual) {
-                const titulo = categoriasCruceMudanza[categoria];
-                const referencias = new Set(filasComparacion.map(f => f.ref)).size;
-                html = '<html><head><meta charset="UTF-8"><style>body{font-family:Arial;color:#25324a}table{border-collapse:collapse}th{background:#6b21a8;color:white}td,th{border:1px solid #ddd;padding:8px}.texto{mso-number-format:"\\@"}.num{text-align:center}</style></head><body><h1>'+esc(titulo)+'</h1><p>SuperKids &amp; Babys · '+referencias+' referencias · '+filasComparacion.length+' filas por talla</p><p>'+esc(estadoCruce)+'</p><p>Diferencia = conteo de mudanza menos stock oficial. — significa que no se puede calcular.</p><table><tr><th>Categoría</th><th>Referencia</th><th>Prenda</th><th>Talla</th><th>Stock oficial</th><th>Conteo mudanza</th><th>Diferencia</th><th>Resultado</th></tr>'+comparacion+'</table>'+(filasComparacion.length ? '' : '<p>No hay diferencias en esta categoría.</p>')+'</body></html>';
-            }
+            const comparacion = filasComparacion.map(f=>'<tr><td class="texto">'+esc(f.ref)+'</td><td class="texto">'+esc(f.nombre)+'</td><td>'+esc(f.talla)+'</td><td class="num">'+f.stock+'</td><td class="num">'+f.contado+'</td><td class="num">'+f.diferencia+'</td><td class="texto">'+esc(f.estado)+'</td></tr>').join('');
+            const html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>body{font-family:Arial;color:#25324a}table{border-collapse:collapse;margin-bottom:28px}h1{color:#c2410c}h2{color:#6b21a8}th{background:#c2410c;color:white;border:1px solid #fed7aa;padding:8px;font-weight:bold}td{border:1px solid #eadfd6;padding:7px}.num{text-align:center;mso-number-format:"0"}.texto{mso-number-format:"\\@"}.total{background:#fff7ed;font-weight:bold;text-align:center}.comparacion th{background:#6b21a8}</style></head><body><h1>Inventario de mudanza — SuperKids &amp; Babys</h1><p>Generado el '+esc(new Date().toLocaleString('es-CO'))+' · Conteo independiente del stock oficial</p><table><tr><th>Referencia</th><th>Prenda</th>'+encabezadoTallas+'<th>Total</th></tr>'+cuerpo+'</table><h2>Diferencias frente al stock oficial</h2><table class="comparacion"><tr><th>Referencia</th><th>Prenda</th><th>Talla</th><th>Stock oficial</th><th>Conteo mudanza</th><th>Diferencia</th><th>Resultado</th></tr>'+comparacion+'</table></body></html>';
             const blob = new Blob(['\ufeff',html],{type:'application/vnd.ms-excel;charset=utf-8'}), a=document.createElement('a');
-            a.href=URL.createObjectURL(blob); a.download=(individual ? 'Cruce_'+categoria+'_' : 'Inventario_Mudanza_')+new Date().toISOString().slice(0,10)+'.xls'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+            a.href=URL.createObjectURL(blob); a.download='Inventario_Mudanza_'+new Date().toISOString().slice(0,10)+'.xls'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
         };
 
         function cargarLibreriaExcelMudanza() {
@@ -12686,10 +12468,10 @@ document.addEventListener('DOMContentLoaded', function() {
   function crearPanel(){
     if(document.getElementById('auditoria-equipo'))return;
     const btn=document.createElement('button');btn.id='btn-auditoria-equipo';btn.textContent='🛡️ Actividad del equipo';btn.style.cssText='position:fixed;left:18px;bottom:18px;z-index:10001;background:#7c2d6b;color:white;border:0;border-radius:24px;padding:12px 18px;font-weight:900;cursor:pointer;box-shadow:0 5px 18px #0003';document.body.appendChild(btn);
-    const panel=document.createElement('div');panel.id='auditoria-equipo';panel.style.cssText='display:none;position:fixed;inset:0;z-index:10002;background:#0008;padding:3vh 3vw;overflow:auto';panel.innerHTML='<div style="max-width:1150px;margin:auto;background:white;border-radius:18px;padding:20px"><div style="display:flex;justify-content:space-between;gap:10px"><h2 style="margin:0;color:#7c2d6b">🛡️ Actividad del equipo</h2><button id="cerrar-auditoria">✕</button></div><div style="display:flex;gap:8px;margin:14px 0"><button id="recargar-auditoria">Actualizar</button><button id="restaurar-referencias" style="background:#1a7a4a;color:white;border:0;border-radius:8px;padding:8px 12px;font-weight:800;cursor:pointer">Restaurar referencias faltantes</button><button id="reconstruir-catalogo">Reconstruir catálogo público</button></div><div id="estado-auditoria" style="padding:10px;background:#f8edf5;border-radius:10px">Cargando…</div><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;margin-top:12px"><thead><tr><th>Fecha</th><th>Usuaria</th><th>Acción</th><th>Recurso</th><th>Resultado</th><th>Detalle</th></tr></thead><tbody id="filas-auditoria"></tbody></table></div></div>';document.body.appendChild(panel);
+    const panel=document.createElement('div');panel.id='auditoria-equipo';panel.style.cssText='display:none;position:fixed;inset:0;z-index:10002;background:#0008;padding:3vh 3vw;overflow:auto';panel.innerHTML='<div style="max-width:1150px;margin:auto;background:white;border-radius:18px;padding:20px"><div style="display:flex;justify-content:space-between;gap:10px"><h2 style="margin:0;color:#7c2d6b">🛡️ Actividad del equipo</h2><button id="cerrar-auditoria">✕</button></div><div style="display:flex;gap:8px;margin:14px 0;flex-wrap:wrap"><button id="recargar-auditoria">Actualizar</button><button id="filtrar-devoluciones" style="background:#b45309;color:white;border:0;border-radius:8px;padding:8px 12px;font-weight:800;cursor:pointer">↩ Revisar devoluciones</button><button id="restaurar-referencias" style="background:#1a7a4a;color:white;border:0;border-radius:8px;padding:8px 12px;font-weight:800;cursor:pointer">Restaurar referencias faltantes</button><button id="reconstruir-catalogo">Reconstruir catálogo público</button></div><div id="estado-auditoria" style="padding:10px;background:#f8edf5;border-radius:10px">Cargando…</div><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;margin-top:12px"><thead><tr><th>Fecha</th><th>Usuaria</th><th>Acción</th><th>Recurso</th><th>Resultado</th><th>Detalle</th></tr></thead><tbody id="filas-auditoria"></tbody></table></div></div>';document.body.appendChild(panel);
     function textoSeguro(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-    async function cargar(){const est=document.getElementById('estado-auditoria');try{est.textContent='Cargando actividad…';const d=await api('/auditoria');document.getElementById('filas-auditoria').innerHTML=(d.eventos||[]).map(e=>{const detalle=e.detalle&&Object.keys(e.detalle).length?textoSeguro(JSON.stringify(e.detalle,null,2)).slice(0,6000):'';return '<tr><td style="padding:8px;border-bottom:1px solid #eee">'+new Date(e.fecha||e.timestamp).toLocaleString('es-CO')+'</td><td>'+textoSeguro(e.usuaria||'')+'</td><td>'+textoSeguro(e.accion||'')+'</td><td>'+textoSeguro(e.recurso||'')+' '+textoSeguro(e.recursoId||'')+'</td><td>'+textoSeguro(e.resultado||'')+'</td><td>'+(detalle?'<details><summary style="cursor:pointer;color:#7c2d6b;font-weight:800">Ver detalle</summary><pre style="white-space:pre-wrap;max-width:360px;font-size:11px">'+detalle+'</pre></details>':'—')+'</td></tr>'}).join('');est.textContent=(d.eventos||[]).length+' eventos recientes'}catch(e){est.textContent='Error: '+e.message}}
-    btn.onclick=()=>{panel.style.display='block';cargar()};document.getElementById('cerrar-auditoria').onclick=()=>panel.style.display='none';document.getElementById('recargar-auditoria').onclick=cargar;document.getElementById('restaurar-referencias').onclick=async()=>{const est=document.getElementById('estado-auditoria');try{if(est)est.textContent='Preparando restauración…';await restaurarReferenciasFaltantes()}catch(e){if(est)est.textContent='Error: '+e.message}};document.getElementById('reconstruir-catalogo').onclick=async()=>{const est=document.getElementById('estado-auditoria');try{est.textContent='Reconstruyendo catálogo…';const d=await api('/catalogo-publico',{method:'POST',body:'{}'});est.textContent='Catálogo actualizado: '+d.total+' prendas'}catch(e){est.textContent='Error: '+e.message}};
+    async function cargar(soloDevoluciones){const est=document.getElementById('estado-auditoria');try{est.textContent=soloDevoluciones?'Buscando devoluciones y ajustes de cantidades…':'Cargando actividad…';const d=await api('/auditoria');let eventos=d.eventos||[];if(soloDevoluciones)eventos=eventos.filter(e=>['eliminar_prenda_pedido','cambiar_cantidad_prenda_pedido','eliminar_pedido','cambiar_talla_pedido'].includes(String(e.accion||'')));document.getElementById('filas-auditoria').innerHTML=eventos.map(e=>{const detalle=e.detalle&&Object.keys(e.detalle).length?textoSeguro(JSON.stringify(e.detalle,null,2)).slice(0,6000):'';return '<tr><td style="padding:8px;border-bottom:1px solid #eee">'+new Date(e.fecha||e.timestamp).toLocaleString('es-CO')+'</td><td>'+textoSeguro(e.usuaria||'')+'</td><td>'+textoSeguro(e.accion||'')+'</td><td>'+textoSeguro(e.recurso||'')+' '+textoSeguro(e.recursoId||'')+'</td><td>'+textoSeguro(e.resultado||'')+'</td><td>'+(detalle?'<details open><summary style="cursor:pointer;color:#7c2d6b;font-weight:800">Ver detalle</summary><pre style="white-space:pre-wrap;max-width:360px;font-size:11px">'+detalle+'</pre></details>':'—')+'</td></tr>'}).join('');est.textContent=eventos.length+(soloDevoluciones?' devoluciones o ajustes encontrados':' eventos recientes')}catch(e){est.textContent='Error: '+e.message}}
+    btn.onclick=()=>{panel.style.display='block';cargar(false)};document.getElementById('cerrar-auditoria').onclick=()=>panel.style.display='none';document.getElementById('recargar-auditoria').onclick=()=>cargar(false);document.getElementById('filtrar-devoluciones').onclick=()=>cargar(true);document.getElementById('restaurar-referencias').onclick=async()=>{const est=document.getElementById('estado-auditoria');try{if(est)est.textContent='Preparando restauración…';await restaurarReferenciasFaltantes()}catch(e){if(est)est.textContent='Error: '+e.message}};document.getElementById('reconstruir-catalogo').onclick=async()=>{const est=document.getElementById('estado-auditoria');try{est.textContent='Reconstruyendo catálogo…';const d=await api('/catalogo-publico',{method:'POST',body:'{}'});est.textContent='Catálogo actualizado: '+d.total+' prendas'}catch(e){est.textContent='Error: '+e.message}};
   }
   let intentos=0,timer=setInterval(()=>{instalarWrappers();const u=window.usuarioActual;if(u&&u.uid===UID_YOHANA){crearPanel();clearInterval(timer)}if(++intentos>80)clearInterval(timer)},250);
 })();
