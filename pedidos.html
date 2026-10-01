@@ -7797,7 +7797,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 const copia = Object.assign({}, ped);
                 recalcularTotalPedidoConEnvio(copia);
                 const contado = esPagoCasaContado(copia);
-                resumenRecaudo = '<div class="recaudo-envio"><div class="modalidad-recaudo">'+(contado ? 'PAGO EN CASA CONTADO' : 'PAGO EN CASA CONTRAENTREGA')+'</div><div class="detalle-recaudo">Valor prendas: '+formatMoney(copia.subtotalPrendas)+' · Valor envío: '+formatMoney(copia.totalEnvioComision)+'</div><div class="detalle-recaudo">'+(contado ? 'Envío: se paga por adelantado. Recaudar únicamente las prendas.' : 'Envío y prendas: se cobran al recibir.')+'</div><div class="total-recaudo">TOTAL A RECAUDAR AL RECIBIR: '+formatMoney(copia.aPagarAlRecibir)+'</div></div>';
+                resumenRecaudo = '<div class="recaudo-envio"><div class="modalidad-recaudo">'+(contado ? 'PAGO EN CASA CONTADO' : 'PAGO EN CASA CONTRAENTREGA')+'</div><div class="detalle-recaudo">Valor prendas: '+formatMoney(copia.subtotalPrendas)+' · Valor envío: '+formatMoney(copia.totalEnvioComision)+'</div>'+(!contado ? '<div class="detalle-recaudo">Envío y prendas: se cobran al recibir.</div>' : '')+'<div class="total-recaudo">TOTAL A RECAUDAR AL RECIBIR: '+formatMoney(copia.aPagarAlRecibir)+'</div></div>';
             }
             const seguro = function(valor, vacio) { return escapeHtml(String(valor == null || valor === '' ? (vacio || '—') : valor)); };
             const numero = seguro(ped.numOrden || ('SK' + ped.num));
