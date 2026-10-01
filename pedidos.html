@@ -11808,9 +11808,6 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 const snap = await f.getDocsFromServer(f.collection(db, 'productos'));
                 const productos = snap.docs.map(d => Object.assign({}, d.data(), { id:d.id }));
                 if (!productos.length) throw new Error('El stock oficial llegó vacío. No se calcularon faltantes.');
-                if (productos.some(p => !_ipNormalizar(p.codigo || p.ref) || !Array.isArray(p.tallasObj) || p.tallasObj.some(t => !t || !normalizarTallaMudanza(t.nombre || t.talla) || t.stock == null || String(t.stock).trim() === '' || !Number.isFinite(Number(t.stock))))) {
-                    throw new Error('Hay productos con referencia o cantidades por talla incompletas. Revisa el stock antes de comparar.');
-                }
                 return { productos:productos, fecha:new Date().toLocaleString('es-CO') };
             })();
             try { return await consultaCruceMudanza; }
@@ -11822,10 +11819,27 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             const mapa = new Map();
             const referencias = new Set(productos.map(p => _ipNormalizar(p.codigo || p.ref)));
             function fila(ref,nombre,talla) { const clave=ref+'|'+talla; if(!mapa.has(clave)) mapa.set(clave,{ref,nombre:nombre||'',talla,stock:0,contado:0}); return mapa.get(clave); }
-            productos.forEach(p => { const ref=_ipNormalizar(p.codigo||p.ref); if(!ref)return; (p.tallasObj||[]).forEach(t => { const f=fila(ref,p.nombre,normalizarTallaMudanza(t.nombre||t.talla)); f.stock += Math.max(0,parseInt(t.stock,10)||0); }); });
+            const problemas = new Map();
+            productos.forEach((p, indice) => {
+                const referencia = _ipNormalizar(p.codigo || p.ref);
+                const ref = referencia || ('Sin referencia · '+(p.id || indice));
+                let motivo = !referencia ? 'Producto sin referencia' : '';
+                if (!Array.isArray(p.tallasObj) || !p.tallasObj.length) motivo = motivo || 'Sin desglose de cantidades por talla';
+                else if (p.tallasObj.some(t => !t || !normalizarTallaMudanza(t.nombre || t.talla) || t.stock == null || String(t.stock).trim() === '' || !Number.isFinite(Number(t.stock)) || !Number.isInteger(Number(t.stock)) || Number(t.stock) < 0)) motivo = motivo || 'Talla o cantidad inválida/incompleta';
+                if (motivo) {
+                    problemas.set(ref, motivo);
+                    fila(ref, p.nombre, 'Revisar datos');
+                    return;
+                }
+                p.tallasObj.forEach(t => {
+                    const f = fila(ref,p.nombre,normalizarTallaMudanza(t.nombre || t.talla));
+                    f.stock += Number(t.stock);
+                });
+            });
             Object.entries(conteo || {}).forEach(([clave,r]) => Object.keys(r.tallas||{}).forEach(t => { const f=fila(_ipNormalizar(r.ref || clave),r.nombre,normalizarTallaMudanza(t)); f.contado += Math.max(0,parseInt(r.tallas[t],10)||0); }));
             return Array.from(mapa.values()).map(f => {
-                if (!referencias.has(f.ref)) { f.stock=null; f.diferencia=null; f.estado='Referencia ausente del stock oficial · revisar'; }
+                if (problemas.has(f.ref)) { f.stock=null; f.diferencia=null; f.revisar=true; f.estado=problemas.get(f.ref)+' · no se calcularon diferencias para esta referencia'; }
+                else if (!referencias.has(f.ref)) { f.stock=null; f.diferencia=null; f.estado='Referencia ausente del stock oficial · revisar'; }
                 else { f.diferencia=f.contado-f.stock; f.estado=f.diferencia===0?'Cuadra':(f.stock===0?'Solo en mudanza':(f.contado===0?'No encontrada en mudanza':(f.diferencia>0?'Sobra en mudanza':'Falta en mudanza'))); }
                 return f;
             }).sort((a,b)=>a.ref.localeCompare(b.ref,'es',{numeric:true})||indiceTallaMudanza(a.talla)-indiceTallaMudanza(b.talla));
@@ -11835,13 +11849,14 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             todas:'Todas las diferencias',
             solo_stock:'Solo en stock',
             solo_mudanza:'Solo en mudanza',
-            diferencias:'En ambos: tallas o cantidades'
+            diferencias:'En ambos: tallas o cantidades',
+            revisar:'Por revisar: datos incompletos'
         };
         let filtroCruceMudanza = 'todas';
         function categorizarFilasCruceMudanza(filas) {
             const contadas = new Set(filas.filter(f => f.contado > 0).map(f => f.ref));
             return filas.map(f => Object.assign({}, f, {
-                categoria:f.stock === null ? 'solo_mudanza' : (!contadas.has(f.ref) ? 'solo_stock' : 'diferencias')
+                categoria:f.revisar ? 'revisar' : f.stock === null ? 'solo_mudanza' : (!contadas.has(f.ref) ? 'solo_stock' : 'diferencias')
             }));
         }
         window.filtrarCategoriasCruceMudanza = function(categoria) {
@@ -11882,7 +11897,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             const sobran = diferencias.filter(f => f.diferencia > 0).reduce((s,f)=>s+f.diferencia,0);
             panel.style.display = 'block';
             panel.innerHTML = '<h3 style="color:#6b21a8;margin:0 0 8px;">Comparación con el stock oficial</h3><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"><span style="background:#fff1f2;color:#b42318;padding:7px 10px;border-radius:14px;font-weight:900;">Faltan '+faltan+'</span><span style="background:#fffaeb;color:#9a6700;padding:7px 10px;border-radius:14px;font-weight:900;">Sobran '+sobran+'</span><span style="background:#f3e8ff;color:#6b21a8;padding:7px 10px;border-radius:14px;font-weight:900;">Diferencias '+diferencias.length+'</span></div><div style="overflow:auto;border:1.5px solid #e5d5f4;border-radius:10px;max-height:360px;"><table style="width:100%;border-collapse:collapse;font-size:.79em;min-width:760px;"><thead style="position:sticky;top:0;background:#f3e8ff;color:#6b21a8;"><tr><th style="padding:9px;text-align:left;">Referencia</th><th style="text-align:left;">Prenda</th><th>Talla</th><th>Stock</th><th>Mudanza</th><th>Diferencia</th><th style="text-align:left;">Resultado</th></tr></thead><tbody>'+diferencias.map(f => '<tr data-cruce-categoria="'+f.categoria+'" style="border-bottom:1px solid #eee;"><td style="padding:8px;font-weight:900;">'+escapeHtml(f.ref)+'</td><td>'+escapeHtml(f.nombre)+'</td><td style="text-align:center;">'+escapeHtml(f.talla)+'</td><td style="text-align:center;">'+(f.stock == null ? '—' : f.stock)+'</td><td style="text-align:center;">'+f.contado+'</td><td style="text-align:center;font-weight:950;color:'+(f.diferencia<0?'#b42318':'#9a6700')+';">'+(f.diferencia == null ? '—' : (f.diferencia>0?'+':'')+f.diferencia)+'</td><td>'+escapeHtml(f.categoria === 'diferencias' ? (f.contado === 0 ? 'Falta esta talla en mudanza' : (f.stock === 0 ? 'Talla contada sin unidades en stock' : f.estado)) : f.estado)+'</td></tr>').join('')+'</tbody></table></div>';
-            panel.insertAdjacentHTML('afterbegin', '<p style="color:#475467;">Stock consultado en el servidor: '+escapeHtml(lectura.fecha)+' · '+lectura.productos.length+' productos. Las referencias ausentes se muestran para revisión y no se suman como sobrantes.</p>');
+            panel.insertAdjacentHTML('afterbegin', '<p style="color:#475467;">Stock consultado en el servidor: '+escapeHtml(lectura.fecha)+' · '+lectura.productos.length+' productos. Las referencias ausentes y los productos con datos incompletos no se suman a faltantes ni sobrantes. Revisa también la categoría Por revisar.</p>');
             const botones = Object.entries(categoriasCruceMudanza).map(([clave,nombre]) => {
                 const cantidad = new Set(diferencias.filter(f => clave === 'todas' || f.categoria === clave).map(f => f.ref)).size;
                 return '<button type="button" data-cruce-filtro="'+clave+'" onclick="filtrarCategoriasCruceMudanza(this.dataset.cruceFiltro)" style="border:1.5px solid #c084fc;border-radius:9px;padding:10px;font-weight:900;cursor:pointer;">'+escapeHtml(nombre)+' · '+cantidad+' referencias</button>';
@@ -11980,7 +11995,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             try {
                 const lectura = await leerStockParaCruceMudanza();
                 filasComparacion = categorizarFilasCruceMudanza(filasComparacionMudanza(lectura.productos, conteo)).filter(f => f.diferencia !== 0);
-                estadoCruce = 'Stock consultado en el servidor: '+lectura.fecha+' · '+lectura.productos.length+' productos. Referencias ausentes: revisar, no equivalen a stock cero.';
+                estadoCruce = 'Stock consultado en el servidor: '+lectura.fecha+' · '+lectura.productos.length+' productos. Referencias ausentes o con datos incompletos: revisar; no se incluyen en faltantes ni sobrantes.';
             } catch(error) {
                 estadoCruce = 'CRUCE NO VERIFICADO: '+error.message+' Se exportó el conteo completo sin calcular diferencias.';
                 alert(estadoCruce);
