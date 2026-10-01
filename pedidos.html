@@ -11903,6 +11903,10 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 return '<button type="button" data-cruce-filtro="'+clave+'" onclick="filtrarCategoriasCruceMudanza(this.dataset.cruceFiltro)" style="border:1.5px solid #c084fc;border-radius:9px;padding:10px;font-weight:900;cursor:pointer;">'+escapeHtml(nombre)+' · '+cantidad+' referencias</button>';
             }).join('');
             panel.insertAdjacentHTML('afterbegin', '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'+botones+'</div><p style="font-size:.85em;color:#475467;">Solo en stock: referencias con existencias y sin unidades contadas. Solo en mudanza: referencias contadas que no figuran en el stock oficial. En ambos: la referencia existe en stock y fue contada; se muestran las tallas con cantidades distintas, incluso si alguna está en cero.</p>');
+            const reportes = Object.entries(categoriasCruceMudanza).filter(([clave]) => clave !== 'todas').map(([clave,nombre]) =>
+                '<button type="button" data-reporte-cruce="'+clave+'" onclick="exportarInventarioMudanzaExcel(this.dataset.reporteCruce)" style="border:1px solid #168653;background:white;color:#166534;border-radius:8px;padding:9px;font-weight:900;cursor:pointer;">📊 '+escapeHtml(nombre)+'</button>'
+            ).join('');
+            panel.insertAdjacentHTML('afterbegin', '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px;margin-bottom:12px;"><strong>Descargar reportes individuales</strong><p style="margin:5px 0 9px;">Cada botón descarga un Excel únicamente con esa categoría.</p><div style="display:flex;gap:8px;flex-wrap:wrap;">'+reportes+'</div></div>');
             panel.insertAdjacentHTML('beforeend', '<p id="cruce-categoria-vacia" style="display:none;padding:12px;color:#187548;">No hay diferencias en esta categoría.</p>');
             const referenciasDiferentes = Array.from(new Set(diferencias.filter(f => f.diferencia !== null).map(function(f){ return f.ref; }))).filter(function(ref){ return !!inventarioMudanza[ref]; });
             if (referenciasDiferentes.length) {
@@ -11987,26 +11991,35 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             }
         };
 
-        window.exportarInventarioMudanzaExcel = async function() {
+        window.exportarInventarioMudanzaExcel = async function(categoria) {
+            const individual = categoria && categoria !== 'todas' && Object.hasOwn(categoriasCruceMudanza, categoria);
+            if (categoria && !individual && categoria !== 'todas') return;
             const conteo = JSON.parse(JSON.stringify(inventarioMudanza));
             const registros = Object.values(conteo).sort((a,b)=>String(a.ref).localeCompare(String(b.ref),'es',{numeric:true}));
-            if (!registros.length) return alert('Primero escanea algunas prendas.');
+            if (!individual && !registros.length) return alert('Primero escanea algunas prendas.');
             let filasComparacion = [], estadoCruce;
             try {
                 const lectura = await leerStockParaCruceMudanza();
                 filasComparacion = categorizarFilasCruceMudanza(filasComparacionMudanza(lectura.productos, conteo)).filter(f => f.diferencia !== 0);
                 estadoCruce = 'Stock consultado en el servidor: '+lectura.fecha+' · '+lectura.productos.length+' productos. Referencias ausentes o con datos incompletos: revisar; no se incluyen en faltantes ni sobrantes.';
             } catch(error) {
+                if (individual) return alert('No se pudo verificar el stock. No se descargó el reporte: '+error.message);
                 estadoCruce = 'CRUCE NO VERIFICADO: '+error.message+' Se exportó el conteo completo sin calcular diferencias.';
                 alert(estadoCruce);
             }
+            if (individual) filasComparacion = filasComparacion.filter(f => f.categoria === categoria);
             const esc = v => escapeHtml(v == null ? '' : v);
             const encabezadoTallas = TALLAS_MUDANZA.map(t=>'<th>'+t+'</th>').join('');
             const cuerpo = registros.map(r => '<tr><td class="texto">'+esc(r.ref)+'</td><td class="texto">'+esc(r.nombre)+'</td>'+TALLAS_MUDANZA.map(t=>'<td class="num">'+(parseInt((r.tallas||{})[t],10)||0)+'</td>').join('')+'<td class="total">'+Object.values(r.tallas||{}).reduce((s,n)=>s+(parseInt(n,10)||0),0)+'</td></tr>').join('');
             const comparacion = filasComparacion.map(f=>'<tr><td class="texto">'+esc(categoriasCruceMudanza[f.categoria])+'</td><td class="texto">'+esc(f.ref)+'</td><td class="texto">'+esc(f.nombre)+'</td><td>'+esc(f.talla)+'</td><td class="num">'+(f.stock == null ? '—' : f.stock)+'</td><td class="num">'+f.contado+'</td><td class="num">'+(f.diferencia == null ? '—' : f.diferencia)+'</td><td class="texto">'+esc(f.estado)+'</td></tr>').join('');
-            const html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>body{font-family:Arial;color:#25324a}table{border-collapse:collapse;margin-bottom:28px}h1{color:#c2410c}h2{color:#6b21a8}th{background:#c2410c;color:white;border:1px solid #fed7aa;padding:8px;font-weight:bold}td{border:1px solid #eadfd6;padding:7px}.num{text-align:center;mso-number-format:"0"}.texto{mso-number-format:"\\@"}.total{background:#fff7ed;font-weight:bold;text-align:center}.comparacion th{background:#6b21a8}</style></head><body><h1>Inventario de mudanza — SuperKids &amp; Babys</h1><p>Generado el '+esc(new Date().toLocaleString('es-CO'))+' · Conteo independiente del stock oficial</p><table><tr><th>Referencia</th><th>Prenda</th>'+encabezadoTallas+'<th>Total</th></tr>'+cuerpo+'</table><h2>Diferencias frente al stock oficial</h2><p>'+esc(estadoCruce)+'</p><table class="comparacion"><tr><th>Categoría</th><th>Referencia</th><th>Prenda</th><th>Talla</th><th>Stock oficial</th><th>Conteo mudanza</th><th>Diferencia</th><th>Resultado</th></tr>'+comparacion+'</table></body></html>';
+            let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>body{font-family:Arial;color:#25324a}table{border-collapse:collapse;margin-bottom:28px}h1{color:#c2410c}h2{color:#6b21a8}th{background:#c2410c;color:white;border:1px solid #fed7aa;padding:8px;font-weight:bold}td{border:1px solid #eadfd6;padding:7px}.num{text-align:center;mso-number-format:"0"}.texto{mso-number-format:"\\@"}.total{background:#fff7ed;font-weight:bold;text-align:center}.comparacion th{background:#6b21a8}</style></head><body><h1>Inventario de mudanza — SuperKids &amp; Babys</h1><p>Generado el '+esc(new Date().toLocaleString('es-CO'))+' · Conteo independiente del stock oficial</p><table><tr><th>Referencia</th><th>Prenda</th>'+encabezadoTallas+'<th>Total</th></tr>'+cuerpo+'</table><h2>Diferencias frente al stock oficial</h2><p>'+esc(estadoCruce)+'</p><table class="comparacion"><tr><th>Categoría</th><th>Referencia</th><th>Prenda</th><th>Talla</th><th>Stock oficial</th><th>Conteo mudanza</th><th>Diferencia</th><th>Resultado</th></tr>'+comparacion+'</table></body></html>';
+            if (individual) {
+                const titulo = categoriasCruceMudanza[categoria];
+                const referencias = new Set(filasComparacion.map(f => f.ref)).size;
+                html = '<html><head><meta charset="UTF-8"><style>body{font-family:Arial;color:#25324a}table{border-collapse:collapse}th{background:#6b21a8;color:white}td,th{border:1px solid #ddd;padding:8px}.texto{mso-number-format:"\\@"}.num{text-align:center}</style></head><body><h1>'+esc(titulo)+'</h1><p>SuperKids &amp; Babys · '+referencias+' referencias · '+filasComparacion.length+' filas por talla</p><p>'+esc(estadoCruce)+'</p><p>Diferencia = conteo de mudanza menos stock oficial. — significa que no se puede calcular.</p><table><tr><th>Categoría</th><th>Referencia</th><th>Prenda</th><th>Talla</th><th>Stock oficial</th><th>Conteo mudanza</th><th>Diferencia</th><th>Resultado</th></tr>'+comparacion+'</table>'+(filasComparacion.length ? '' : '<p>No hay diferencias en esta categoría.</p>')+'</body></html>';
+            }
             const blob = new Blob(['\ufeff',html],{type:'application/vnd.ms-excel;charset=utf-8'}), a=document.createElement('a');
-            a.href=URL.createObjectURL(blob); a.download='Inventario_Mudanza_'+new Date().toISOString().slice(0,10)+'.xls'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+            a.href=URL.createObjectURL(blob); a.download=(individual ? 'Cruce_'+categoria+'_' : 'Inventario_Mudanza_')+new Date().toISOString().slice(0,10)+'.xls'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
         };
 
         function cargarLibreriaExcelMudanza() {
