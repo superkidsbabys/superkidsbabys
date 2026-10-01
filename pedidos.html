@@ -12431,18 +12431,19 @@ document.addEventListener('DOMContentLoaded', function() {
       if(!producto)throw new Error('No se encontró la referencia '+prenda.referencia+' en Firebase');
       const {doc,runTransaction}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
       const idProducto=String(producto._firebaseId||producto.id),claveEvento=String(evento.id||evento.fecha||evento.timestamp||'')+'|'+pedido+'|'+prenda.referencia+'|'+prenda.talla+'|'+cantidad;
-      const idReparacion=idSeguroReparacion(claveEvento),refProducto=doc(db,'productos',idProducto),refReparacion=doc(db,'reparaciones_stock',idReparacion);
+      const idReparacion=idSeguroReparacion(claveEvento),refProducto=doc(db,'productos',idProducto);
       const actualizado=await runTransaction(db,async function(tx){
-        const [snapProd,snapRep]=await Promise.all([tx.get(refProducto),tx.get(refReparacion)]);
-        if(snapRep.exists())throw new Error('YA_RESTAURADO');
+        const snapProd=await tx.get(refProducto);
         if(!snapProd.exists())throw new Error('La referencia ya no existe en Firebase');
         const datos=snapProd.data(),tallas=Array.isArray(datos.tallasObj)?datos.tallasObj.map(t=>Object.assign({},t)):[];
+        const reparaciones=Array.isArray(datos.reparacionesStockHistorial)?datos.reparacionesStockHistorial.slice():[];
+        if(reparaciones.some(r=>String(r&&r.id||r)===idReparacion))throw new Error('YA_RESTAURADO');
         const talla=tallas.find(t=>normalizarTallaValor(t.nombre)===normalizarTallaValor(prenda.talla));
         if(!talla)throw new Error('No se encontró la talla '+prenda.talla+' en la referencia '+prenda.referencia);
         talla.stock=(parseInt(talla.stock,10)||0)+cantidad;
-        const cambios={tallasObj:tallas,stockTotal:tallas.reduce((s,t)=>s+(parseInt(t.stock,10)||0),0),actualizadoEn:new Date().toISOString()};
+        reparaciones.push({id:idReparacion,pedido:pedido||'',referencia:String(prenda.referencia),talla:String(prenda.talla),cantidad:cantidad,reparadoEn:new Date().toISOString()});
+        const cambios={tallasObj:tallas,stockTotal:tallas.reduce((s,t)=>s+(parseInt(t.stock,10)||0),0),reparacionesStockHistorial:reparaciones.slice(-100),actualizadoEn:new Date().toISOString()};
         tx.update(refProducto,cambios);
-        tx.set(refReparacion,{pedido:pedido||null,referencia:String(prenda.referencia),talla:String(prenda.talla),cantidad:cantidad,eventoFecha:evento.fecha||evento.timestamp||'',reparadoEn:new Date().toISOString(),reparadoPor:'Yohana'});
         return Object.assign({},datos,cambios,{id:producto.id,_firebaseId:idProducto});
       });
       Object.assign(producto,actualizado);localStorage.setItem('productosV36',JSON.stringify(productosDB));
