@@ -11797,26 +11797,103 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             if (fila && fila.dataset.mudanzaRefUrl) editarReferenciaMudanza(fila.dataset.mudanzaRefUrl);
         };
 
-        function filasComparacionMudanza() {
-            const mapa = new Map();
-            function fila(ref,nombre,talla) { const clave=ref+'|'+talla; if(!mapa.has(clave)) mapa.set(clave,{ref,nombre:nombre||'',talla,stock:0,contado:0}); return mapa.get(clave); }
-            productosParaMudanza().forEach(p => { const ref=_ipNormalizar(p.codigo||p.ref); if(!ref)return; (p.tallasObj||[]).forEach(t => { const f=fila(ref,p.nombre,normalizarTallaMudanza(t.nombre||t.talla)); f.stock += Math.max(0,parseInt(t.stock,10)||0); }); });
-            Object.values(inventarioMudanza).forEach(r => Object.keys(r.tallas||{}).forEach(t => { const f=fila(r.ref,r.nombre,normalizarTallaMudanza(t)); f.contado += Math.max(0,parseInt(r.tallas[t],10)||0); }));
-            return Array.from(mapa.values()).map(f => { f.diferencia=f.contado-f.stock; f.estado=f.diferencia===0?'Cuadra':(f.stock===0?'Solo en mudanza':(f.contado===0?'No encontrada en mudanza':(f.diferencia>0?'Sobra en mudanza':'Falta en mudanza'))); return f; }).sort((a,b)=>a.ref.localeCompare(b.ref,'es',{numeric:true})||indiceTallaMudanza(a.talla)-indiceTallaMudanza(b.talla));
+        // Lectura exclusiva para comparar: nunca modifica stock, conteos ni cachés.
+        let consultaCruceMudanza = null;
+        let solicitudVistaCruceMudanza = 0;
+        async function leerStockParaCruceMudanza() {
+            if (!navigator.onLine) throw new Error('Sin conexión: no se pudo verificar el stock oficial.');
+            if (consultaCruceMudanza) return consultaCruceMudanza;
+            consultaCruceMudanza = (async function() {
+                const f = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const snap = await f.getDocsFromServer(f.collection(db, 'productos'));
+                const productos = snap.docs.map(d => Object.assign({}, d.data(), { id:d.id }));
+                if (!productos.length) throw new Error('El stock oficial llegó vacío. No se calcularon faltantes.');
+                if (productos.some(p => !_ipNormalizar(p.codigo || p.ref) || !Array.isArray(p.tallasObj) || p.tallasObj.some(t => !t || !normalizarTallaMudanza(t.nombre || t.talla) || t.stock == null || String(t.stock).trim() === '' || !Number.isFinite(Number(t.stock))))) {
+                    throw new Error('Hay productos con referencia o cantidades por talla incompletas. Revisa el stock antes de comparar.');
+                }
+                return { productos:productos, fecha:new Date().toLocaleString('es-CO') };
+            })();
+            try { return await consultaCruceMudanza; }
+            finally { consultaCruceMudanza = null; }
         }
 
-        window.mostrarComparacionMudanza = function() {
+        function filasComparacionMudanza(productos, conteo) {
+            if (!Array.isArray(productos)) throw new Error('Se requiere una lectura verificada del stock.');
+            const mapa = new Map();
+            const referencias = new Set(productos.map(p => _ipNormalizar(p.codigo || p.ref)));
+            function fila(ref,nombre,talla) { const clave=ref+'|'+talla; if(!mapa.has(clave)) mapa.set(clave,{ref,nombre:nombre||'',talla,stock:0,contado:0}); return mapa.get(clave); }
+            productos.forEach(p => { const ref=_ipNormalizar(p.codigo||p.ref); if(!ref)return; (p.tallasObj||[]).forEach(t => { const f=fila(ref,p.nombre,normalizarTallaMudanza(t.nombre||t.talla)); f.stock += Math.max(0,parseInt(t.stock,10)||0); }); });
+            Object.entries(conteo || {}).forEach(([clave,r]) => Object.keys(r.tallas||{}).forEach(t => { const f=fila(_ipNormalizar(r.ref || clave),r.nombre,normalizarTallaMudanza(t)); f.contado += Math.max(0,parseInt(r.tallas[t],10)||0); }));
+            return Array.from(mapa.values()).map(f => {
+                if (!referencias.has(f.ref)) { f.stock=null; f.diferencia=null; f.estado='Referencia ausente del stock oficial · revisar'; }
+                else { f.diferencia=f.contado-f.stock; f.estado=f.diferencia===0?'Cuadra':(f.stock===0?'Solo en mudanza':(f.contado===0?'No encontrada en mudanza':(f.diferencia>0?'Sobra en mudanza':'Falta en mudanza'))); }
+                return f;
+            }).sort((a,b)=>a.ref.localeCompare(b.ref,'es',{numeric:true})||indiceTallaMudanza(a.talla)-indiceTallaMudanza(b.talla));
+        }
+
+        const categoriasCruceMudanza = {
+            todas:'Todas las diferencias',
+            solo_stock:'Solo en stock',
+            solo_mudanza:'Solo en mudanza',
+            diferencias:'En ambos: tallas o cantidades'
+        };
+        let filtroCruceMudanza = 'todas';
+        function categorizarFilasCruceMudanza(filas) {
+            const contadas = new Set(filas.filter(f => f.contado > 0).map(f => f.ref));
+            return filas.map(f => Object.assign({}, f, {
+                categoria:f.stock === null ? 'solo_mudanza' : (!contadas.has(f.ref) ? 'solo_stock' : 'diferencias')
+            }));
+        }
+        window.filtrarCategoriasCruceMudanza = function(categoria) {
+            filtroCruceMudanza = Object.hasOwn(categoriasCruceMudanza, categoria) ? categoria : 'todas';
+            const panel = document.getElementById('mudanza-comparacion');
+            if (!panel) return;
+            let visibles = 0;
+            panel.querySelectorAll('[data-cruce-categoria]').forEach(el => {
+                const mostrar = filtroCruceMudanza === 'todas' || el.dataset.cruceCategoria === filtroCruceMudanza;
+                el.style.display = mostrar ? '' : 'none';
+                if (mostrar && el.tagName === 'TR') visibles++;
+            });
+            panel.querySelectorAll('[data-cruce-filtro]').forEach(btn => {
+                const activo = btn.dataset.cruceFiltro === filtroCruceMudanza;
+                btn.setAttribute('aria-pressed', String(activo));
+                btn.style.background = activo ? '#7e22ce' : '#fff';
+                btn.style.color = activo ? '#fff' : '#6b21a8';
+            });
+            const vacio = document.getElementById('cruce-categoria-vacia');
+            if (vacio) vacio.style.display = visibles ? 'none' : 'block';
+        };
+
+        window.mostrarComparacionMudanza = async function() {
             const panel = document.getElementById('mudanza-comparacion'); if (!panel) return;
-            const filas = filasComparacionMudanza();
+            const solicitud = ++solicitudVistaCruceMudanza;
+            panel.style.display = 'block';
+            panel.textContent = 'Consultando stock oficial…';
+            let lectura;
+            try { lectura = await leerStockParaCruceMudanza(); }
+            catch(error) {
+                if (solicitud === solicitudVistaCruceMudanza) panel.textContent = 'Cruce no verificado. '+error.message+' Tu conteo se conserva intacto.';
+                return;
+            }
+            if (solicitud !== solicitudVistaCruceMudanza) return;
+            const filas = categorizarFilasCruceMudanza(filasComparacionMudanza(lectura.productos, inventarioMudanza));
             const diferencias = filas.filter(f => f.diferencia !== 0);
             const faltan = diferencias.filter(f => f.diferencia < 0).reduce((s,f)=>s+Math.abs(f.diferencia),0);
             const sobran = diferencias.filter(f => f.diferencia > 0).reduce((s,f)=>s+f.diferencia,0);
             panel.style.display = 'block';
-            panel.innerHTML = '<h3 style="color:#6b21a8;margin:0 0 8px;">Comparación con el stock oficial</h3><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"><span style="background:#fff1f2;color:#b42318;padding:7px 10px;border-radius:14px;font-weight:900;">Faltan '+faltan+'</span><span style="background:#fffaeb;color:#9a6700;padding:7px 10px;border-radius:14px;font-weight:900;">Sobran '+sobran+'</span><span style="background:#f3e8ff;color:#6b21a8;padding:7px 10px;border-radius:14px;font-weight:900;">Diferencias '+diferencias.length+'</span></div><div style="overflow:auto;border:1.5px solid #e5d5f4;border-radius:10px;max-height:360px;"><table style="width:100%;border-collapse:collapse;font-size:.79em;min-width:760px;"><thead style="position:sticky;top:0;background:#f3e8ff;color:#6b21a8;"><tr><th style="padding:9px;text-align:left;">Referencia</th><th style="text-align:left;">Prenda</th><th>Talla</th><th>Stock</th><th>Mudanza</th><th>Diferencia</th><th style="text-align:left;">Resultado</th></tr></thead><tbody>'+diferencias.map(f => '<tr style="border-bottom:1px solid #eee;"><td style="padding:8px;font-weight:900;">'+escapeHtml(f.ref)+'</td><td>'+escapeHtml(f.nombre)+'</td><td style="text-align:center;">'+escapeHtml(f.talla)+'</td><td style="text-align:center;">'+f.stock+'</td><td style="text-align:center;">'+f.contado+'</td><td style="text-align:center;font-weight:950;color:'+(f.diferencia<0?'#b42318':'#9a6700')+';">'+(f.diferencia>0?'+':'')+f.diferencia+'</td><td>'+escapeHtml(f.estado)+'</td></tr>').join('')+'</tbody></table></div>';
-            const referenciasDiferentes = Array.from(new Set(diferencias.map(function(f){ return f.ref; }))).filter(function(ref){ return !!inventarioMudanza[ref]; });
+            panel.innerHTML = '<h3 style="color:#6b21a8;margin:0 0 8px;">Comparación con el stock oficial</h3><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"><span style="background:#fff1f2;color:#b42318;padding:7px 10px;border-radius:14px;font-weight:900;">Faltan '+faltan+'</span><span style="background:#fffaeb;color:#9a6700;padding:7px 10px;border-radius:14px;font-weight:900;">Sobran '+sobran+'</span><span style="background:#f3e8ff;color:#6b21a8;padding:7px 10px;border-radius:14px;font-weight:900;">Diferencias '+diferencias.length+'</span></div><div style="overflow:auto;border:1.5px solid #e5d5f4;border-radius:10px;max-height:360px;"><table style="width:100%;border-collapse:collapse;font-size:.79em;min-width:760px;"><thead style="position:sticky;top:0;background:#f3e8ff;color:#6b21a8;"><tr><th style="padding:9px;text-align:left;">Referencia</th><th style="text-align:left;">Prenda</th><th>Talla</th><th>Stock</th><th>Mudanza</th><th>Diferencia</th><th style="text-align:left;">Resultado</th></tr></thead><tbody>'+diferencias.map(f => '<tr data-cruce-categoria="'+f.categoria+'" style="border-bottom:1px solid #eee;"><td style="padding:8px;font-weight:900;">'+escapeHtml(f.ref)+'</td><td>'+escapeHtml(f.nombre)+'</td><td style="text-align:center;">'+escapeHtml(f.talla)+'</td><td style="text-align:center;">'+(f.stock == null ? '—' : f.stock)+'</td><td style="text-align:center;">'+f.contado+'</td><td style="text-align:center;font-weight:950;color:'+(f.diferencia<0?'#b42318':'#9a6700')+';">'+(f.diferencia == null ? '—' : (f.diferencia>0?'+':'')+f.diferencia)+'</td><td>'+escapeHtml(f.categoria === 'diferencias' ? (f.contado === 0 ? 'Falta esta talla en mudanza' : (f.stock === 0 ? 'Talla contada sin unidades en stock' : f.estado)) : f.estado)+'</td></tr>').join('')+'</tbody></table></div>';
+            panel.insertAdjacentHTML('afterbegin', '<p style="color:#475467;">Stock consultado en el servidor: '+escapeHtml(lectura.fecha)+' · '+lectura.productos.length+' productos. Las referencias ausentes se muestran para revisión y no se suman como sobrantes.</p>');
+            const botones = Object.entries(categoriasCruceMudanza).map(([clave,nombre]) => {
+                const cantidad = new Set(diferencias.filter(f => clave === 'todas' || f.categoria === clave).map(f => f.ref)).size;
+                return '<button type="button" data-cruce-filtro="'+clave+'" onclick="filtrarCategoriasCruceMudanza(this.dataset.cruceFiltro)" style="border:1.5px solid #c084fc;border-radius:9px;padding:10px;font-weight:900;cursor:pointer;">'+escapeHtml(nombre)+' · '+cantidad+' referencias</button>';
+            }).join('');
+            panel.insertAdjacentHTML('afterbegin', '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'+botones+'</div><p style="font-size:.85em;color:#475467;">Solo en stock: referencias con existencias y sin unidades contadas. Solo en mudanza: referencias contadas que no figuran en el stock oficial. En ambos: la referencia existe en stock y fue contada; se muestran las tallas con cantidades distintas, incluso si alguna está en cero.</p>');
+            panel.insertAdjacentHTML('beforeend', '<p id="cruce-categoria-vacia" style="display:none;padding:12px;color:#187548;">No hay diferencias en esta categoría.</p>');
+            const referenciasDiferentes = Array.from(new Set(diferencias.filter(f => f.diferencia !== null).map(function(f){ return f.ref; }))).filter(function(ref){ return !!inventarioMudanza[ref]; });
             if (referenciasDiferentes.length) {
-                panel.insertAdjacentHTML('beforeend', '<div style="margin-top:13px;background:#fff7ed;border:1.5px solid #fdba74;border-radius:11px;padding:12px;"><div style="font-weight:950;color:#9a3412;margin-bottom:4px;">Aplicar conteo al stock, prenda por prenda</div><div style="font-size:.78em;color:#7c2d12;margin-bottom:9px;">Cada botón reemplaza todas las tallas de una sola referencia. Nada se aplica automáticamente.</div><div style="display:flex;gap:7px;flex-wrap:wrap;">'+referenciasDiferentes.map(function(ref){ const registro=inventarioMudanza[ref]||{}; return '<button id="btn-aplicar-mudanza-'+encodeURIComponent(ref)+'" onclick="reemplazarStockDesdeMudanza(\''+encodeURIComponent(ref)+'\')" style="border:0;background:#c2410c;color:white;border-radius:8px;padding:8px 11px;font-weight:900;cursor:pointer;">Aplicar '+escapeHtml(ref)+' · '+escapeHtml(registro.nombre||'Prenda')+'</button>'; }).join('')+'</div></div>');
+                panel.insertAdjacentHTML('beforeend', '<div style="margin-top:13px;background:#fff7ed;border:1.5px solid #fdba74;border-radius:11px;padding:12px;"><div style="font-weight:950;color:#9a3412;margin-bottom:4px;">Aplicar conteo al stock, prenda por prenda</div><div style="font-size:.78em;color:#7c2d12;margin-bottom:9px;">Cada botón reemplaza todas las tallas de una sola referencia. Nada se aplica automáticamente.</div><div style="display:flex;gap:7px;flex-wrap:wrap;">'+referenciasDiferentes.map(function(ref){ const registro=inventarioMudanza[ref]||{}; return '<button data-cruce-categoria="'+(diferencias.find(f => f.ref === ref).categoria)+'" id="btn-aplicar-mudanza-'+encodeURIComponent(ref)+'" onclick="reemplazarStockDesdeMudanza(\''+encodeURIComponent(ref)+'\')" style="border:0;background:#c2410c;color:white;border-radius:8px;padding:8px 11px;font-weight:900;cursor:pointer;">Aplicar '+escapeHtml(ref)+' · '+escapeHtml(registro.nombre||'Prenda')+'</button>'; }).join('')+'</div></div>');
             }
+            filtrarCategoriasCruceMudanza(filtroCruceMudanza);
         };
 
         window.reemplazarStockDesdeMudanza = async function(refCodificada) {
@@ -11895,15 +11972,24 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             }
         };
 
-        window.exportarInventarioMudanzaExcel = function() {
-            const registros = Object.values(inventarioMudanza).sort((a,b)=>String(a.ref).localeCompare(String(b.ref),'es',{numeric:true}));
+        window.exportarInventarioMudanzaExcel = async function() {
+            const conteo = JSON.parse(JSON.stringify(inventarioMudanza));
+            const registros = Object.values(conteo).sort((a,b)=>String(a.ref).localeCompare(String(b.ref),'es',{numeric:true}));
             if (!registros.length) return alert('Primero escanea algunas prendas.');
-            const filasComparacion = filasComparacionMudanza().filter(f => f.diferencia !== 0);
+            let filasComparacion = [], estadoCruce;
+            try {
+                const lectura = await leerStockParaCruceMudanza();
+                filasComparacion = categorizarFilasCruceMudanza(filasComparacionMudanza(lectura.productos, conteo)).filter(f => f.diferencia !== 0);
+                estadoCruce = 'Stock consultado en el servidor: '+lectura.fecha+' · '+lectura.productos.length+' productos. Referencias ausentes: revisar, no equivalen a stock cero.';
+            } catch(error) {
+                estadoCruce = 'CRUCE NO VERIFICADO: '+error.message+' Se exportó el conteo completo sin calcular diferencias.';
+                alert(estadoCruce);
+            }
             const esc = v => escapeHtml(v == null ? '' : v);
             const encabezadoTallas = TALLAS_MUDANZA.map(t=>'<th>'+t+'</th>').join('');
             const cuerpo = registros.map(r => '<tr><td class="texto">'+esc(r.ref)+'</td><td class="texto">'+esc(r.nombre)+'</td>'+TALLAS_MUDANZA.map(t=>'<td class="num">'+(parseInt((r.tallas||{})[t],10)||0)+'</td>').join('')+'<td class="total">'+Object.values(r.tallas||{}).reduce((s,n)=>s+(parseInt(n,10)||0),0)+'</td></tr>').join('');
-            const comparacion = filasComparacion.map(f=>'<tr><td class="texto">'+esc(f.ref)+'</td><td class="texto">'+esc(f.nombre)+'</td><td>'+esc(f.talla)+'</td><td class="num">'+f.stock+'</td><td class="num">'+f.contado+'</td><td class="num">'+f.diferencia+'</td><td class="texto">'+esc(f.estado)+'</td></tr>').join('');
-            const html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>body{font-family:Arial;color:#25324a}table{border-collapse:collapse;margin-bottom:28px}h1{color:#c2410c}h2{color:#6b21a8}th{background:#c2410c;color:white;border:1px solid #fed7aa;padding:8px;font-weight:bold}td{border:1px solid #eadfd6;padding:7px}.num{text-align:center;mso-number-format:"0"}.texto{mso-number-format:"\\@"}.total{background:#fff7ed;font-weight:bold;text-align:center}.comparacion th{background:#6b21a8}</style></head><body><h1>Inventario de mudanza — SuperKids &amp; Babys</h1><p>Generado el '+esc(new Date().toLocaleString('es-CO'))+' · Conteo independiente del stock oficial</p><table><tr><th>Referencia</th><th>Prenda</th>'+encabezadoTallas+'<th>Total</th></tr>'+cuerpo+'</table><h2>Diferencias frente al stock oficial</h2><table class="comparacion"><tr><th>Referencia</th><th>Prenda</th><th>Talla</th><th>Stock oficial</th><th>Conteo mudanza</th><th>Diferencia</th><th>Resultado</th></tr>'+comparacion+'</table></body></html>';
+            const comparacion = filasComparacion.map(f=>'<tr><td class="texto">'+esc(categoriasCruceMudanza[f.categoria])+'</td><td class="texto">'+esc(f.ref)+'</td><td class="texto">'+esc(f.nombre)+'</td><td>'+esc(f.talla)+'</td><td class="num">'+(f.stock == null ? '—' : f.stock)+'</td><td class="num">'+f.contado+'</td><td class="num">'+(f.diferencia == null ? '—' : f.diferencia)+'</td><td class="texto">'+esc(f.estado)+'</td></tr>').join('');
+            const html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>body{font-family:Arial;color:#25324a}table{border-collapse:collapse;margin-bottom:28px}h1{color:#c2410c}h2{color:#6b21a8}th{background:#c2410c;color:white;border:1px solid #fed7aa;padding:8px;font-weight:bold}td{border:1px solid #eadfd6;padding:7px}.num{text-align:center;mso-number-format:"0"}.texto{mso-number-format:"\\@"}.total{background:#fff7ed;font-weight:bold;text-align:center}.comparacion th{background:#6b21a8}</style></head><body><h1>Inventario de mudanza — SuperKids &amp; Babys</h1><p>Generado el '+esc(new Date().toLocaleString('es-CO'))+' · Conteo independiente del stock oficial</p><table><tr><th>Referencia</th><th>Prenda</th>'+encabezadoTallas+'<th>Total</th></tr>'+cuerpo+'</table><h2>Diferencias frente al stock oficial</h2><p>'+esc(estadoCruce)+'</p><table class="comparacion"><tr><th>Categoría</th><th>Referencia</th><th>Prenda</th><th>Talla</th><th>Stock oficial</th><th>Conteo mudanza</th><th>Diferencia</th><th>Resultado</th></tr>'+comparacion+'</table></body></html>';
             const blob = new Blob(['\ufeff',html],{type:'application/vnd.ms-excel;charset=utf-8'}), a=document.createElement('a');
             a.href=URL.createObjectURL(blob); a.download='Inventario_Mudanza_'+new Date().toISOString().slice(0,10)+'.xls'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
         };
