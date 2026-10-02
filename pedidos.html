@@ -2815,7 +2815,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             let catalogoCompletoCargado = false;
             try {
                 const snapProductos = await getDocs(collection(db, 'productos'));
-                const productosCompletos = snapProductos.docs.map(d => Object.assign({ id: d.id }, d.data()));
+                const productosCompletos = snapProductos.docs.map(d => { const datos=d.data(); return Object.assign({},datos,{id:datos.id||d.id,_firebaseId:d.id}); });
                 if (productosCompletos.length >= 100) {
                     // Firebase ya es la lista vigente. No aplicar aquí la
                     // papelera local: puede contener IDs antiguos y ocultar
@@ -5099,23 +5099,26 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             item = item || {};
             const ids = [item.id_prod, item.id].filter(Boolean).map(String);
             const codigo = String(item.cod ?? item.codigo ?? '').trim();
-            let existente = productosDB.find(p =>
+            const candidatosLocales = productosDB.filter(p =>
                 ids.includes(String(p.id)) || ids.includes(String(p._firebaseId || '')) ||
                 (codigo && String(p.codigo || '').trim() === codigo)
             );
+            let existente = candidatosLocales.find(p => p._firebaseId && String(p._firebaseId) !== String(p.id)) || candidatosLocales[0];
             if (existente && !forzarFirebase) return existente;
             const { doc, getDoc, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
             let documento = null;
-            for (const id of ids) {
+            const idsDocumentos = Array.from(new Set([existente && existente._firebaseId].concat(ids).filter(Boolean).map(String)));
+            for (const id of idsDocumentos) {
                 const snap = await getDoc(doc(db, 'productos', id));
                 if (snap.exists()) { documento = snap; break; }
             }
-            if (!documento && codigo) {
+            if (codigo && (!documento || String(documento.data().codigo || '') !== codigo)) {
+                documento = null;
                 const snapCodigo = await getDocs(query(collection(db, 'productos'), where('codigo', '==', codigo)));
-                if (!snapCodigo.empty) documento = snapCodigo.docs[0];
+                if (!snapCodigo.empty) documento = snapCodigo.docs.find(d => String(d.id) !== String(d.data().id || '')) || snapCodigo.docs[0];
                 if (!documento && /^\d+$/.test(codigo)) {
                     const snapCodigoNumero = await getDocs(query(collection(db, 'productos'), where('codigo', '==', Number(codigo))));
-                    if (!snapCodigoNumero.empty) documento = snapCodigoNumero.docs[0];
+                    if (!snapCodigoNumero.empty) documento = snapCodigoNumero.docs.find(d => String(d.id) !== String(d.data().id || '')) || snapCodigoNumero.docs[0];
                 }
             }
             if (!documento) return null;
@@ -6332,7 +6335,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             try {
                 const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const snap = await getDocs(collection(db, 'productos'));
-                const completos = snap.docs.map(d => Object.assign({id:d.id}, d.data()));
+                const completos = snap.docs.map(d => { const datos=d.data(); return Object.assign({},datos,{id:datos.id||d.id,_firebaseId:d.id}); });
                 if (completos.length) { productosDB = completos; window.productosDB = completos; }
                 document.getElementById('conteo-rapido-resultado').textContent = 'Escanea una referencia o escríbela para encontrar la prenda.';
                 caja.focus();
@@ -6593,7 +6596,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             try {
                 const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const snap = await getDocs(collection(db, 'productos'));
-                const productos = snap.docs.map(function(d) { return Object.assign({ id:d.id }, d.data()); });
+                const productos = snap.docs.map(function(d) { const datos=d.data(); return Object.assign({},datos,{id:datos.id||d.id,_firebaseId:d.id}); });
                 if (!productos.length) return alert('No hay productos para exportar.');
                 const tallas = _ordenarTallas(Array.from(new Set(productos.flatMap(function(p) {
                     return (p.tallasObj || []).map(function(t) { return t.nombre; });
@@ -6635,7 +6638,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const snapStock = await getDocs(collection(db, 'productos'));
                 const productosParaReporte = snapStock.docs.map(function(d) {
-                    return Object.assign({ id: d.id }, d.data());
+                    const datos=d.data(); return Object.assign({},datos,{id:datos.id||d.id,_firebaseId:d.id});
                 });
                 if (productosParaReporte.length) {
                     productosDB = productosParaReporte;
@@ -7185,16 +7188,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             // confirmado primero el producto y la talla reales en Firebase.
             // Una copia local incompleta podía eliminar el ítem sin devolver stock.
             if (!ped.stockDevuelto) {
-                let tallaLocal = prod && Array.isArray(prod.tallasObj)
+                try { prod = await cargarProductoCompletoParaStock(item, true); }
+                catch(error) { console.log('No se pudo confirmar la prenda en Firebase:', error); }
+                const tallaLocal = prod && Array.isArray(prod.tallasObj)
                     ? prod.tallasObj.find(t => normalizarTallaValor(t.nombre) === normalizarTallaValor(item.talla))
                     : null;
-                if (!prod || !tallaLocal) {
-                    try { prod = await cargarProductoCompletoParaStock(item, true); }
-                    catch(error) { console.log('No se pudo confirmar la prenda en Firebase:', error); }
-                    tallaLocal = prod && Array.isArray(prod.tallasObj)
-                        ? prod.tallasObj.find(t => normalizarTallaValor(t.nombre) === normalizarTallaValor(item.talla))
-                        : null;
-                }
                 if (!prod || !tallaLocal) {
                     alert('No se quitó la prenda. No fue posible confirmar en Firebase la referencia '+String(item.cod || 'S/N')+' talla '+String(item.talla || '')+' para devolverla al stock.');
                     return;
@@ -11414,7 +11412,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             consultaStockMudanzaEnCurso = (async function() {
                 try {
                     const snap = await getDocs(collection(db, 'productos'));
-                    const completos = snap.docs.map(d => Object.assign({ id:d.id }, d.data()));
+                    const completos = snap.docs.map(d => { const datos=d.data(); return Object.assign({},datos,{id:datos.id||d.id,_firebaseId:d.id}); });
                     if (completos.length) {
                         productosDB = completos;
                         window.productosDB = completos;
@@ -12432,11 +12430,11 @@ document.addEventListener('DOMContentLoaded', function() {
       const {doc,runTransaction}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
       const idProducto=String(producto._firebaseId||producto.id),claveEvento=String(evento.id||evento.fecha||evento.timestamp||'')+'|'+pedido+'|'+prenda.referencia+'|'+prenda.talla+'|'+cantidad;
       const idReparacion=idSeguroReparacion(claveEvento),refProducto=doc(db,'productos',idProducto);
-      let reparacionesLocales=[];try{reparacionesLocales=JSON.parse(localStorage.getItem('reparacionesStockHistorial')||'[]')}catch(_){}
+      let reparacionesLocales=[];try{reparacionesLocales=JSON.parse(localStorage.getItem('reparacionesStockHistorialV2')||'[]')}catch(_){}
       if(reparacionesLocales.includes(idReparacion))throw new Error('YA_RESTAURADO');
       try{
         const historial=await api('/auditoria');
-        const yaRegistrada=(historial.eventos||[]).some(e=>e.accion==='restaurar_stock_desde_historial'&&e.detalle&&String(e.detalle.reparacion||'')===idReparacion);
+        const yaRegistrada=(historial.eventos||[]).some(e=>e.accion==='restaurar_stock_desde_historial'&&e.detalle&&e.detalle.version==='documento_canonico_v2'&&String(e.detalle.reparacion||'')===idReparacion);
         if(yaRegistrada)throw new Error('YA_RESTAURADO');
       }catch(error){if(String(error&&error.message)==='YA_RESTAURADO')throw error;console.warn('No se pudo verificar la auditoría antes de restaurar:',error.message)}
       const actualizado=await runTransaction(db,async function(tx){
@@ -12451,8 +12449,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return Object.assign({},datos,cambios,{id:producto.id,_firebaseId:idProducto});
       });
       Object.assign(producto,actualizado);localStorage.setItem('productosV36',JSON.stringify(productosDB));
-      await window.registrarActividadEquipo('restaurar_stock_desde_historial','pedido',pedido,{referencia:prenda.referencia,talla:prenda.talla,cantidad:cantidad,eventoOriginal:evento.fecha||evento.timestamp||'',reparacion:idReparacion},'exitoso');
-      reparacionesLocales.push(idReparacion);localStorage.setItem('reparacionesStockHistorial',JSON.stringify(reparacionesLocales.slice(-500)));
+      await window.registrarActividadEquipo('restaurar_stock_desde_historial','pedido',pedido,{referencia:prenda.referencia,talla:prenda.talla,cantidad:cantidad,eventoOriginal:evento.fecha||evento.timestamp||'',reparacion:idReparacion,version:'documento_canonico_v2'},'exitoso');
+      reparacionesLocales.push(idReparacion);localStorage.setItem('reparacionesStockHistorialV2',JSON.stringify(reparacionesLocales.slice(-500)));
       if(window.sincronizarCatalogoPublico)await window.sincronizarCatalogoPublico();
       if(boton){boton.textContent='✅ Stock restaurado';boton.style.background='#166534'}
       alert('Listo: se restauraron '+cantidad+' unidad(es) de la REF '+prenda.referencia+', talla '+prenda.talla+'.');
