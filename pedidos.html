@@ -12429,30 +12429,35 @@ document.addEventListener('DOMContentLoaded', function() {
     try{
       const producto=await cargarProductoCompletoParaStock({id_prod:prenda.productoId,cod:prenda.referencia},true);
       if(!producto)throw new Error('No se encontró la referencia '+prenda.referencia+' en Firebase');
-      const {doc,runTransaction}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-      const idProducto=String(producto._firebaseId||producto.id),claveEvento=String(evento.id||evento.fecha||evento.timestamp||'')+'|'+pedido+'|'+prenda.referencia+'|'+prenda.talla+'|'+cantidad;
-      const idReparacion=idSeguroReparacion(claveEvento),refProducto=doc(db,'productos',idProducto);
-      let reparacionesLocales=[];try{reparacionesLocales=JSON.parse(localStorage.getItem('reparacionesStockHistorialV2')||'[]')}catch(_){}
+      const firestore=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const {doc,runTransaction,collection,getDocs,query,where,getDoc}=firestore;
+      const claveEvento=String(evento.id||evento.fecha||evento.timestamp||'')+'|'+pedido+'|'+prenda.referencia+'|'+prenda.talla+'|'+cantidad+'|documentos_sincronizados_v3';
+      const idReparacion=idSeguroReparacion(claveEvento);
+      let reparacionesLocales=[];try{reparacionesLocales=JSON.parse(localStorage.getItem('reparacionesStockHistorialV3')||'[]')}catch(_){}
       if(reparacionesLocales.includes(idReparacion))throw new Error('YA_RESTAURADO');
       try{
         const historial=await api('/auditoria');
-        const yaRegistrada=(historial.eventos||[]).some(e=>e.accion==='restaurar_stock_desde_historial'&&e.detalle&&e.detalle.version==='documento_canonico_v2'&&String(e.detalle.reparacion||'')===idReparacion);
+        const yaRegistrada=(historial.eventos||[]).some(e=>e.accion==='restaurar_stock_desde_historial'&&e.detalle&&e.detalle.version==='documentos_sincronizados_v3'&&String(e.detalle.reparacion||'')===idReparacion);
         if(yaRegistrada)throw new Error('YA_RESTAURADO');
       }catch(error){if(String(error&&error.message)==='YA_RESTAURADO')throw error;console.warn('No se pudo verificar la auditoría antes de restaurar:',error.message)}
-      const actualizado=await runTransaction(db,async function(tx){
-        const snapProd=await tx.get(refProducto);
-        if(!snapProd.exists())throw new Error('La referencia ya no existe en Firebase');
-        const datos=snapProd.data(),tallas=Array.isArray(datos.tallasObj)?datos.tallasObj.map(t=>Object.assign({},t)):[];
-        const talla=tallas.find(t=>normalizarTallaValor(t.nombre)===normalizarTallaValor(prenda.talla));
-        if(!talla)throw new Error('No se encontró la talla '+prenda.talla+' en la referencia '+prenda.referencia);
-        talla.stock=(parseInt(talla.stock,10)||0)+cantidad;
-        const cambios={tallasObj:tallas,stockTotal:tallas.reduce((s,t)=>s+(parseInt(t.stock,10)||0),0),actualizadoEn:new Date().toISOString()};
-        tx.update(refProducto,cambios);
-        return Object.assign({},datos,cambios,{id:producto.id,_firebaseId:idProducto});
+      const coincidencias=new Map(),agregar=function(snap){if(snap&&snap.exists())coincidencias.set(snap.id,snap)};
+      for(const id of [producto._firebaseId,producto.id,prenda.productoId].filter(Boolean).map(String)){try{agregar(await getDoc(doc(db,'productos',id)))}catch(_){}}
+      for(const valor of [String(prenda.referencia),Number(prenda.referencia)].filter((v,i,a)=>String(v)!=='NaN'&&a.findIndex(x=>String(x)===String(v))===i)){
+        try{(await getDocs(query(collection(db,'productos'),where('codigo','==',valor)))).forEach(agregar)}catch(_){}
+      }
+      const documentos=[...coincidencias.values()].filter(s=>{const d=s.data()||{};return String(d.codigo||d.ref||'').trim()===String(prenda.referencia).trim()||String(d.id||'')===String(prenda.productoId||'')||String(s.id)===String(prenda.productoId||'')});
+      if(!documentos.length)throw new Error('No se encontró el documento real de la referencia '+prenda.referencia);
+      const actualizados=await runTransaction(db,async function(tx){
+        const leidos=[];for(const s of documentos){const ref=doc(db,'productos',s.id),snap=await tx.get(ref);if(snap.exists())leidos.push({ref:ref,id:s.id,datos:snap.data()})}
+        if(!leidos.length)throw new Error('La referencia ya no existe en Firebase');
+        const resultado=[];
+        for(const item of leidos){const tallas=Array.isArray(item.datos.tallasObj)?item.datos.tallasObj.map(t=>Object.assign({},t)):[];let talla=tallas.find(t=>normalizarTallaValor(t.nombre)===normalizarTallaValor(prenda.talla));if(!talla){talla={nombre:prenda.talla,stock:0};tallas.push(talla)}const anterior=parseInt(talla.stock,10)||0;talla.stock=anterior+cantidad;const cambios={tallasObj:tallas,stockTotal:tallas.reduce((s,t)=>s+(parseInt(t.stock,10)||0),0),actualizadoEn:new Date().toISOString()};tx.update(item.ref,cambios);resultado.push({id:item.id,anterior:anterior,nuevo:talla.stock,cambios:cambios})}
+        return resultado;
       });
-      Object.assign(producto,actualizado);localStorage.setItem('productosV36',JSON.stringify(productosDB));
-      await window.registrarActividadEquipo('restaurar_stock_desde_historial','pedido',pedido,{referencia:prenda.referencia,talla:prenda.talla,cantidad:cantidad,eventoOriginal:evento.fecha||evento.timestamp||'',reparacion:idReparacion,version:'documento_canonico_v2'},'exitoso');
-      reparacionesLocales.push(idReparacion);localStorage.setItem('reparacionesStockHistorialV2',JSON.stringify(reparacionesLocales.slice(-500)));
+      for(const cambio of actualizados){const confirmado=await getDoc(doc(db,'productos',cambio.id)),tallaConfirmada=confirmado.exists()&&(confirmado.data().tallasObj||[]).find(t=>normalizarTallaValor(t.nombre)===normalizarTallaValor(prenda.talla));if(!tallaConfirmada||Number(tallaConfirmada.stock)!==Number(cambio.nuevo))throw new Error('Firebase no confirmó la talla '+prenda.talla+' en el documento '+cambio.id);(productosDB||[]).filter(p=>String(p._firebaseId||'')===String(cambio.id)||String(p.id||'')===String(confirmado.data().id||'')).forEach(p=>Object.assign(p,confirmado.data(),{_firebaseId:cambio.id}))}
+      localStorage.setItem('productosV36',JSON.stringify(productosDB));
+      await window.registrarActividadEquipo('restaurar_stock_desde_historial','pedido',pedido,{referencia:prenda.referencia,talla:prenda.talla,cantidad:cantidad,eventoOriginal:evento.fecha||evento.timestamp||'',reparacion:idReparacion,version:'documentos_sincronizados_v3',documentos:actualizados.map(x=>({id:x.id,anterior:x.anterior,nuevo:x.nuevo}))},'exitoso');
+      reparacionesLocales.push(idReparacion);localStorage.setItem('reparacionesStockHistorialV3',JSON.stringify(reparacionesLocales.slice(-500)));
       if(window.sincronizarCatalogoPublico)await window.sincronizarCatalogoPublico();
       if(boton){boton.textContent='✅ Stock restaurado';boton.style.background='#166534'}
       alert('Listo: se restauraron '+cantidad+' unidad(es) de la REF '+prenda.referencia+', talla '+prenda.talla+'.');
