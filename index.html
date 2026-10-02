@@ -4793,7 +4793,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             const panelWompiSandbox = document.getElementById('wompi-sandbox-panel');
             if (panelWompiSandbox) panelWompiSandbox.style.display = 'block';
             cargarClienteLocalNavegador();
-            cargarClientesGestion();
+            cargarClientesCheckoutLocal();
             setTimeout(prepararTurnstilePedido, 0);
         }
 
@@ -5293,6 +5293,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         const CLIENTE_LOCAL_KEY = 'sceClienteCheckoutLocalV1';
+        const CLIENTES_CHECKOUT_LOCAL_KEY = 'sceClientesCheckoutEquipoV2';
+        window.clientesCheckoutLocalCache = window.clientesCheckoutLocalCache || [];
         window.clientesGestionCache = window.clientesGestionCache || [];
 
         function normalizarTextoCliente(valor) {
@@ -5461,12 +5463,42 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         function guardarClienteLocalNavegador(cliente) {
             if (!cliente || (!cliente.nom && !cliente.tel && !cliente.cc)) return;
-            try { localStorage.setItem(CLIENTE_LOCAL_KEY, JSON.stringify(cliente)); } catch(e) {}
+            try {
+                localStorage.setItem(CLIENTE_LOCAL_KEY, JSON.stringify(cliente));
+                let historial = JSON.parse(localStorage.getItem(CLIENTES_CHECKOUT_LOCAL_KEY) || '[]');
+                if (!Array.isArray(historial)) historial = [];
+                const limpio = clienteParaFirestore(cliente);
+                if (!limpio.nombre || (!limpio.cc && !limpio.tel)) return;
+                const clave = soloDigitosCliente(limpio.cc) || soloDigitosCliente(limpio.tel) || normalizarTextoCliente(limpio.nombre);
+                historial = historial.filter(function(c) {
+                    const otra = soloDigitosCliente(c.cc) || soloDigitosCliente(c.tel || c.telefono) || normalizarTextoCliente(c.nombre || c.nom);
+                    return !clave || otra !== clave;
+                });
+                historial.unshift(limpio);
+                historial = historial.slice(0, 300);
+                localStorage.setItem(CLIENTES_CHECKOUT_LOCAL_KEY, JSON.stringify(historial));
+                window.clientesCheckoutLocalCache = historial;
+                actualizarDatalistClientesGestion();
+            } catch(e) {}
         }
 
         function cargarClienteLocalNavegador() {
             if (Date.now() < (window._bloquearAutorrellenoCheckoutHasta || 0)) return;
             try { llenarDatosClienteFormulario(JSON.parse(localStorage.getItem(CLIENTE_LOCAL_KEY) || 'null'), true); } catch(e) {}
+        }
+
+        function cargarClientesCheckoutLocal() {
+            if (!window.usuarioActual) return;
+            try {
+                let historial = JSON.parse(localStorage.getItem(CLIENTES_CHECKOUT_LOCAL_KEY) || '[]');
+                if (!Array.isArray(historial)) historial = [];
+                const ultimo = JSON.parse(localStorage.getItem(CLIENTE_LOCAL_KEY) || 'null');
+                if (ultimo && !historial.length) historial.push(clienteParaFirestore(ultimo));
+                window.clientesCheckoutLocalCache = historial.slice(0, 300);
+                actualizarDatalistClientesGestion();
+            } catch(e) {
+                window.clientesCheckoutLocalCache = [];
+            }
         }
 
         function limpiarFormularioCheckoutDespuesDeEnviar() {
@@ -5541,8 +5573,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             }
             lista.innerHTML = '';
             if (!window.usuarioActual) return;
-            (window.clientesGestionCache || []).slice(0, 300).forEach(function(c) {
-                const texto = [c.nombre || c.nom, c.cc ? 'CC ' + c.cc : '', c.tel || c.telefono].filter(Boolean).join(' - ');
+            (window.clientesCheckoutLocalCache || []).slice(0, 300).forEach(function(c) {
+                const texto = [c.nombre || c.nom, c.cc || '', c.tel || c.telefono].filter(Boolean).join(' - ');
                 if (!texto) return;
                 const opt = document.createElement('option');
                 opt.value = texto;
@@ -5555,7 +5587,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             const raw = String(valor || '').trim();
             const dig = soloDigitosCliente(raw);
             const txt = normalizarTextoCliente(raw);
-            return (window.clientesGestionCache || []).find(function(c) {
+            return (window.clientesCheckoutLocalCache || []).find(function(c) {
                 const cc = soloDigitosCliente(c.cc);
                 const tel = soloDigitosCliente(c.tel || c.telefono);
                 const nom = normalizarTextoCliente(c.nombre || c.nom);
@@ -5584,8 +5616,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             });
             inicializarRecomendadorEnvioPrueba();
             cargarClienteLocalNavegador();
-            cargarClientesGestion();
-            setTimeout(cargarClientesGestion, 1500);
+            cargarClientesCheckoutLocal();
         }
 
         async function guardarClientesGestionDesdePedidos(pedidos) {
