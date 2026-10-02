@@ -3708,10 +3708,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 // Los registros incompletos sin genero no deben aparecer repetidos en todos los catalogos.
                 let pasaGeneroCat = (p.genero === generoActual || p.genero === 'Unisex') && productoCoincideCategoria(p, filtroActual) && (!soloPromociones || esPromo) && (!soloNuevaColeccion || esNuevaColeccion);
                 if (!pasaGeneroCat) return false;
-                // En la tienda pública se ocultan los agotados. En modo edición
-                // Yohana debe poder verlos para recuperar tallas/cantidades o
-                // corregir referencias que quedaron en cero (por ejemplo cobijas).
-                if (!productoDisponibleEnCatalogo(p) && !modoEdicion) return false;
+                // El catálogo normal nunca muestra prendas totalmente agotadas,
+                // incluso durante la edición. Siguen guardadas y el buscador por
+                // referencia las muestra para poder consultarlas o editarlas.
+                if (!productoDisponibleEnCatalogo(p)) return false;
                 if (tallaFiltroActual === 'Todas') return true;
                 if (p.tallasObj) return p.tallasObj.some(t => t.nombre.toString().trim().toUpperCase() === tallaFiltroActual.toUpperCase() && t.stock > 0);
                 return false;
