@@ -7815,7 +7815,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             let resumenRecaudo = '';
             if (esInterPedido(ped) && ped.tipoVenta === 'Recaudo') {
                 const copia=Object.assign({},ped);recalcularTotalPedidoConEnvio(copia);const contado=esPagoCasaContado(copia);
-                resumenRecaudo='<div class="recaudo-envio"><div class="modalidad-recaudo">'+(contado?'PAGO EN CASA CONTADO':'PAGO EN CASA CONTRAENTREGA')+'</div><div class="valor-prendas-recaudo">VALOR DE LAS PRENDAS: '+formatMoney(copia.subtotalPrendas)+'</div></div>';
+                resumenRecaudo='<div class="recaudo-envio"><div class="modalidad-recaudo">'+(contado?'PAGO EN CASA CONTADO':'PAGO EN CASA CONTRAENTREGA')+'</div><div class="valor-prendas-recaudo">TOTAL VALOR DE LAS PRENDAS: '+formatMoney(copia.subtotalPrendas)+'</div></div>';
             }
             const seguro = function(valor, vacio) { return escapeHtml(String(valor == null || valor === '' ? (vacio || '—') : valor)); };
             const numero = seguro(ped.numOrden || ('SK' + ped.num));
@@ -7828,7 +7828,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
               *{box-sizing:border-box}
               body{margin:0;background:#eceff3;font-family:Arial,Helvetica,sans-serif;color:#111;padding:18px}
               .etiqueta{width:100%;max-width:7.8in;height:2.75in;margin:0 auto;background:white;border:3px solid #111;border-radius:10px;padding:10px 15px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
-              .etiqueta.con-recaudo{height:3.25in}
+              .etiqueta.con-recaudo{height:3.55in}
               .cabecera{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:5px}
               .marca{font-size:16px;font-weight:900}.pedido{font-size:18px;font-weight:900;text-align:right}.transportadora{font-size:11px;font-weight:800;text-align:right;margin-top:1px}
               .seccion-titulo{font-size:10px;font-weight:900;letter-spacing:.7px;margin:5px 0 1px;color:#444}
@@ -7842,7 +7842,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
               .nota{font-size:8px;text-align:center;color:#555;margin-top:2px}
               .recaudo-envio{margin-top:5px;border:2px solid #111;border-radius:7px;padding:6px 9px;break-inside:avoid;font-weight:900}.modalidad-recaudo{font-size:14px;font-weight:900}.valor-prendas-recaudo{border-top:1px solid #111;margin-top:4px;padding-top:4px;font-size:14px;font-weight:900}
               .acciones{text-align:center;margin-top:14px}.acciones button{border:0;border-radius:9px;padding:11px 24px;background:#168653;color:white;font-size:16px;font-weight:900;cursor:pointer}
-              @media print{body{background:white;padding:0}.acciones{display:none}.etiqueta{margin:0;width:100%;height:2.75in;max-width:none;border-radius:0}.etiqueta.con-recaudo{height:3.25in}.nota{display:none}}
+              @media print{body{background:white;padding:0}.acciones{display:none}.etiqueta{margin:0;width:100%;height:2.75in;max-width:none;border-radius:0}.etiqueta.con-recaudo{height:3.55in}.nota{display:none}}
             </style></head><body>
               <section class="etiqueta${resumenRecaudo ? ' con-recaudo' : ''}">
                 <div>
