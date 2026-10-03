@@ -1803,19 +1803,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             <div style="height:1px; background:#f0f0f0; margin:16px 0;"></div>
             <div style="padding:0 20px 24px;">
                 <p style="font-weight:800; color:#333; font-size:0.85em; margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px;">📋 Tus datos de envío</p>
-                <input type="text" id="cart-nombre" placeholder="👤 Nombre completo" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
-                <input type="number" id="cart-cc" placeholder="🪪 Número de cédula" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
-                <input type="text" id="cart-direccion" placeholder="📍 Dirección de envío" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
-                <input type="text" id="cart-barrio" placeholder="🏘️ Barrio / Sector" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
-                <input type="text" id="cart-departamento" placeholder="🗺️ Departamento" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
-                <input type="text" id="cart-ciudad" placeholder="🏙️ Ciudad" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
+                <input type="text" id="cart-nombre" name="name" autocomplete="name" placeholder="👤 Nombre completo" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
+                <input type="text" inputmode="numeric" id="cart-cc" name="documento_cliente" autocomplete="on" placeholder="🪪 Número de cédula" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
+                <input type="text" id="cart-direccion" name="street-address" autocomplete="street-address" placeholder="📍 Dirección de envío" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
+                <input type="text" id="cart-barrio" name="address-line2" autocomplete="address-line2" placeholder="🏘️ Barrio / Sector" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
+                <input type="text" id="cart-departamento" name="address-level1" autocomplete="address-level1" placeholder="🗺️ Departamento" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
+                <input type="text" id="cart-ciudad" name="address-level2" autocomplete="address-level2" placeholder="🏙️ Ciudad" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <div id="recomendacion-envio-prueba" style="display:none; margin:-1px 0 10px; padding:12px 14px; border:1px dashed #8b5cf6; border-radius:12px; background:#f7f3ff; color:#4c1d95; text-align:left; line-height:1.35;">
                     <div style="font-weight:900; margin-bottom:4px;">🧪 Recomendación de envío (prueba)</div>
                     <div id="recomendacion-envio-contenido"></div>
                     <div style="font-size:.78em; color:#6b7280; margin-top:5px;">La tarifa se suma al pago de Wompi. El inventario se actualiza al confirmarse el pago.</div>
                 </div>
-                <input type="tel" id="cart-telefono" placeholder="📱 WhatsApp / Teléfono" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
-                <input type="email" id="cart-correo" placeholder="✉️ Correo electrónico" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
+                <input type="tel" id="cart-telefono" name="tel" autocomplete="tel" placeholder="📱 WhatsApp / Teléfono" required="" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
+                <input type="email" id="cart-correo" name="email" autocomplete="email" placeholder="✉️ Correo electrónico" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <select id="cart-asesora" aria-label="Asesora que atendió al cliente" style="width:100%;padding:13px 16px;border:2px solid rgb(240,214,245);border-radius:12px;font-size:.95em;margin-bottom:10px;outline:none;box-sizing:border-box;background:white;color:#555;font-family:inherit;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                     <option value="Sin asesora">👩‍💼 ¿Qué asesora te atendió?</option>
                     <option value="Yohana">Yohana</option><option value="Gina">Gina</option><option value="Bibiana">Bibiana</option><option value="Ángela">Ángela</option>
@@ -2646,7 +2646,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             // Aplicar diseño con colores de Firebase ya cargados
             aplicarDiseno();
             renderizarPedidosPanel();
-            inicializarAutorrellenoClientes();
 
             // Solo usamos el catálogo embebido como respaldo si Firebase no
             // responde. En condiciones normales, esperamos las URLs actuales
@@ -4792,8 +4791,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             document.body.style.overflow = 'hidden';
             const panelWompiSandbox = document.getElementById('wompi-sandbox-panel');
             if (panelWompiSandbox) panelWompiSandbox.style.display = 'block';
-            cargarClienteLocalNavegador();
-            cargarClientesCheckoutLocal();
             setTimeout(prepararTurnstilePedido, 0);
         }
 
@@ -4965,8 +4962,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                         pedidoPendiente.pagoVerificadoEn = new Date().toISOString();
 
                         if (verificacion.status === 'APPROVED') {
-                            guardarClienteLocalNavegador(pedidoPendiente);
-                            guardarClienteGestion(pedidoPendiente);
                             cerrarModalCheckout();
                             carrito = [];
                             renderCarrito();
@@ -5033,8 +5028,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     }
                     // Reemplazar completamente con los de Firebase (fuente de verdad)
                     historialPedidos = pedidosFirebaseUnicos;
-                    importarClientesCheckoutDePedidosPropios(historialPedidos);
-                    guardarClientesGestionDesdePedidos(historialPedidos);
                     corregirPedidosConsecutivoCorrupto(historialPedidos);
                     // Ordenar por número descendente
                     historialPedidos.sort(compararPedidosRecientes);
@@ -5797,7 +5790,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
                 const objetoOrdenSeguro = datos.pedido;
                 const numeroSeguro = Number(objetoOrdenSeguro.num);
-                guardarClienteLocalNavegador(objetoOrdenSeguro);
                 if (!historialPedidos.some(function(p) {
                     return Number(p.num) === numeroSeguro;
                 })) {
@@ -5915,8 +5907,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     asesora: asesoraVal
                 };
 
-                guardarClienteLocalNavegador(objetoOrden);
-                guardarClienteGestion(objetoOrden);
                 historialPedidos.unshift(objetoOrden);
                 renderizarPedidosPanel();
                 cerrarModalCheckout();
