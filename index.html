@@ -5033,6 +5033,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     }
                     // Reemplazar completamente con los de Firebase (fuente de verdad)
                     historialPedidos = pedidosFirebaseUnicos;
+                    importarClientesCheckoutDePedidosPropios(historialPedidos);
                     guardarClientesGestionDesdePedidos(historialPedidos);
                     corregirPedidosConsecutivoCorrupto(historialPedidos);
                     // Ordenar por número descendente
@@ -5305,6 +5306,35 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             return String(valor || '').replace(/\D/g, '');
         }
 
+        function claveClientesCheckoutAsesora() {
+            const uid = window.usuarioActual && window.usuarioActual.uid;
+            return CLIENTES_CHECKOUT_LOCAL_KEY + ':' + (uid || 'sin-sesion');
+        }
+
+        function leerHistorialCheckoutAsesora() {
+            let historial = [];
+            try {
+                historial = JSON.parse(localStorage.getItem(claveClientesCheckoutAsesora()) || '[]');
+                if (!Array.isArray(historial)) historial = [];
+                // Conserva los clientes que ya se habían guardado antes de separar
+                // el autocompletado por asesora. La migración ocurre una sola vez.
+                if (!historial.length && window.usuarioActual) {
+                    const anterior = JSON.parse(localStorage.getItem(CLIENTES_CHECKOUT_LOCAL_KEY) || '[]');
+                    if (Array.isArray(anterior) && anterior.length) {
+                        historial = anterior.slice(0, 300);
+                        localStorage.setItem(claveClientesCheckoutAsesora(), JSON.stringify(historial));
+                    }
+                }
+            } catch(e) { historial = []; }
+            return historial;
+        }
+
+        function guardarHistorialCheckoutAsesora(historial) {
+            const limpio = Array.isArray(historial) ? historial.slice(0, 300) : [];
+            localStorage.setItem(claveClientesCheckoutAsesora(), JSON.stringify(limpio));
+            window.clientesCheckoutLocalCache = limpio;
+        }
+
         function leerDatosClienteFormulario() {
             const val = id => ((document.getElementById(id) || {}).value || '').trim();
             return {
@@ -5465,8 +5495,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             if (!cliente || (!cliente.nom && !cliente.tel && !cliente.cc)) return;
             try {
                 localStorage.setItem(CLIENTE_LOCAL_KEY, JSON.stringify(cliente));
-                let historial = JSON.parse(localStorage.getItem(CLIENTES_CHECKOUT_LOCAL_KEY) || '[]');
-                if (!Array.isArray(historial)) historial = [];
+                let historial = leerHistorialCheckoutAsesora();
                 const limpio = clienteParaFirestore(cliente);
                 if (!limpio.nombre || (!limpio.cc && !limpio.tel)) return;
                 const clave = soloDigitosCliente(limpio.cc) || soloDigitosCliente(limpio.tel) || normalizarTextoCliente(limpio.nombre);
@@ -5476,8 +5505,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 });
                 historial.unshift(limpio);
                 historial = historial.slice(0, 300);
-                localStorage.setItem(CLIENTES_CHECKOUT_LOCAL_KEY, JSON.stringify(historial));
-                window.clientesCheckoutLocalCache = historial;
+                guardarHistorialCheckoutAsesora(historial);
                 actualizarDatalistClientesGestion();
             } catch(e) {}
         }
@@ -5490,14 +5518,37 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         function cargarClientesCheckoutLocal() {
             if (!window.usuarioActual) return;
             try {
-                let historial = JSON.parse(localStorage.getItem(CLIENTES_CHECKOUT_LOCAL_KEY) || '[]');
-                if (!Array.isArray(historial)) historial = [];
+                let historial = leerHistorialCheckoutAsesora();
                 const ultimo = JSON.parse(localStorage.getItem(CLIENTE_LOCAL_KEY) || 'null');
                 if (ultimo && !historial.length) historial.push(clienteParaFirestore(ultimo));
-                window.clientesCheckoutLocalCache = historial.slice(0, 300);
+                guardarHistorialCheckoutAsesora(historial);
                 actualizarDatalistClientesGestion();
             } catch(e) {
                 window.clientesCheckoutLocalCache = [];
+            }
+        }
+
+        function importarClientesCheckoutDePedidosPropios(pedidos) {
+            if (!window.usuarioActual) return;
+            const nombreAsesora = normalizarTextoCliente(window.usuarioActual.nombre || '');
+            if (!nombreAsesora) return;
+            try {
+                let historial = leerHistorialCheckoutAsesora();
+                const claves = new Set(historial.map(function(c) {
+                    return soloDigitosCliente(c.cc) || soloDigitosCliente(c.tel || c.telefono) || normalizarTextoCliente(c.nombre || c.nom);
+                }).filter(Boolean));
+                (pedidos || []).forEach(function(p) {
+                    if (normalizarTextoCliente(p.asesora || '') !== nombreAsesora) return;
+                    const cliente = clienteParaFirestore(p);
+                    const clave = soloDigitosCliente(cliente.cc) || soloDigitosCliente(cliente.tel) || normalizarTextoCliente(cliente.nombre);
+                    if (!cliente.nombre || (!cliente.cc && !cliente.tel) || !clave || claves.has(clave)) return;
+                    claves.add(clave);
+                    historial.push(cliente);
+                });
+                guardarHistorialCheckoutAsesora(historial);
+                actualizarDatalistClientesGestion();
+            } catch(e) {
+                console.log('No se pudieron preparar los clientes propios para autocompletar:', e.message);
             }
         }
 
@@ -5601,11 +5652,22 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             if (cliente) llenarDatosClienteFormulario(cliente, false);
         }
 
+        let temporizadorAutocompletarCliente = null;
+        function intentarAutocompletarClienteMientrasEscribe(ev) {
+            clearTimeout(temporizadorAutocompletarCliente);
+            const campo = ev && ev.target;
+            temporizadorAutocompletarCliente = setTimeout(function() {
+                const valor = campo ? String(campo.value || '').trim() : '';
+                if (valor.length >= 3) intentarAutocompletarClienteGestion({ target: campo });
+            }, 120);
+        }
+
         function inicializarAutorrellenoClientes() {
             ['cart-nombre','cart-cc','cart-telefono'].forEach(function(id) {
                 const el = document.getElementById(id);
                 if (!el) return;
                 el.setAttribute('list', 'clientes-gestion-lista');
+                el.addEventListener('input', intentarAutocompletarClienteMientrasEscribe);
                 el.addEventListener('change', intentarAutocompletarClienteGestion);
                 el.addEventListener('blur', intentarAutocompletarClienteGestion);
             });
