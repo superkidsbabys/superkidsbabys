@@ -5307,8 +5307,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function claveClientesCheckoutAsesora() {
-            const uid = window.usuarioActual && window.usuarioActual.uid;
-            return CLIENTES_CHECKOUT_LOCAL_KEY + ':' + (uid || 'sin-sesion');
+            let asesora = '';
+            try {
+                asesora = window.obtenerAsesoraSeleccionada ? window.obtenerAsesoraSeleccionada() : '';
+            } catch(e) {}
+            if (!asesora || asesora === 'Sin asesora') {
+                asesora = (window.usuarioActual && window.usuarioActual.nombre) || 'equipo-sin-asesora';
+            }
+            return CLIENTES_CHECKOUT_LOCAL_KEY + ':asesora:' + normalizarTextoCliente(asesora).replace(/\s+/g, '_');
         }
 
         function leerHistorialCheckoutAsesora() {
@@ -5318,7 +5324,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (!Array.isArray(historial)) historial = [];
                 // Conserva los clientes que ya se habían guardado antes de separar
                 // el autocompletado por asesora. La migración ocurre una sola vez.
-                if (!historial.length && window.usuarioActual) {
+                if (!historial.length) {
                     const anterior = JSON.parse(localStorage.getItem(CLIENTES_CHECKOUT_LOCAL_KEY) || '[]');
                     if (Array.isArray(anterior) && anterior.length) {
                         historial = anterior.slice(0, 300);
@@ -5516,7 +5522,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function cargarClientesCheckoutLocal() {
-            if (!window.usuarioActual) return;
             try {
                 let historial = leerHistorialCheckoutAsesora();
                 const ultimo = JSON.parse(localStorage.getItem(CLIENTE_LOCAL_KEY) || 'null');
@@ -5623,7 +5628,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 document.body.appendChild(lista);
             }
             lista.innerHTML = '';
-            if (!window.usuarioActual) return;
             (window.clientesCheckoutLocalCache || []).slice(0, 300).forEach(function(c) {
                 const texto = [c.nombre || c.nom, c.cc || '', c.tel || c.telefono].filter(Boolean).join(' - ');
                 if (!texto) return;
@@ -5634,7 +5638,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function buscarClienteGestion(valor) {
-            if (!window.usuarioActual) return null;
             const raw = String(valor || '').trim();
             const dig = soloDigitosCliente(raw);
             const txt = normalizarTextoCliente(raw);
@@ -5663,6 +5666,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function inicializarAutorrellenoClientes() {
+            const selectorAsesora = document.getElementById('cart-asesora');
+            if (selectorAsesora && selectorAsesora.dataset.autocompletarClientesListo !== '1') {
+                selectorAsesora.dataset.autocompletarClientesListo = '1';
+                selectorAsesora.addEventListener('change', function() {
+                    cargarClientesCheckoutLocal();
+                });
+            }
             ['cart-nombre','cart-cc','cart-telefono'].forEach(function(id) {
                 const el = document.getElementById(id);
                 if (!el) return;
