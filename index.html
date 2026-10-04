@@ -3662,7 +3662,22 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function renderizarCatalogo() {
-            const cont = document.getElementById('contenedor-productos'); cont.innerHTML = "";
+            const cont = document.getElementById('contenedor-productos');
+            cont.innerHTML = "";
+
+            // Nunca pintar la copia local mientras no exista una lectura válida
+            // del inventario autoritativo generado desde Firebase. Este bloqueo
+            // central también cubre búsquedas, filtros y cambios de categoría.
+            if (!inventarioAutoritativoDisponible) {
+                cont.style.display = 'none';
+                const volverSinInventario = document.getElementById('btn-volver-collage');
+                if (volverSinInventario) volverSinInventario.style.display = 'none';
+                return;
+            }
+
+            cont.style.removeProperty('display');
+            const avisoInventario = document.getElementById('aviso-inventario-no-disponible');
+            if (avisoInventario) avisoInventario.remove();
 
             // Botón volver al collage — se inserta una sola vez antes del contenedor
             let btnVolver = document.getElementById('btn-volver-collage');
