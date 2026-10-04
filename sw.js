@@ -1,4 +1,4 @@
-const VERSION = 'superkids-compartido-offline-20261004-v42';
+const VERSION = 'superkids-compartido-offline-20261004-v44';
 const CACHE_APP = VERSION + '-app';
 const CACHE_RECURSOS = VERSION + '-recursos';
 const ARCHIVOS_APP = ['./', './index.html', './pedidos.html', './manifest.json', './manifest-admin.json', './pwa.js', './icons/icon-192.png', './icons/icon-512.png'];
@@ -10,7 +10,10 @@ const LIBRERIAS = [
 
 self.addEventListener('install', event => event.waitUntil((async () => {
   const app = await caches.open(CACHE_APP);
-  await Promise.allSettled(ARCHIVOS_APP.map(url => app.add(url)));
+  // La nueva versión solo se activa cuando la portada quedó guardada. Esto
+  // evita reemplazar una caché funcional por otra vacía durante un corte.
+  await app.add(new Request('./index.html', { cache: 'reload' }));
+  await Promise.allSettled(ARCHIVOS_APP.filter(url => url !== './index.html').map(url => app.add(url)));
   const recursos = await caches.open(CACHE_RECURSOS);
   await Promise.allSettled(LIBRERIAS.map(url => recursos.add(url)));
   await self.skipWaiting();
@@ -65,6 +68,9 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (request.mode === 'navigate') return event.respondWith(navegacion(request));
   if (url.hostname === 'www.gstatic.com' && url.pathname.includes('/firebasejs/')) return event.respondWith(cachePrimero(request));
+  // Las fotos del catálogo viven en R2 y ya usan la caché del CDN/navegador.
+  // No interceptarlas evita conservar respuestas externas fallidas.
+  if (request.destination === 'image' && url.origin !== self.location.origin) return;
   if (request.destination === 'image') return event.respondWith(cachePrimero(request));
   if (url.origin === self.location.origin) return event.respondWith(cachePrimero(request));
 });
