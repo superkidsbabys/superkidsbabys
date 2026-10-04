@@ -41,7 +41,7 @@
 
   if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     function registrarModoOffline() {
-      navigator.serviceWorker.register('./sw.js?v=20261003-v41', { scope: './' })
+      navigator.serviceWorker.register('./sw.js?v=20261004-v42', { scope: './' })
         .then(async function (registro) {
           registro.update().catch(function () {});
           // Guardar la dirección exacta que abrió la usuaria. En algunos

@@ -332,6 +332,42 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
     }
   };
 
+  // Después de guardar en Firestore, actualizar también la copia pública que
+  // consumen todas las sesiones. Sin este paso, al recargar reaparecía la
+  // versión anterior aunque la edición sí hubiera llegado a Firebase.
+  window.fbPublicarProductoCatalogo = async function(producto) {
+    try {
+      if (!auth.currentUser) throw new Error('La sesión se cerró. Vuelve a iniciar sesión.');
+      const idProducto = String(producto && (producto._firebaseId || producto.id) || '').trim();
+      if (!idProducto) throw new Error('La prenda no tiene un identificador válido.');
+      const token = await auth.currentUser.getIdToken();
+      const respuesta = await fetch('https://superkids-pagos-api.superkids-babys.workers.dev/auditoria', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          accion: 'editar_producto',
+          recurso: 'producto',
+          recursoId: idProducto,
+          resultado: 'exitoso',
+          detalle: { codigo: String(producto.codigo || ''), nombre: String(producto.nombre || '') }
+        })
+      });
+      const datos = await respuesta.json().catch(function(){ return {}; });
+      if (!respuesta.ok || !datos.ok) {
+        throw new Error(datos.error || 'No fue posible actualizar el catálogo público.');
+      }
+      window._ultimoErrorPublicarProducto = '';
+      return true;
+    } catch (e) {
+      window._ultimoErrorPublicarProducto = e && e.message ? e.message : String(e);
+      console.error('No se actualizó el catálogo público:', e);
+      return false;
+    }
+  };
+
   // Sincronizar TODOS los productos con Firebase
   window.fbSincronizarTodo = async function(productos) {
     console.log("Sincronizando " + productos.length + " productos con Firebase...");
@@ -4433,6 +4469,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (window.fbGuardarProducto) {
                     const confirmado = await window.fbGuardarProducto(p);
                     if (!confirmado) throw new Error(window._ultimoErrorGuardarProducto || 'Firebase no confirmó los cambios.');
+                }
+                if (window.fbPublicarProductoCatalogo) {
+                    const publicado = await window.fbPublicarProductoCatalogo(p);
+                    if (!publicado) throw new Error(window._ultimoErrorPublicarProducto || 'El producto se guardó en Firebase, pero el catálogo público no se actualizó.');
                 }
                 localStorage.setItem('productosV36', JSON.stringify(productosDB)); marcarCambio();
                 cerrarModalEditar(); renderizarFiltroTallas(); renderizarCatalogo();

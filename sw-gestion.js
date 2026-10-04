@@ -1,4 +1,4 @@
-const VERSION = 'superkids-gestion-offline-20261003-v38';
+const VERSION = 'superkids-gestion-offline-20261004-v42';
 const CACHE_APP = VERSION + '-app';
 const CACHE_LIBRERIAS = VERSION + '-librerias';
 const ARCHIVOS_APP = [
