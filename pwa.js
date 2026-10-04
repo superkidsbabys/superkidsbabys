@@ -40,8 +40,8 @@
   document.addEventListener('DOMContentLoaded', crearIndicadorConexion);
 
   if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js?v=20261003-v39', { scope: './' })
+    function registrarModoOffline() {
+      navigator.serviceWorker.register('./sw.js?v=20261003-v40', { scope: './' })
         .then(async function (registro) {
           registro.update().catch(function () {});
           // Guardar la dirección exacta que abrió la usuaria. En algunos
@@ -51,6 +51,11 @@
           if (trabajador) trabajador.postMessage({ tipo: 'GUARDAR_PANTALLA', url: location.href });
         })
         .catch(function (error) { console.warn('Modo offline no pudo instalarse:', error.message); });
-    });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', registrarModoOffline, { once: true });
+    } else {
+      registrarModoOffline();
+    }
   }
 })();

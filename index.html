@@ -1974,6 +1974,24 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             return url;
         };
 
+        function recuperarImagenCatalogo(img) {
+            const original = img && img.dataset ? img.dataset.original : '';
+            if (img && original && img.dataset.reintentoOriginal !== '1' && img.currentSrc !== original) {
+                img.dataset.reintentoOriginal = '1';
+                img.src = original;
+                return;
+            }
+            if (!img) return;
+            img.onerror = null;
+            if (img.classList.contains('thumb')) {
+                img.style.display = 'none';
+                return;
+            }
+            img.src = './01-1000544138.jpg';
+            img.style.objectFit = 'contain';
+            img.style.padding = '18px';
+        }
+
         const formatMoney = (amount) => '$' + amount.toLocaleString('es-CO');
 
         const paletas = {
@@ -2210,7 +2228,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (prod.etiquetaPersonalizada) customH = `<div class="etiqueta-custom">${prod.etiquetaPersonalizada}</div>`;
                 const imgs = prod.imagenes || ['https://via.placeholder.com/600?text=Sin+Imagen'];
                 const htmlGal = imgs.length > 1
-                    ? `<div class="galeria-miniaturas">${imgs.map((img, i) => `<img src="${optimizarUrl(img, 150)}" class="thumb ${i===0?'activo':''}" onclick="cambiarImg('${prod.id}','${img}',this)">`).join('')}</div>`
+                    ? `<div class="galeria-miniaturas">${imgs.map((img, i) => `<img src="${optimizarUrl(img, 150)}" data-original="${escaparAtributo(img)}" class="thumb ${i===0?'activo':''}" loading="lazy" decoding="async" fetchpriority="low" onerror="recuperarImagenCatalogo(this)" onclick="cambiarImg('${prod.id}','${img}',this)">`).join('')}</div>`
                     : '';
                 let tallasChips = '';
                 if (prod.tallasObj && prod.tallasObj.length > 0) {
@@ -2236,7 +2254,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 const botonesAdmin = puedeEditarBusqueda
                     ? `<div style="display:flex;gap:6px;margin-top:6px;"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button><button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button></div>`
                     : '';
-                return `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgs[0]}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgs[0])}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia">REF: ${prod.codigo || 'S/N'}</span></div><h3>${prod.nombre}</h3><div class="precio-contenedor">${pNew}</div><div class="fila-tallas-curva">${tallasChips}${btnCurva}</div>${btnAgregar}${botonesAdmin}</div></div>`;
+                return `<div class="producto"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgs[0]}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgs[0])}" data-original="${escaparAtributo(imgs[0])}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" decoding="async" onerror="recuperarImagenCatalogo(this)"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia">REF: ${prod.codigo || 'S/N'}</span></div><h3>${prod.nombre}</h3><div class="precio-contenedor">${pNew}</div><div class="fila-tallas-curva">${tallasChips}${btnCurva}</div>${btnAgregar}${botonesAdmin}</div></div>`;
             }).join('');
             cont.innerHTML = `<div style="grid-column:1/-1;background:#f8f4fb;border:1px solid #ead8f3;border-radius:10px;padding:9px 12px;color:#6d4b78;font-weight:900;font-size:0.85em;">🔎 ${resultados.length} resultado${resultados.length === 1 ? '' : 's'} encontrado${resultados.length === 1 ? '' : 's'}</div>` + tarjetasHtml;
         }
@@ -2632,22 +2650,43 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             if (window.datosQuemados) {
                 document.querySelector('.btn-toggle-admin').style.display = 'none';
             }
-            // Cargar config desde Firestore — es el JEFE, pisa todo lo demás
-            try {
-                const { getFirestore, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const dbF = getFirestore();
-                const snapConfig = await getDoc(doc(dbF, 'config_tienda', 'configuracion'));
-                if (snapConfig.exists()) {
+
+            // Inventario y configuración viajan al mismo tiempo. El catálogo
+            // no debe esperar a que termine de cargar el diseño remoto.
+            const promesaCatalogo = fetch(
+                'https://superkids-pagos-api.superkids-babys.workers.dev/catalogo-publico?t=' + Date.now(),
+                { cache: 'no-store' }
+            ).then(async function(respuesta) {
+                if (!respuesta.ok) throw new Error('Respuesta ' + respuesta.status);
+                const datos = await respuesta.json();
+                if (!Array.isArray(datos.productos) || datos.productos.length < 100) {
+                    throw new Error('El inventario recibido está incompleto');
+                }
+                return datos;
+            });
+
+            const promesaConfig = (async function() {
+                try {
+                    const { getFirestore, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                    const dbF = getFirestore();
+                    const snapConfig = await getDoc(doc(dbF, 'config_tienda', 'configuracion'));
+                    if (!snapConfig.exists()) return false;
                     const dataFirebase = snapConfig.data();
-                    // Firebase es el jefe — sobrescribe todo
                     Object.assign(config, dataFirebase);
                     if (dataFirebase.ninas) config.ninas = dataFirebase.ninas;
                     if (dataFirebase.ninos) config.ninos = dataFirebase.ninos;
                     if (dataFirebase.junior) config.junior = dataFirebase.junior;
                     localStorage.setItem('tiendaConfigV36', JSON.stringify(config));
+                    aplicarDiseno();
+                    renderizarCategoriasAdminYPublic();
+                    return true;
+                } catch(e) {
+                    console.log('Config Firebase error:', e);
+                    return false;
                 }
-            } catch(e) { console.log('Config Firebase error:', e); }
-            // Aplicar diseño con colores de Firebase ya cargados
+            })();
+
+            // Mostrar de inmediato el diseño ya guardado en el navegador.
             aplicarDiseno();
             renderizarPedidosPanel();
 
@@ -2655,15 +2694,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             // de existencias para todas las sesiones y evita que la caché
             // persistente de un navegador reviva prendas agotadas.
             try {
-                const respuestaCatalogo = await fetch(
-                    'https://superkids-pagos-api.superkids-babys.workers.dev/catalogo-publico?t=' + Date.now(),
-                    { cache: 'no-store' }
-                );
-                if (!respuestaCatalogo.ok) throw new Error('Respuesta ' + respuestaCatalogo.status);
-                const datosCatalogo = await respuestaCatalogo.json();
-                if (!Array.isArray(datosCatalogo.productos) || datosCatalogo.productos.length < 100) {
-                    throw new Error('El inventario recibido está incompleto');
-                }
+                const datosCatalogo = await promesaCatalogo;
                 productosFirebaseListos = true;
                 inventarioAutoritativoDisponible = true;
                 productosDB = aplicarOrdenGuardadoLocal(datosCatalogo.productos);
@@ -2683,6 +2714,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (catalogo && catalogo.parentNode) catalogo.parentNode.insertBefore(aviso, catalogo);
                 console.error('Inventario autoritativo no disponible:', e);
             }
+            // Consumir la promesa para que nunca quede un rechazo pendiente.
+            await promesaConfig;
         }
 
         if (document.readyState === 'loading') {
@@ -3593,7 +3626,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     btn.type = 'button';
                     btn.className = 'portada-subcategoria';
                     btn.innerHTML =
-                        `<img src="${optimizarUrl(imgs[0])}" alt="${subcategoria}" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Sin+Imagen'">` +
+                        `<img src="${optimizarUrl(imgs[0])}" data-original="${escaparAtributo(imgs[0])}" alt="${subcategoria}" loading="lazy" decoding="async" onerror="recuperarImagenCatalogo(this)">` +
                         `<span class="portada-subcategoria-icono"></span>` +
                         `<span class="portada-subcategoria-info">` +
                         `<span class="portada-subcategoria-titulo">${subcategoria}</span>` +
@@ -3617,7 +3650,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 btn.type = 'button';
                 btn.className = 'portada-subcategoria' + (abierta ? ' activa' : '');
                 btn.innerHTML =
-                    `<img src="${optimizarUrl(imgs[0])}" alt="${subcategoria}" loading="lazy" onerror="this.src='https://via.placeholder.com/600?text=Sin+Imagen'">` +
+                    `<img src="${optimizarUrl(imgs[0])}" data-original="${escaparAtributo(imgs[0])}" alt="${subcategoria}" loading="lazy" decoding="async" onerror="recuperarImagenCatalogo(this)">` +
                     `<span class="portada-subcategoria-icono"></span>` +
                     `<span class="portada-subcategoria-flecha">${abierta ? '▲' : '▼'}</span>` +
                     `<span class="portada-subcategoria-info">` +
@@ -3733,7 +3766,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             // loading="lazy" para no descargarse hasta acercarse a la pantalla.
             const productosParaMostrar = filtrados;
             const tarjetasCatalogo = [];
-            productosParaMostrar.forEach(prod => {
+            productosParaMostrar.forEach((prod, indiceProducto) => {
                 let htmlTallasChips = "", hayStockTotal = false, tallaInicialSeleccionada = null;
                 if (prod.tallasObj && prod.tallasObj.length > 0) {
                     let primeraDisponibleMarcada = false;
@@ -3764,7 +3797,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (prod.etiquetaPersonalizada) customH = `<div class="etiqueta-custom">${prod.etiquetaPersonalizada}</div>`;
                 let imgs = prod.imagenes || [prod.img || "https://via.placeholder.com/600?text=Sin+Imagen"];
                 let imgPrincipal = obtenerImagenProducto(prod, tallaInicialSeleccionada);
-                let htmlGal = imgs.length > 1 ? `<div class="galeria-miniaturas">${imgs.map((img, i) => `<img src="${optimizarUrl(img, 150)}" data-url="${img}" class="thumb ${img === imgPrincipal ? 'activo' : ''}" loading="lazy" decoding="async" onclick="cambiarImg('${prod.id}', '${img}', this)">`).join('')}</div>` : "";
+                let htmlGal = imgs.length > 1 ? `<div class="galeria-miniaturas">${imgs.map((img, i) => `<img src="${optimizarUrl(img, 150)}" data-original="${escaparAtributo(img)}" data-url="${img}" class="thumb ${img === imgPrincipal ? 'activo' : ''}" loading="lazy" decoding="async" fetchpriority="low" onerror="recuperarImagenCatalogo(this)" onclick="cambiarImg('${prod.id}', '${img}', this)">`).join('')}</div>` : "";
                 let productoNuevaColeccion = esProductoNuevaColeccion(prod);
                 let carritoNuevaBloqueado = productoNuevaColeccion && !nuevaColeccionCarritoActivo();
                 let btnAgregar = carritoNuevaBloqueado
@@ -3777,7 +3810,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 const _esAdmin = modoEdicion && window.usuarioActual && window.usuarioActual.rol === 'admin';
                 const btnEditarEliminar = _esAdmin ? `<div style="display:flex;gap:6px;margin-top:6px;"><button class="btn-editar-prod" onclick="abrirModalEditar('${prod.id}')">✏️ Editar</button><button class="btn-eliminar-prod" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button></div>` : '';
                 const refVisible = opcionInicial ? (opcionInicial.codigo || prod.codigo) : prod.codigo;
-                tarjetasCatalogo.push(`<div class="producto" id="producto-card-${prod.id}"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="lazy" decoding="async" onerror="this.src='https://via.placeholder.com/600?text=Error'"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia" id="ref-producto-${prod.id}">REF: ${refVisible || 'S/N'}</span></div><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p>${htmlSelectorOpcionesVenta(prod)}<div class="precio-contenedor" id="precio-producto-${prod.id}">${pNew}</div><div class="fila-tallas-curva">${htmlTallasChips}${btnCurva}</div>${btnAgregar}${btnEditarEliminar}</div></div>`);
+                const cargaPrincipal = indiceProducto < 8 ? 'eager' : 'lazy';
+                const prioridadPrincipal = indiceProducto < 4 ? 'high' : 'auto';
+                tarjetasCatalogo.push(`<div class="producto" id="producto-card-${prod.id}"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" data-original="${escaparAtributo(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="${cargaPrincipal}" decoding="async" fetchpriority="${prioridadPrincipal}" onerror="recuperarImagenCatalogo(this)"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia" id="ref-producto-${prod.id}">REF: ${refVisible || 'S/N'}</span></div><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p>${htmlSelectorOpcionesVenta(prod)}<div class="precio-contenedor" id="precio-producto-${prod.id}">${pNew}</div><div class="fila-tallas-curva">${htmlTallasChips}${btnCurva}</div>${btnAgregar}${btnEditarEliminar}</div></div>`);
             });
 
             cont.innerHTML = tarjetasCatalogo.join('');
@@ -5279,7 +5314,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (!actual) {
                     mapa.set(clave, pedido);
                     return;
-                } else adminCont.innerHTML += `<div style="width:100%;padding:12px;text-align:center;color:#999;font-size:.82em;">No hay subcategorías con productos en ${generoOrdenVisualAdmin}.</div>`;
+                }
                 const actualEsFijo = String(actual._firebaseId || '') === 'pedido-' + actual.num;
                 const nuevoEsFijo = String(pedido._firebaseId || '') === 'pedido-' + pedido.num;
                 const tActual = parseInt(actual.timestampPedido || actual.timestamp || 0, 10) || 0;
