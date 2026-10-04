@@ -1974,7 +1974,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             return url;
         };
 
-        function recuperarImagenCatalogo(img) {
+        window.recuperarImagenCatalogo = function recuperarImagenCatalogo(img) {
             const original = img && img.dataset ? img.dataset.original : '';
             if (img && original && img.dataset.reintentoOriginal !== '1' && img.currentSrc !== original) {
                 img.dataset.reintentoOriginal = '1';
@@ -1990,7 +1990,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             img.src = './01-1000544138.jpg';
             img.style.objectFit = 'contain';
             img.style.padding = '18px';
-        }
+        };
 
         const formatMoney = (amount) => '$' + amount.toLocaleString('es-CO');
 
