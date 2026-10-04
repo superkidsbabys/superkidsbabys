@@ -1,4 +1,4 @@
-const VERSION = 'superkids-compartido-offline-20261002-v36';
+const VERSION = 'superkids-compartido-offline-20261003-v37';
 const CACHE_APP = VERSION + '-app';
 const CACHE_RECURSOS = VERSION + '-recursos';
 const ARCHIVOS_APP = ['./', './index.html', './pedidos.html', './manifest.json', './manifest-admin.json', './pwa.js', './icons/icon-192.png', './icons/icon-512.png'];

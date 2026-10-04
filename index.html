@@ -2098,6 +2098,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         // Firebase contiene las fotos migradas a Cloudflare R2. Evitamos pintar
         // primero la copia antigua del HTML (que conserva URLs de Cloudinary).
         let productosFirebaseListos = false;
+        // Ninguna venta se habilita hasta recibir el inventario autoritativo
+        // del servidor. localStorage y el HTML solo sirven para contenido
+        // visual, nunca para decidir existencias.
+        let inventarioAutoritativoDisponible = false;
         let temporizadorRespaldoCatalogo = null;
         if (productosQuemados.length > 0) {
             let productosGuardados = {};
@@ -2647,62 +2651,37 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             aplicarDiseno();
             renderizarPedidosPanel();
 
-            // Solo usamos el catálogo embebido como respaldo si Firebase no
-            // responde. En condiciones normales, esperamos las URLs actuales
-            // de R2 para no descargar imágenes antiguas de Cloudinary.
-            temporizadorRespaldoCatalogo = setTimeout(function() {
-                if (!productosFirebaseListos) {
-                    console.warn('Firebase no respondió a tiempo; mostrando catálogo de respaldo.');
-                    renderizarCatalogo();
-                }
-            }, 8000);
-
-            // El contenido integrado es solo un respaldo. No lo mostramos
-            // primero: puede pertenecer a una exportación anterior y enseñar
-            // cantidades distintas a las de Gestión mientras llega el stock
-            // vigente desde el catálogo público.
-
-            // Firebase conserva el inventario completo. Solo aceptamos la
-            // copia pública como respaldo: una copia parcial no puede ocultar
-            // cientos de referencias del catálogo.
-            let inventarioCompletoCargado = false;
+            // La API genera esta copia desde Firebase Admin. Es la única fuente
+            // de existencias para todas las sesiones y evita que la caché
+            // persistente de un navegador reviva prendas agotadas.
             try {
-                const snapProductos = await getDocs(collection(db, 'productos'));
-                const productosCompletos = snapProductos.docs.map(d => Object.assign({ id: d.id }, d.data()));
-                if (productosCompletos.length >= 100) {
-                    productosFirebaseListos = true;
-                    if (temporizadorRespaldoCatalogo) clearTimeout(temporizadorRespaldoCatalogo);
-                    // Al usar Firebase, sus documentos son el catálogo
-                    // vigente; la lista local de eliminados no debe ocultarlos.
-                    productosDB = aplicarOrdenGuardadoLocal(productosCompletos);
-                    ordenarProductosPorOrdenVisual(productosDB, generoActual);
-                    localStorage.setItem('productosV36', JSON.stringify(productosDB));
-                    renderizarFiltroTallas();
-                    renderizarCatalogo();
-                    inventarioCompletoCargado = true;
-                }
-            } catch(e) { console.warn('Inventario completo Firebase:', e.message); }
-
-            // Cargar la copia pública solo cuando Firebase no esté disponible.
-            if (!inventarioCompletoCargado) try {
                 const respuestaCatalogo = await fetch(
                     'https://superkids-pagos-api.superkids-babys.workers.dev/catalogo-publico?t=' + Date.now(),
                     { cache: 'no-store' }
                 );
-                if (respuestaCatalogo.ok) {
-                    const datosCatalogo = await respuestaCatalogo.json();
-                    if (Array.isArray(datosCatalogo.productos) && datosCatalogo.productos.length) {
-                        productosFirebaseListos = true;
-                        if (temporizadorRespaldoCatalogo) clearTimeout(temporizadorRespaldoCatalogo);
-                        productosDB = aplicarOrdenGuardadoLocal(filtrarProductosEliminados(datosCatalogo.productos));
-                        ordenarProductosPorOrdenVisual(productosDB, generoActual);
-                        localStorage.setItem('productosV36', JSON.stringify(productosDB));
-                        renderizarFiltroTallas();
-                        renderizarCatalogo();
-                    }
+                if (!respuestaCatalogo.ok) throw new Error('Respuesta ' + respuestaCatalogo.status);
+                const datosCatalogo = await respuestaCatalogo.json();
+                if (!Array.isArray(datosCatalogo.productos) || datosCatalogo.productos.length < 100) {
+                    throw new Error('El inventario recibido está incompleto');
                 }
+                productosFirebaseListos = true;
+                inventarioAutoritativoDisponible = true;
+                productosDB = aplicarOrdenGuardadoLocal(datosCatalogo.productos);
+                ordenarProductosPorOrdenVisual(productosDB, generoActual);
+                localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                renderizarFiltroTallas();
+                renderizarCatalogo();
             } catch(e) {
-                console.log('Catálogo público no disponible; usando respaldo integrado:', e.message);
+                inventarioAutoritativoDisponible = false;
+                productosDB = [];
+                renderizarCatalogo();
+                const aviso = document.createElement('div');
+                aviso.id = 'aviso-inventario-no-disponible';
+                aviso.style.cssText = 'margin:18px auto;max-width:900px;padding:16px;border:2px solid #b45309;border-radius:14px;background:#fff7ed;color:#7c2d12;font-weight:800;text-align:center';
+                aviso.textContent = 'No pudimos verificar el inventario actual. Las compras están pausadas para evitar vender prendas agotadas. Revisa la conexión y recarga la página.';
+                const catalogo = document.getElementById('catalogo') || document.querySelector('.catalogo');
+                if (catalogo && catalogo.parentNode) catalogo.parentNode.insertBefore(aviso, catalogo);
+                console.error('Inventario autoritativo no disponible:', e);
             }
         };
 
@@ -4651,6 +4630,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function agregarAlCarrito(id) {
+            if (!inventarioAutoritativoDisponible) {
+                return alert('El inventario actual no se ha podido verificar. Recarga la página antes de comprar.');
+            }
             let p = productosDB.find(x => x.id === id);
             let opcion = null;
             if (opcionesVentaActivas(p)) {
@@ -5707,6 +5689,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 const datos = await respuesta.json();
                 if (!Array.isArray(datos.productos) || !datos.productos.length) return false;
                 productosFirebaseListos = true;
+                inventarioAutoritativoDisponible = true;
                 productosDB = aplicarOrdenGuardadoLocal(
                     filtrarProductosEliminados(datos.productos)
                 );
@@ -6358,8 +6341,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         const ANULAR_PEDIDO_API = PAGOS_API_ORIGIN + '/anular-pedido';
         async function anularPedidoEnServidor(pedido) {
-            if (!usuarioActual || usuarioActual.uid !== 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3') {
-                throw new Error('Solo Yohana puede anular pedidos.');
+            if (!usuarioActual || !['F2SHGFQYSuMWlkbQKV8yrKAXgaH3', 'IEB65uKdgldevmgRuenCj7pPwc12'].includes(usuarioActual.uid)) {
+                throw new Error('Tu usuario no puede anular pedidos.');
             }
             const token = await window.obtenerTokenSesion();
             if (!token) throw new Error('Tu sesión venció. Inicia sesión nuevamente.');
@@ -6383,26 +6366,23 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             const pedido = historialPedidos[pedIndex];
             const estadoAnterior = normalizarEstadoPedido(pedido.estado);
             nuevoEstado = normalizarEstadoPedido(nuevoEstado);
-            pedido.estado = nuevoEstado;
             if (nuevoEstado === 'cancelado' && estadoAnterior !== 'cancelado') {
                 try {
-                    // Primero bloquear el pedido como anulado en Firebase. Así
-                    // ningún listener puede volver a tratarlo como pedido nuevo
-                    // mientras se está devolviendo su inventario.
+                    const pedidoActualizado = await anularPedidoEnServidor(pedido);
+                    historialPedidos[pedIndex] = Object.assign({}, pedido, pedidoActualizado, {
+                        estado: 'cancelado', stockDevuelto: true
+                    });
                     localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                    await devolverStockPedido(pedido);
-                    pedido.estado = 'cancelado';
+                    renderizarPedidosPanel();
+                    return;
                 } catch (error) {
                     pedido.estado = estadoAnterior;
-                    pedido.stockDevuelto = false;
-                    delete pedido.stockDevueltoEn;
-                    localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                    await persistirPedidoEnFirebase(pedido);
                     renderizarPedidosPanel();
-                    alert(error.message || 'No se pudo devolver el stock. El pedido no fue anulado.');
+                    alert(error.message || 'No se pudo anular ni devolver el stock. No se cambió el pedido.');
                     return;
                 }
             }
+            pedido.estado = nuevoEstado;
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
             await persistirPedidoEnFirebase(pedido);
             renderizarPedidosPanel();
@@ -7024,10 +7004,10 @@ table{width:100%;border-collapse:collapse}
             const pedido = historialPedidos[pedIndex];
 
             try {
-                await devolverStockPedido(pedido);
-                pedido.estado = 'cancelado';
+                const actualizado = await anularPedidoEnServidor(pedido);
+                Object.assign(pedido, actualizado, { estado: 'cancelado', stockDevuelto: true });
             } catch (error) {
-                alert(error.message || 'No se pudo devolver el stock. La factura no fue anulada.');
+                alert(error.message || 'No se pudo anular ni devolver el stock. La factura no cambió.');
                 return;
             }
 

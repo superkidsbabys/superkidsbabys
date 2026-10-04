@@ -2806,47 +2806,24 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             } catch(e) { console.log('Config Firebase error:', e); }
             // Aplicar diseño con colores de Firebase ya cargados
             aplicarDiseno();
-            renderizarCatalogo();
+            // No mostrar existencias incrustadas antes de verificar el
+            // inventario compartido; podrían pertenecer a otra sesión.
             renderizarPedidosPanel();
             inicializarAutorrellenoClientes();
 
-            // Gestión necesita el inventario completo. La copia pública puede
-            // estar incompleta durante una reconstrucción, por eso Firebase
-            // es la fuente principal para este panel.
-            let catalogoCompletoCargado = false;
+            // La API reconstruye esta vista desde Firebase Admin y evita que
+            // la caché persistente de un navegador suplante al inventario real.
             try {
-                const snapProductos = await getDocs(collection(db, 'productos'));
-                const productosCompletos = snapProductos.docs.map(d => { const datos=d.data(); return Object.assign({},datos,{id:datos.id||d.id,_firebaseId:d.id}); });
-                if (productosCompletos.length >= 100) {
-                    // Firebase ya es la lista vigente. No aplicar aquí la
-                    // papelera local: puede contener IDs antiguos y ocultar
-                    // prendas que sí existen en el inventario.
-                    productosDB = aplicarOrdenGuardadoLocal(productosCompletos);
-                    window.productosDB = productosDB;
-                    ordenarProductosPorOrdenVisual(productosDB, generoActual);
-                    localStorage.setItem('productosV36', JSON.stringify(productosDB));
-                    if (typeof invalidarPendientesCatalogo === 'function') invalidarPendientesCatalogo();
-                    renderizarFiltroTallas();
-                    renderizarCatalogo();
-                    if (typeof renderStockActual === 'function') renderStockActual();
-                    catalogoCompletoCargado = true;
-                }
-            } catch(e) { console.warn('Carga completa desde Firebase:', e.message); }
-
-            // Respaldo únicamente si Firebase no está disponible.
-            if (!catalogoCompletoCargado) try {
                 const respuestaCatalogo = await fetch(
                     'https://superkids-pagos-api.superkids-babys.workers.dev/catalogo-publico?t=' + Date.now(),
                     { cache: 'no-store' }
                 );
                 if (!respuestaCatalogo.ok) throw new Error('No se pudo cargar el catálogo público');
                 const datosCatalogo = await respuestaCatalogo.json();
-                if (!Array.isArray(datosCatalogo.productos) || !datosCatalogo.productos.length) {
-                    throw new Error('El catálogo público llegó vacío');
+                if (!Array.isArray(datosCatalogo.productos) || datosCatalogo.productos.length < 100) {
+                    throw new Error('El inventario compartido llegó incompleto');
                 }
-                productosDB = aplicarOrdenGuardadoLocal(
-                    filtrarProductosEliminados(datosCatalogo.productos)
-                );
+                productosDB = aplicarOrdenGuardadoLocal(datosCatalogo.productos);
                 window.productosDB = productosDB;
                 ordenarProductosPorOrdenVisual(productosDB, generoActual);
                 localStorage.setItem('productosV36', JSON.stringify(productosDB));
@@ -2859,7 +2836,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     cargarOrdenDesdeFirebase();
                 }
             } catch(e) {
-                console.log('Carga del catálogo público:', e.message);
+                productosDB = [];
+                window.productosDB = productosDB;
+                renderizarCatalogo();
+                console.error('Inventario compartido no disponible:', e);
+                alert('No fue posible verificar el inventario compartido. La gestión de stock queda pausada para evitar diferencias. Recarga cuando tengas conexión.');
             }
         };
 
@@ -5259,34 +5240,18 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         async function procesarDevolucionesStockPendientes() {
-            if (procesandoDevolucionesStockPendientes || !navigator.onLine) return;
+            // Las colas antiguas se originaron en operaciones locales que no
+            // podían comprobar si Firebase ya había devuelto el stock. No se
+            // ejecutan: se conservan como evidencia y las anulaciones nuevas
+            // pasan exclusivamente por el endpoint atómico del servidor.
             const cola = leerDevolucionesStockPendientes();
             const numeros = Object.keys(cola);
             if (!numeros.length) return;
-            procesandoDevolucionesStockPendientes = true;
-            try {
-                for (const numero of numeros) {
-                    const guardado = cola[numero] && cola[numero].pedido;
-                    if (!guardado) { delete cola[numero]; continue; }
-                    const actual = historialPedidos.find(p => String(p.num) === String(numero)) || guardado;
-                    if (actual.stockDevuelto) { delete cola[numero]; continue; }
-                    actual.estado = 'cancelado';
-                    try {
-                        await devolverStockPedido(actual);
-                        actual.stockDevolucionPendiente = false;
-                        delete actual.stockDevolucionPendienteEn;
-                        delete cola[numero];
-                        localStorage.setItem(CLAVE_DEVOLUCIONES_STOCK_PENDIENTES, JSON.stringify(cola));
-                        localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                        await persistirPedidoEnFirebase(actual);
-                    } catch (error) {
-                        console.warn('Devolución de stock pendiente para pedido #'+numero+':', error.message || error);
-                    }
-                }
-                renderizarPedidosPanel();
-            } finally {
-                procesandoDevolucionesStockPendientes = false;
-            }
+            localStorage.setItem('devolucionesStockPendientesArchivadasV37', JSON.stringify({
+                archivadoEn: new Date().toISOString(), cola: cola
+            }));
+            localStorage.removeItem(CLAVE_DEVOLUCIONES_STOCK_PENDIENTES);
+            console.warn('Se archivó una cola antigua de devoluciones sin modificar inventario:', numeros);
         }
 
         window.addEventListener('online', function() {
@@ -5600,7 +5565,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
-        function procesarOrdenWA() {
+        async function procesarOrdenWA() {
             if (window._procesandoOrdenWA) return;
             let n = document.getElementById('cart-nombre').value.trim();
             let cc = (document.getElementById('cart-cc') || {value:''}).value.trim();
@@ -5622,6 +5587,80 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 btnEnviarPedido.style.opacity = '0.7';
                 btnEnviarPedido.innerHTML = 'Procesando pedido...';
             }
+
+            // La venta del equipo usa la misma transacción atómica que el
+            // catálogo público. El navegador no calcula ni escribe stock.
+            try {
+                const tokenSesion = await window.obtenerTokenSesion();
+                if (!tokenSesion) throw new Error('Tu sesión venció. Inicia sesión nuevamente.');
+                const requestId = crypto.randomUUID();
+                const respuestaSegura = await fetch(
+                    'https://superkids-pagos-api.superkids-babys.workers.dev/crear-pedido-contraentrega',
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + tokenSesion
+                        },
+                        body: JSON.stringify({
+                            requestId: requestId,
+                            cliente: {
+                                nombre: n, documento: cc, direccion: d,
+                                barrio: barrio, departamento: 'No especificado',
+                                ciudad: ciudad, telefono: tel, correo: correo,
+                                observaciones: obs
+                            },
+                            transportadora: transp,
+                            asesora: window.obtenerAsesoraSeleccionada(),
+                            items: carrito.map(function(item) {
+                                return { id: String(item.id || ''), talla: String(item.talla || ''), cantidad: 1 };
+                            })
+                        })
+                    }
+                );
+                const datosSeguros = await respuestaSegura.json().catch(function(){ return {}; });
+                if (!respuestaSegura.ok || !datosSeguros.ok || !datosSeguros.pedido) {
+                    throw new Error(datosSeguros.error || 'No fue posible crear el pedido');
+                }
+                const pedidoSeguro = datosSeguros.pedido;
+                if (!historialPedidos.some(function(p){ return Number(p.num) === Number(pedidoSeguro.num); })) {
+                    historialPedidos.unshift(pedidoSeguro);
+                }
+                localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+
+                const catalogoRespuesta = await fetch(
+                    'https://superkids-pagos-api.superkids-babys.workers.dev/catalogo-publico?t=' + Date.now(),
+                    { cache: 'no-store' }
+                );
+                if (catalogoRespuesta.ok) {
+                    const catalogoDatos = await catalogoRespuesta.json();
+                    if (Array.isArray(catalogoDatos.productos) && catalogoDatos.productos.length >= 100) {
+                        productosDB = aplicarOrdenGuardadoLocal(catalogoDatos.productos);
+                        window.productosDB = productosDB;
+                        localStorage.setItem('productosV36', JSON.stringify(productosDB));
+                    }
+                }
+
+                guardarClienteLocalNavegador(pedidoSeguro);
+                guardarClienteGestion(pedidoSeguro);
+                cerrarModalCheckout();
+                carrito = [];
+                renderCarrito();
+                limpiarFormularioCheckoutDespuesDeEnviar();
+                renderizarCatalogo();
+                renderizarPedidosPanel();
+                setTimeout(function(){ imprimirFactura(pedidoSeguro.num); }, 400);
+            } catch (errorSeguro) {
+                alert(errorSeguro.message || 'No se creó el pedido. El inventario no fue modificado.');
+            } finally {
+                window._procesandoOrdenWA = false;
+                if (btnEnviarPedido) {
+                    btnEnviarPedido.disabled = false;
+                    btnEnviarPedido.style.opacity = '';
+                    btnEnviarPedido.innerHTML = textoBtnEnviarPedido;
+                }
+            }
+            return;
 
             // Calcular totales y armar items ANTES de la transacción
             let t = 0, itemsParaPanel = [];
@@ -7466,8 +7505,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         const ANULAR_PEDIDO_API = 'https://superkids-pagos-api.superkids-babys.workers.dev/anular-pedido';
         async function anularPedidoEnServidor(pedido) {
-            if (!window.usuarioActual || window.usuarioActual.uid !== UID_YOHANA) {
-                throw new Error('Solo Yohana puede anular pedidos.');
+            if (!window.usuarioActual || ![UID_YOHANA, UID_ANGELA].includes(window.usuarioActual.uid)) {
+                throw new Error('Tu usuario no puede anular pedidos.');
             }
             const token = await window.obtenerTokenSesion();
             if (!token) throw new Error('Tu sesión venció. Inicia sesión nuevamente.');
@@ -7503,41 +7542,25 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 alert('Un pedido anulado no puede cambiarse nuevamente desde el usuario de Ángela.');
                 return;
             }
-            pedido.estado = nuevoEstado;
             if (nuevoEstado === 'cancelado' && estadoAnterior !== 'cancelado') {
                 try {
-                    // Primero bloquear el pedido como anulado en Firebase. Así
-                    // ningún listener puede volver a tratarlo como pedido nuevo
-                    // mientras se está devolviendo su inventario.
+                    // El servidor cambia el estado, devuelve cada talla y
+                    // registra el movimiento dentro de un único commit.
+                    const pedidoActualizado = await anularPedidoEnServidor(pedido);
+                    historialPedidos[pedIndex] = Object.assign({}, pedido, pedidoActualizado, {
+                        estado: 'cancelado', stockDevuelto: true
+                    });
                     localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                    await persistirPedidoEnFirebase(pedido, null, true);
-                    await devolverStockPedido(pedido);
-                    pedido.estado = 'cancelado';
+                    renderizarPedidosPanel();
+                    return;
                 } catch (error) {
-                    if (!navigator.onLine) {
-                        // La anulación se conserva y la devolución transaccional
-                        // se ejecutará automáticamente al recuperar internet.
-                        pedido.estado = 'cancelado';
-                        pedido.stockDevuelto = false;
-                        pedido.stockDevolucionPendiente = true;
-                        pedido.stockDevolucionPendienteEn = new Date().toISOString();
-                        encolarDevolucionStockPedido(pedido);
-                        localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                        await persistirPedidoEnFirebase(pedido);
-                        renderizarPedidosPanel();
-                        alert('Pedido anulado sin conexión. La devolución al stock quedó pendiente y se hará automáticamente cuando vuelva internet.');
-                    } else {
-                        pedido.estado = estadoAnterior;
-                        pedido.stockDevuelto = false;
-                        delete pedido.stockDevueltoEn;
-                        localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
-                        await persistirPedidoEnFirebase(pedido);
-                        renderizarPedidosPanel();
-                        alert(error.message || 'No se pudo devolver el stock. El pedido no fue anulado.');
-                        return;
-                    }
+                    pedido.estado = estadoAnterior;
+                    renderizarPedidosPanel();
+                    alert(error.message || 'No se pudo anular ni devolver el stock. No se cambió el pedido.');
+                    return;
                 }
             }
+            pedido.estado = nuevoEstado;
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
             try {
                 await persistirPedidoEnFirebase(pedido, null, true);
@@ -7631,8 +7654,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (!confirm(`¿Mover el pedido #SK-${numPed} a la papelera durante 30 días?`)) return;
             const pedido = historialPedidos.find(p => p.num === numPed);
             if (pedido && !pedido.stockDevuelto) {
-                await devolverStockPedido(pedido);
-                pedido.estado = 'cancelado';
+                try {
+                    const actualizado = await anularPedidoEnServidor(pedido);
+                    Object.assign(pedido, actualizado, { estado: 'cancelado', stockDevuelto: true });
+                } catch (error) {
+                    alert(error.message || 'No se pudo anular el pedido. No se movió a la papelera.');
+                    return;
+                }
             }
             await enviarPedidoAPapelera(pedido);
             historialPedidos = historialPedidos.filter(p => p.num !== numPed);
@@ -9067,9 +9095,10 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             const pedido = historialPedidos[pedIndex];
 
             try {
-                await devolverStockPedido(pedido);
+                const actualizado = await anularPedidoEnServidor(pedido);
+                Object.assign(pedido, actualizado, { estado: 'cancelado', stockDevuelto: true });
             } catch (error) {
-                alert(error.message || 'No se pudo devolver el stock. La factura no fue anulada.');
+                alert(error.message || 'No se pudo anular ni devolver el stock. La factura no cambió.');
                 return;
             }
 
@@ -12645,10 +12674,10 @@ document.addEventListener('DOMContentLoaded', function() {
   function crearPanel(){
     if(document.getElementById('auditoria-equipo'))return;
     const btn=document.createElement('button');btn.id='btn-auditoria-equipo';btn.textContent='🛡️ Actividad del equipo';btn.style.cssText='position:fixed;left:18px;bottom:18px;z-index:10001;background:#7c2d6b;color:white;border:0;border-radius:24px;padding:12px 18px;font-weight:900;cursor:pointer;box-shadow:0 5px 18px #0003';document.body.appendChild(btn);
-    const panel=document.createElement('div');panel.id='auditoria-equipo';panel.style.cssText='display:none;position:fixed;inset:0;z-index:10002;background:#0008;padding:3vh 3vw;overflow:auto';panel.innerHTML='<div style="max-width:1150px;margin:auto;background:white;border-radius:18px;padding:20px"><div style="display:flex;justify-content:space-between;gap:10px"><h2 style="margin:0;color:#7c2d6b">🛡️ Actividad del equipo</h2><button id="cerrar-auditoria">✕</button></div><div style="display:flex;gap:8px;margin:14px 0;flex-wrap:wrap"><button id="recargar-auditoria">Actualizar</button><button id="filtrar-devoluciones" style="background:#b45309;color:white;border:0;border-radius:8px;padding:8px 12px;font-weight:800;cursor:pointer">↩ Revisar devoluciones</button><button id="corregir-ref-100014" style="background:#b91c1c;color:white;border:0;border-radius:8px;padding:8px 12px;font-weight:900;cursor:pointer">🛠 Corregir REF 100014 · pedido 96</button><button id="restaurar-referencias" style="background:#1a7a4a;color:white;border:0;border-radius:8px;padding:8px 12px;font-weight:800;cursor:pointer">Restaurar referencias faltantes</button><button id="reconstruir-catalogo">Reconstruir catálogo público</button></div><div id="estado-auditoria" style="padding:10px;background:#f8edf5;border-radius:10px">Cargando…</div><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;margin-top:12px"><thead><tr><th>Fecha</th><th>Usuaria</th><th>Acción</th><th>Recurso</th><th>Resultado</th><th>Detalle</th></tr></thead><tbody id="filas-auditoria"></tbody></table></div></div>';document.body.appendChild(panel);
+    const panel=document.createElement('div');panel.id='auditoria-equipo';panel.style.cssText='display:none;position:fixed;inset:0;z-index:10002;background:#0008;padding:3vh 3vw;overflow:auto';panel.innerHTML='<div style="max-width:1150px;margin:auto;background:white;border-radius:18px;padding:20px"><div style="display:flex;justify-content:space-between;gap:10px"><h2 style="margin:0;color:#7c2d6b">🛡️ Actividad del equipo</h2><button id="cerrar-auditoria">✕</button></div><div style="display:flex;gap:8px;margin:14px 0;flex-wrap:wrap"><button id="recargar-auditoria">Actualizar</button><button id="filtrar-devoluciones" style="background:#b45309;color:white;border:0;border-radius:8px;padding:8px 12px;font-weight:800;cursor:pointer">↩ Revisar devoluciones</button><button id="reconstruir-catalogo">Reconstruir catálogo público</button></div><div style="padding:10px;background:#ecfdf5;border:1px solid #86efac;border-radius:10px;color:#166534;font-weight:800">Este historial es solo de consulta. Las devoluciones se hacen únicamente al anular un pedido en el servidor.</div><div id="estado-auditoria" style="padding:10px;background:#f8edf5;border-radius:10px;margin-top:8px">Cargando…</div><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;margin-top:12px"><thead><tr><th>Fecha</th><th>Usuaria</th><th>Acción</th><th>Recurso</th><th>Resultado</th><th>Detalle</th></tr></thead><tbody id="filas-auditoria"></tbody></table></div></div>';document.body.appendChild(panel);
     function textoSeguro(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-    async function cargar(soloDevoluciones){const est=document.getElementById('estado-auditoria');try{est.textContent=soloDevoluciones?'Buscando devoluciones y ajustes de cantidades…':'Cargando actividad…';const d=await api('/auditoria');let eventos=d.eventos||[];if(soloDevoluciones)eventos=eventos.filter(e=>['eliminar_prenda_pedido','cambiar_cantidad_prenda_pedido','eliminar_pedido','cambiar_talla_pedido','restaurar_stock_desde_historial'].includes(String(e.accion||'')));document.getElementById('filas-auditoria').innerHTML=eventos.map(e=>{const detalle=e.detalle&&Object.keys(e.detalle).length?textoSeguro(JSON.stringify(e.detalle,null,2)).slice(0,6000):'';const fechaMs=new Date(e.fecha||e.timestamp||0).getTime(),esAnterior=Number.isFinite(fechaMs)&&fechaMs<new Date('2026-10-02T13:27:32Z').getTime();const pendiente=e.accion==='eliminar_prenda_pedido'&&e.detalle&&e.detalle.prendaEliminada&&(e.detalle.stockDevuelto===false||esAnterior);const etiqueta=e.detalle&&e.detalle.stockDevuelto===true?'🛠 Corregir stock original':'↩ Restaurar stock';const boton=pendiente?'<button onclick="restaurarStockDesdeHistorial(\''+encodeURIComponent(JSON.stringify(e))+'\',this)" style="display:block;margin-top:7px;background:#b45309;color:white;border:0;border-radius:7px;padding:7px 10px;font-weight:900;cursor:pointer">'+etiqueta+'</button>':'';return '<tr><td style="padding:8px;border-bottom:1px solid #eee">'+new Date(e.fecha||e.timestamp).toLocaleString('es-CO')+'</td><td>'+textoSeguro(e.usuaria||'')+'</td><td>'+textoSeguro(e.accion||'')+'</td><td>'+textoSeguro(e.recurso||'')+' '+textoSeguro(e.recursoId||'')+'</td><td>'+textoSeguro(e.resultado||'')+'</td><td>'+(detalle?'<details open><summary style="cursor:pointer;color:#7c2d6b;font-weight:800">Ver detalle</summary><pre style="white-space:pre-wrap;max-width:360px;font-size:11px">'+detalle+'</pre></details>':'—')+boton+'</td></tr>'}).join('');est.textContent=eventos.length+(soloDevoluciones?' devoluciones o ajustes encontrados':' eventos recientes')}catch(e){est.textContent='Error: '+e.message}}
-    btn.onclick=()=>{panel.style.display='block';cargar(false)};document.getElementById('cerrar-auditoria').onclick=()=>panel.style.display='none';document.getElementById('recargar-auditoria').onclick=()=>cargar(false);document.getElementById('filtrar-devoluciones').onclick=()=>cargar(true);document.getElementById('corregir-ref-100014').onclick=corregirStockRef100014Pedido96;document.getElementById('restaurar-referencias').onclick=async()=>{const est=document.getElementById('estado-auditoria');try{if(est)est.textContent='Preparando restauración…';await restaurarReferenciasFaltantes()}catch(e){if(est)est.textContent='Error: '+e.message}};document.getElementById('reconstruir-catalogo').onclick=async()=>{const est=document.getElementById('estado-auditoria');try{est.textContent='Reconstruyendo catálogo…';const d=await api('/catalogo-publico',{method:'POST',body:'{}'});est.textContent='Catálogo actualizado: '+d.total+' prendas'}catch(e){est.textContent='Error: '+e.message}};
+    async function cargar(soloDevoluciones){const est=document.getElementById('estado-auditoria');try{est.textContent=soloDevoluciones?'Buscando devoluciones y ajustes de cantidades…':'Cargando actividad…';const d=await api('/auditoria');let eventos=d.eventos||[];if(soloDevoluciones)eventos=eventos.filter(e=>['eliminar_prenda_pedido','cambiar_cantidad_prenda_pedido','eliminar_pedido','cambiar_talla_pedido','restaurar_stock_desde_historial'].includes(String(e.accion||'')));document.getElementById('filas-auditoria').innerHTML=eventos.map(e=>{const detalle=e.detalle&&Object.keys(e.detalle).length?textoSeguro(JSON.stringify(e.detalle,null,2)).slice(0,6000):'';return '<tr><td style="padding:8px;border-bottom:1px solid #eee">'+new Date(e.fecha||e.timestamp).toLocaleString('es-CO')+'</td><td>'+textoSeguro(e.usuaria||'')+'</td><td>'+textoSeguro(e.accion||'')+'</td><td>'+textoSeguro(e.recurso||'')+' '+textoSeguro(e.recursoId||'')+'</td><td>'+textoSeguro(e.resultado||'')+'</td><td>'+(detalle?'<details><summary style="cursor:pointer;color:#7c2d6b;font-weight:800">Ver detalle</summary><pre style="white-space:pre-wrap;max-width:360px;font-size:11px">'+detalle+'</pre></details>':'—')+'</td></tr>'}).join('');est.textContent=eventos.length+(soloDevoluciones?' devoluciones o ajustes encontrados':' eventos recientes')}catch(e){est.textContent='Error: '+e.message}}
+    btn.onclick=()=>{panel.style.display='block';cargar(false)};document.getElementById('cerrar-auditoria').onclick=()=>panel.style.display='none';document.getElementById('recargar-auditoria').onclick=()=>cargar(false);document.getElementById('filtrar-devoluciones').onclick=()=>cargar(true);document.getElementById('reconstruir-catalogo').onclick=async()=>{const est=document.getElementById('estado-auditoria');try{est.textContent='Reconstruyendo catálogo…';const d=await api('/catalogo-publico',{method:'POST',body:'{}'});est.textContent='Catálogo actualizado: '+d.total+' prendas'}catch(e){est.textContent='Error: '+e.message}};
   }
   let intentos=0,timer=setInterval(()=>{instalarWrappers();const u=window.usuarioActual;if(u&&u.uid===UID_YOHANA){crearPanel();clearInterval(timer)}if(++intentos>80)clearInterval(timer)},250);
 })();
