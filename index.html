@@ -2625,10 +2625,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
         } catch(e) {}
 
-        // Renderizar inmediatamente si los datos ya están disponibles (sin esperar window.onload)
-        // NO renderizar en DOMContentLoaded — esperar Firebase para tener colores correctos
-
-        window.onload = async () => {
+        // Iniciar con el DOM listo. No esperar window.onload: imágenes, widgets
+        // o servicios externos pueden quedar pendientes y no deben impedir que
+        // se consulte el inventario real ni que aparezca el catálogo.
+        async function inicializarTiendaConInventarioVerificado() {
             if (window.datosQuemados) {
                 document.querySelector('.btn-toggle-admin').style.display = 'none';
             }
@@ -2683,7 +2683,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 if (catalogo && catalogo.parentNode) catalogo.parentNode.insertBefore(aviso, catalogo);
                 console.error('Inventario autoritativo no disponible:', e);
             }
-        };
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', inicializarTiendaConInventarioVerificado, { once: true });
+        } else {
+            inicializarTiendaConInventarioVerificado();
+        }
 
         function renderizarBannerSlideshow() {
             const cont = document.getElementById('banner-cruce');
