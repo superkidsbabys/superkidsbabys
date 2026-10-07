@@ -5826,9 +5826,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             // El pedido y el descuento de inventario se realizan en el servidor.
             // Esto permite cerrar las escrituras publicas de Firestore.
             try {
-                const requestId = (window.crypto && crypto.randomUUID)
+                // Conservar la misma operación ante un fallo o una respuesta perdida.
+                // No guardar datos personales en esta clave de sesión.
+                const claveSolicitudPendiente = 'superkidsContraentregaPendienteV1';
+                const requestId = sessionStorage.getItem(claveSolicitudPendiente) || ((window.crypto && crypto.randomUUID)
                     ? crypto.randomUUID()
-                    : (Date.now().toString(16) + '-' + Math.random().toString(16).slice(2));
+                    : (Date.now().toString(16) + '-' + Math.random().toString(16).slice(2)));
+                sessionStorage.setItem(claveSolicitudPendiente, requestId);
                 const respuesta = await fetch(
                     'https://superkids-pagos-api.superkids-babys.workers.dev/crear-pedido-contraentrega',
                     {
@@ -5861,6 +5865,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     }
                 );
                 const datos = await respuesta.json().catch(function() { return {}; });
+                if (respuesta.status === 409 && datos.duplicado === true) {
+                    alert('Esta solicitud ya fue registrada. No vuelvas a crear el pedido. Usa tu enlace privado de seguimiento o contacta a tu asesora para recuperar la confirmación.');
+                    return;
+                }
                 if (!respuesta.ok || !datos.ok || !datos.pedido) {
                     throw new Error(datos.error || 'No fue posible crear el pedido');
                 }
@@ -5916,10 +5924,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                     }, 250);
                 }
                 setTimeout(function() { imprimirFactura(numeroSeguro); }, 500);
+                sessionStorage.removeItem(claveSolicitudPendiente);
             } catch(e) {
                 alert(e && e.message
                     ? e.message
-                    : 'No fue posible crear el pedido. El inventario no fue modificado.');
+                    : 'No pudimos confirmar el resultado. La solicitud podría haberse registrado. No crees otro pedido; contacta a tu asesora para comprobarlo.');
             } finally {
                 window._procesandoOrdenWA = false;
                 if (btnEnviarPedido) {
