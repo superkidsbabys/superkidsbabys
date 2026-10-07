@@ -1775,7 +1775,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
     font-weight: 600;
     line-height: 1.4;
 ">
-    🚚 <strong>El valor del envío no está incluido</strong> en el precio de las prendas · El envío contraentrega se calcula según ciudad y valor de compra.
+    🚚 El envio no está incluido en el precio de las prendas y se calcula según la ciudad y el valor total de la compra.
 </div>
 <!-- FIN BANNER ESTÁTICO SCE -->
 
@@ -1880,11 +1880,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
     <div>
         <p style="margin:0 0 4px; font-weight:800; color:#7a4f00; font-size:0.85em; text-transform:uppercase; letter-spacing:0.4px;">Recuerda</p>
         <p style="margin:0; color:#555; font-size:0.84em; line-height:1.5;">
-            Si tu pedido es <strong>contraentrega</strong>, el valor del envío <strong style="color:#c0392b;">no está incluido</strong> en el precio de las prendas y se calcula según la ciudad y el valor total de la compra.
+            El envio no está incluido en el precio de las prendas y se calcula según la ciudad y el valor total de la compra.
         </p>
     </div>
 </div>
 <!-- FIN AVISO CHECKOUT SCE -->
+                <label style="display:flex; gap:8px; align-items:flex-start; margin:12px 0; font-size:.78rem; line-height:1.5; color:#555;">
+                    <input id="cart-autoriza-datos" type="checkbox" style="margin-top:4px; flex-shrink:0;">
+                    <span>Autorizo el uso de mis datos por Superkids&amp;Babys para gestionar mi pedido, pago, entrega y atención posventa, según la <a href="/politica-privacidad.html" target="_blank" rel="noopener" style="color:#85366f; text-decoration:underline;">Política de privacidad</a>. Esta autorización no incluye publicidad.</span>
+                </label>
                 <div id="turnstile-pedido" style="display:flex; justify-content:center; margin:0 0 16px;"></div>
                 <button onclick="procesarOrdenWA()" style="width:100%; background:linear-gradient(135deg,#25d366,#1aab52); color:white; border:none; padding:16px; border-radius:14px; font-size:1.05em; font-weight:900; cursor:pointer; box-shadow:0 6px 20px rgba(37,211,102,0.35); display:flex; align-items:center; justify-content:center; gap:10px;">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"></path></svg>
@@ -4816,6 +4820,16 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         document.addEventListener('DOMContentLoaded', renderCarrito);
 
         let turnstilePedidoId = null;
+        const VERSION_POLITICA_DATOS = '2026-10-07-v1';
+        function autorizacionDatosCheckout() {
+            const casilla = document.getElementById('cart-autoriza-datos');
+            if (!casilla || casilla.checked !== true) {
+                alert('Para continuar, debes autorizar el tratamiento de los datos necesarios para gestionar tu pedido.');
+                if (casilla) casilla.focus();
+                return null;
+            }
+            return { aceptada: true, version: VERSION_POLITICA_DATOS };
+        }
         let turnstilePedidoToken = '';
         let cargaTurnstilePedido = null;
 
@@ -4863,6 +4877,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function abrirModalCheckout() {
+            const autorizacion = document.getElementById('cart-autoriza-datos');
+            if (autorizacion) autorizacion.checked = false;
             document.getElementById('modal-checkout').style.display = 'block';
             document.body.style.overflow = 'hidden';
             const panelWompiSandbox = document.getElementById('wompi-sandbox-panel');
@@ -4886,6 +4902,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             const correo = (document.getElementById('cart-correo') || {value:''}).value.trim();
             const obs = (document.getElementById('cart-observaciones') || {value:''}).value.trim();
             if (!n || !d || !departamento || !ciudad || !tel) return alert('Completa nombre, direccion, departamento, ciudad y telefono antes de pagar.');
+            const autorizacionDatos = autorizacionDatosCheckout();
+            if (!autorizacionDatos) return;
             if (!turnstilePedidoToken) return alert('Completa la verificacion de seguridad antes de continuar.');
 
             let promo = calcularPromocionMamelucos25(carrito);
@@ -4962,6 +4980,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                         },
                         asesora: window.obtenerAsesoraSeleccionada(),
                         turnstileToken: turnstilePedidoToken,
+                        autorizacionDatos: autorizacionDatos,
                         items: carrito.map(function(item) {
                             return { id: item.id, talla: item.talla || '', cantidad: 1 };
                         })
@@ -5627,6 +5646,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function limpiarFormularioCheckoutDespuesDeEnviar() {
+            const autorizacion = document.getElementById('cart-autoriza-datos');
+            if (autorizacion) autorizacion.checked = false;
             window._bloquearAutorrellenoCheckoutHasta = Date.now() + 15000;
             // Limpiar únicamente la copia guardada en este navegador. El pedido y la
             // ficha del cliente permanecen intactos en Firebase y en Gestión.
@@ -5811,6 +5832,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             let obs = (document.getElementById('cart-observaciones') || {value:''}).value.trim();
             let transp = (document.getElementById('cart-transportadora') || {value:''}).value.trim();
             if (!n || !d || !departamento || !ciudad || !tel || carrito.length === 0) return alert("Faltan datos en el formulario.");
+            const autorizacionDatos = autorizacionDatosCheckout();
+            if (!autorizacionDatos) return;
             if (!turnstilePedidoToken) return alert('Completa la verificacion de seguridad antes de enviar el pedido.');
             const validacionStock = validarCarritoContraStockReal();
             if (!validacionStock.ok) return alert(validacionStock.msg);
@@ -5852,6 +5875,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                             observaciones: obs
                         },
                         turnstileToken: turnstilePedidoToken,
+                        autorizacionDatos: autorizacionDatos,
                         transportadora: transp,
                             asesora: window.obtenerAsesoraSeleccionada(),
                             items: carrito.map(function(item) {
