@@ -8278,8 +8278,9 @@ function leerSeleccionWhatsApp(search) {
   return { referencia, talla };
 }
 function resolverSeleccionWhatsApp(datos, seleccion) {
+  const actualizado = typeof datos?.actualizadoEn === 'number' ? datos.actualizadoEn : Date.parse(datos?.actualizadoEn);
   if (!Array.isArray(datos?.productos) || datos.productos.length < 100 || datos.total !== datos.productos.length ||
-      !Number.isFinite(Number(datos.actualizadoEn)) || Number(datos.actualizadoEn) <= 0 || Number(datos.actualizadoEn) > Date.now() + 60000) throw new Error('No pudimos verificar el catálogo. Intenta nuevamente.');
+      !Number.isFinite(actualizado) || actualizado <= 0 || actualizado > Date.now() + 60000) throw new Error('No pudimos verificar el catálogo. Intenta nuevamente.');
   const matches = datos.productos.filter(p => String(p.codigo || '').trim().toUpperCase() === seleccion.referencia.toUpperCase());
   if (matches.length !== 1) throw new Error('No podemos identificar una única prenda con esta referencia. Consulta con una asesora.');
   const producto = matches[0];
