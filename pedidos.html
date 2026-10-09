@@ -12779,7 +12779,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const body=text.value.trim();if(!pending||pending.text!==body||pending.conversation!==current)pending={conversation:current,text:body,requestId:crypto.randomUUID()};
       send.disabled=true;try{await api('send',pending);text.value='';pending=null;await refresh();status('Respuesta aceptada por Meta; no confirma entrega al cliente.');}catch(e){status(e.message);}finally{send.disabled=false;}
     };root.append(send);document.body.append(root);
-    const launcher=element('button','💬 WhatsApp del equipo');launcher.id='wa-inbox-launcher';launcher.style.cssText='position:fixed;left:16px;bottom:20px;z-index:9000;padding:12px;border-radius:12px;background:#128c7e;color:white;display:none';
+    const launcher=element('button','💬 WhatsApp del equipo');launcher.id='wa-inbox-launcher';launcher.style.cssText='position:fixed;left:16px;bottom:84px;z-index:9000;padding:12px;border-radius:12px;background:#128c7e;color:white;display:none';
     launcher.onclick=()=>{root.style.display='block';refresh();};document.body.append(launcher);
     setInterval(()=>{const allowed=['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63'].includes(window.usuarioActual?.uid);launcher.style.display=allowed?'block':'none';if(!allowed){root.style.display='none';history.replaceChildren();list.replaceChildren();current='';}else if(root.style.display!=='none')refresh();},15000);
   }
