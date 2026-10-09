@@ -99,6 +99,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
       await signOut(auth);
       usuarioActual = null;
       window.usuarioActual = null;
+      window.dispatchEvent(new Event('superkids-session-change'));
       if (typeof window.actualizarAccesoReporteConteo === 'function') window.actualizarAccesoReporteConteo();
       if (window._setModoEdicion) window._setModoEdicion(false);
       ocultarPanelAdmin();
@@ -128,6 +129,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
       usuarioActual = ROLES[user.uid] || null;
       if (usuarioActual) usuarioActual.uid = user.uid;
       window.usuarioActual = usuarioActual;
+      window.dispatchEvent(new Event('superkids-session-change'));
       setTimeout(function(){
         if (window.registrarActividadEquipo) window.registrarActividadEquipo('iniciar_sesion','sesion','',{});
       }, 1200);
@@ -204,6 +206,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     } else {
       usuarioActual = null;
       window.usuarioActual = null;
+      window.dispatchEvent(new Event('superkids-session-change'));
       if (window._setModoEdicion) window._setModoEdicion(false);
       const perfil = document.getElementById('perfil-usuario');
       if (perfil) perfil.remove();
@@ -12757,7 +12760,8 @@ document.addEventListener('DOMContentLoaded', function() {
 #wa-inbox-root .wa-input{display:flex;align-items:flex-end;gap:10px}
 #wa-inbox-root textarea{flex:1;min-width:0;border:1px solid #d5dfda;border-radius:12px;padding:12px;min-height:65px;max-height:150px;resize:vertical;font:inherit}
 #wa-inbox-root .wa-send{background:#128c7e;color:white}
-@media(max-width:700px){#wa-inbox-root{inset:1%;grid-template-columns:1fr;grid-template-rows:auto auto 100px minmax(0,1fr) auto}#wa-inbox-root .wa-sidebar{grid-column:1;grid-row:3;border-bottom:1px solid #d7e4df}#wa-inbox-root .wa-side-title{display:none}#wa-inbox-root #wa-inbox-messages{grid-column:1;grid-row:4;padding:12px}#wa-inbox-root .wa-compose{grid-column:1;grid-row:5}#wa-inbox-root .wa-top{padding:10px}#wa-inbox-root h2{font-size:16px}}
+#wa-inbox-root .wa-back{display:none}
+@media(max-width:700px){#wa-inbox-root{inset:0;border-radius:0;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto}#wa-inbox-root .wa-sidebar{grid-column:1;grid-row:3/5;border:0}#wa-inbox-root #wa-inbox-messages,#wa-inbox-root .wa-compose{display:none}#wa-inbox-root.wa-chat-open .wa-sidebar{display:none}#wa-inbox-root.wa-chat-open #wa-inbox-messages{display:flex;grid-column:1;grid-row:3;padding:12px}#wa-inbox-root.wa-chat-open .wa-compose{display:block;grid-column:1;grid-row:4;max-height:40dvh;overflow:auto}#wa-inbox-root.wa-chat-open .wa-back{display:block}#wa-inbox-root .wa-top{padding:10px;gap:6px}#wa-inbox-root h2{font-size:16px}#wa-inbox-root .wa-top button{padding:8px;font-size:12px}}
 </style>
 <script>
 (function(){
@@ -12771,7 +12775,9 @@ document.addEventListener('DOMContentLoaded', function() {
   function clearPrivate(){for(const id of ['wa-inbox-messages','wa-inbox-list'])document.getElementById(id)?.replaceChildren();current='';const root=document.getElementById('wa-inbox-root');if(root)root.style.display='none';}
   function element(tag,text){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;}
   function status(text){document.getElementById('wa-inbox-status').textContent=text;}
+  function showConversationList(){current='';const root=document.getElementById('wa-inbox-root');root?.classList.remove('wa-chat-open');document.getElementById('wa-inbox-messages')?.replaceChildren();document.querySelectorAll('#wa-inbox-list button').forEach(b=>b.classList.remove('wa-selected'));status('Selecciona una conversación para abrir el chat.');}
   async function openConversation(id){
+    document.getElementById('wa-inbox-root').classList.add('wa-chat-open');
     const changed=current!==id;current=id;const data=await api('messages',{conversation:id});if(current!==id)return;const box=document.getElementById('wa-inbox-messages'),atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<70,oldScroll=box.scrollTop;box.replaceChildren();
     status('Chat '+data.conversation.phone+' · '+(data.conversation.paused?'Atiende: '+data.conversation.owner_name:'Bot disponible')+' · Sólo texto en esta versión.');
     for(const m of data.messages){const row=element('div');row.className='wa-bubble'+(m.direction==='in'?'':' wa-out');const labels={received:'Recibido',accepted:'Aceptado por Meta',uncertain:'Envío sin confirmar',sending:'Enviando'};let body=m.body||'['+m.kind+']';if(/^skm1:buy:/.test(body))body='Pulsó: Realizar un pedido';else if(/^skm1:tracking:/.test(body))body='Pulsó: Seguimiento pedido';row.append(element('small',(m.direction==='in'?'Cliente':m.staff_name||'Bot')+' · '+new Date(m.created_at).toLocaleString('es-CO')+' · '+(labels[m.status]||m.status)),element('p',body));
@@ -12792,6 +12798,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function setup(){
     if(document.getElementById('wa-inbox-root'))return;
     const root=element('section');root.id='wa-inbox-root';root.setAttribute('aria-label','WhatsApp del equipo');const top=element('header');top.className='wa-top';top.append(element('h2','💬 WhatsApp del equipo'));root.append(top);
+    const back=element('button','← Atrás');back.className='wa-back';back.setAttribute('aria-label','Volver a todas las conversaciones');back.onclick=showConversationList;top.prepend(back);
     const close=element('button','Cerrar');close.onclick=()=>{root.style.display='none';document.getElementById('wa-inbox-list').replaceChildren();document.getElementById('wa-inbox-messages').replaceChildren();current='';};top.append(close);
     const reload=element('button','Actualizar');reload.onclick=refresh;top.append(reload);
     const message=element('p');message.id='wa-inbox-status';message.setAttribute('role','status');root.append(message);
@@ -12805,8 +12812,21 @@ document.addEventListener('DOMContentLoaded', function() {
       send.disabled=true;try{await api('send',pending);text.value='';pending=null;await refresh();status('Respuesta aceptada por Meta; no confirma entrega al cliente.');}catch(e){status(e.message);}finally{send.disabled=false;}
     };send.className='wa-send';input.append(send);root.append(compose);document.body.append(root);
     const launcher=element('button','💬 WhatsApp del equipo');launcher.id='wa-inbox-launcher';launcher.style.cssText='position:fixed;left:16px;bottom:84px;z-index:9000;padding:12px;border-radius:12px;background:#128c7e;color:white;display:none';
-    launcher.onclick=()=>{root.style.display='grid';refresh();};document.body.append(launcher);
-    setInterval(()=>{const allowed=['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63'].includes(window.usuarioActual?.uid);launcher.style.display=allowed?'block':'none';if(!allowed){root.style.display='none';history.replaceChildren();list.replaceChildren();current='';}else if(root.style.display!=='none')refresh();},15000);
+    let lastUid='';
+    function syncSession(){
+      const uid=window.usuarioActual?.uid||'',allowed=['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63'].includes(uid);
+      if(uid!==lastUid||!allowed){root.style.display='none';history.replaceChildren();list.replaceChildren();current='';text.value='';pending=null;lastUid=uid;}
+      launcher.style.setProperty('display',allowed?'block':'none','important');
+      return allowed;
+    }
+    launcher.style.zIndex='19000';
+    launcher.onclick=()=>{if(!syncSession())return;if(window.matchMedia('(max-width:700px)').matches)showConversationList();root.style.display='grid';refresh();};document.body.append(launcher);
+    window.addEventListener('superkids-session-change',syncSession);
+    window.addEventListener('focus',syncSession);
+    document.addEventListener('visibilitychange',syncSession);
+    syncSession();
+    setInterval(syncSession,500);
+    setInterval(()=>{if(syncSession()&&root.style.display!=='none')refresh();},15000);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup();
 })();
