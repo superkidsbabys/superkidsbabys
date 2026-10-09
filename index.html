@@ -8360,4 +8360,100 @@ async function mostrarSeleccionWhatsApp() {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mostrarSeleccionWhatsApp, { once: true });
 else mostrarSeleccionWhatsApp();
 </script>
+<script id="sincronizacion-whatsapp-v11">
+// Transferencia explícita al carrito de este navegador. Nunca crea pedidos ni reserva stock.
+const WA_TRANSFER_API='https://superkids-whatsapp-test.superkids-babys.workers.dev/cart-transfer';
+const WA_RECEIPTS_KEY='superkidsWhatsAppImportadosV1';
+function leerConsultaWA(search,hash) {
+  const params=new URLSearchParams(search), fragment=new URLSearchParams(hash.replace(/^#/,''));
+  if(params.get('consulta-wa')!=='1') return null;
+  for(const key of ['consulta-wa','wa-gender','wa-size','wa-category']) if(params.getAll(key).length>1) throw Error('El enlace tiene filtros repetidos.');
+  if(fragment.getAll('carrito-wa').length>1) throw Error('El enlace del carrito no es válido.');
+  const gender=params.get('wa-gender')||'',size=params.get('wa-size')||'',category=params.get('wa-category')||'',token=fragment.get('carrito-wa')||'';
+  if(!['','NINAS','NINOS'].includes(gender)||(size&&!/^\d{1,2}[MT]$/.test(size))||category.length>160||token.length>7600) throw Error('El enlace no es válido.');
+  return {gender,size,category,token};
+}
+function prepararFusionWA(actual,items,receipts) {
+  if(!Array.isArray(actual)||!Array.isArray(items)||items.length>10||!Array.isArray(receipts)) throw Error('No se pudo leer el carrito.');
+  const known=new Set(receipts.concat(actual.map(i=>i.waReceipt).filter(Boolean)));
+  const result=actual.slice(), added=[];
+  for(const item of items) {
+    if(!/^[a-f0-9]{64}$/.test(item.receipt)||!item.id||!item.codigo||!item.nombre||!/^\d{1,2}[MT]$/.test(item.talla)||
+      !Number.isSafeInteger(item.precio)||item.precio<=0||!Number.isSafeInteger(item.stock)||item.stock<1) throw Error('Una prenda no pudo validarse.');
+    if(known.has(item.receipt)) continue;
+    if(result.filter(i=>i.id===item.id&&normalizarTallaValor(i.talla)===item.talla).length>=item.stock)
+      throw Error('No hay suficientes unidades de la referencia '+item.codigo+' para sumar a tu carrito. No se agregó ninguna prenda.');
+    const {stock,receipt,...entry}=item;
+    result.push({...entry,waReceipt:receipt});known.add(receipt);added.push(receipt);
+  }
+  return {cart:result,receipts:[...known],added:added.length};
+}
+async function consultarTransferenciaWA(token) {
+  const response=await fetch(WA_TRANSFER_API,{headers:{Authorization:'Bearer '+token},cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(15000)});
+  const data=await response.json();
+  if(!response.ok||!data.ok) throw Error(data.message||'No pudimos verificar tu selección.');
+  if(!Number.isSafeInteger(data.expires)||data.expires<=Date.now()) throw Error('El enlace venció. Pide uno nuevo en WhatsApp.');
+  if(!Array.isArray(data.products)||!Array.isArray(data.items)||!data.items.length||data.items.some(i=>!data.products.some(p=>p.id===i.id))) throw Error('No pudimos verificar los productos.');
+  return data;
+}
+function resumenTransferenciaWA(data) {
+  return JSON.stringify(data.items.map(i=>[i.receipt,i.id,i.talla,i.precio]));
+}
+async function iniciarConsultaWA() {
+  let query;
+  try {query=leerConsultaWA(location.search,location.hash);} catch(e) {alert(e.message);return;}
+  if(!query) return;
+  // El fragmento no se envía al servidor de la tienda. Retirarlo antes de navegar fuera.
+  if(query.token) history.replaceState(history.state,'',location.pathname+location.search);
+  if(query.gender) cambiarGenero(query.gender==='NINAS'?'Niñas':'Niños');
+  if(query.category) filtrarCatalogo(query.category);
+  if(query.size) filtrarPorTalla(query.size);
+  modoCollage=false;renderizarCatalogo();
+  if(!query.token) return;
+  const modal=document.createElement('dialog');
+  modal.setAttribute('aria-label','Continuar carrito de WhatsApp');
+  modal.style.cssText='border:0;border-radius:18px;padding:24px;max-width:540px;width:calc(100% - 48px);color:#333';
+  const title=document.createElement('h2');title.textContent='Tu carrito de WhatsApp';
+  const details=document.createElement('p');details.style.whiteSpace='pre-line';details.textContent='Revisando precios y existencias…';
+  const note=document.createElement('p');note.textContent='Sumaremos estas prendas sin borrar las anteriores. No reserva ni crea pedidos. Los cambios en la página no vuelven al chat.';
+  const status=document.createElement('p');status.setAttribute('role','status');
+  const add=document.createElement('button');add.type='button';add.textContent='Sumar al carrito';add.disabled=true;
+  add.style.cssText='padding:12px;background:#138643;color:white;border:0;border-radius:10px;margin-right:12px';
+  const close=document.createElement('button');close.type='button';close.textContent='Cerrar';close.onclick=()=>modal.close();
+  modal.append(title,details,note,status,add,close);document.body.append(modal);modal.showModal();
+  modal.addEventListener('close',()=>modal.remove());
+  let shown,busy=false;
+  const display=data=>{details.textContent=data.items.map(i=>i.nombre+' — Ref. '+i.codigo+'\n'+i.talla+' · '+formatMoney(i.precio)).join('\n\n');};
+  try {shown=await consultarTransferenciaWA(query.token);if(!modal.isConnected)return;display(shown);add.disabled=false;}
+  catch(e) {status.textContent=e.message;return;}
+  add.onclick=async()=>{
+    if(busy)return;busy=true;add.disabled=true;status.textContent='Comprobando nuevamente…';
+    try {
+      const data=await consultarTransferenciaWA(query.token);
+      if(!modal.isConnected)return;
+      if(resumenTransferenciaWA(data)!==resumenTransferenciaWA(shown)) {shown=data;display(data);status.textContent='Cambió la selección o el precio. Revisa y confirma nuevamente.';add.disabled=false;return;}
+      if(!navigator.locks) throw Error('Este navegador no permite una importación segura. Usa un navegador actualizado.');
+      const added=await navigator.locks.request('superkids-carrito-wa',async()=>{
+        if(data.expires<=Date.now())throw Error('El enlace venció. Pide uno nuevo en WhatsApp.');
+        const original=localStorage.getItem(CLAVE_CARRITO_LOCAL);
+        const actual=original?JSON.parse(original):carrito;
+        const receipts=JSON.parse(localStorage.getItem(WA_RECEIPTS_KEY)||'[]');
+        const merged=prepararFusionWA(actual,data.items,receipts);
+        const saved=JSON.stringify(merged.cart);
+        localStorage.setItem(CLAVE_CARRITO_LOCAL,saved);
+        try {localStorage.setItem(WA_RECEIPTS_KEY,JSON.stringify(merged.receipts));}
+        catch(e) {if(original===null)localStorage.removeItem(CLAVE_CARRITO_LOCAL);else localStorage.setItem(CLAVE_CARRITO_LOCAL,original);throw e;}
+        carrito=merged.cart;
+        // Datos públicos recién validados por el Worker; nunca precios tomados del enlace.
+        for(const product of data.products) {const index=productosDB.findIndex(p=>p.id===product.id);if(index>=0)productosDB[index]={...productosDB[index],...product};else productosDB.push(product);}
+        renderCarrito();return merged.added;
+      });
+      status.textContent=added?added+' prendas sumadas. Tus prendas anteriores se conservaron.':'Estas prendas ya se habían importado. No se duplicaron.';
+      add.textContent='Revisado ✓';
+    } catch(e) {status.textContent=e.message;add.disabled=false;}
+    finally {busy=false;}
+  };
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',iniciarConsultaWA,{once:true});else iniciarConsultaWA();
+</script>
 </body></html>
