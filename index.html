@@ -5537,6 +5537,12 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             const caja = document.getElementById('recomendacion-envio-prueba');
             const contenido = document.getElementById('recomendacion-envio-contenido');
             if (!campo || !caja || !contenido) return;
+            const direccionOficina = (document.getElementById('cart-direccion') || {value:''}).value;
+            if (/oficina/i.test(direccionOficina) && /interrapid[ií]simo/i.test(direccionOficina)) {
+                caja.style.display = 'block';
+                contenido.textContent = 'Recogida solicitada en oficina de Interrapidísimo. Confirma la sede, requisitos y tarifa con la asesora antes de finalizar. No se aplica automáticamente una tarifa de otra transportadora.';
+                return;
+            }
             const r = obtenerRecomendacionEnvioPrueba(campo.value, campoDepartamento ? campoDepartamento.value : '');
             if (!r) {
                 caja.style.display = 'none';
@@ -8401,14 +8407,25 @@ function resumenTransferenciaWA(data) {
 }
 function validarDatosEnvioWA(data) {
   const labels={nombre:'Nombre y apellido',cedula:'Cédula',direccion:'Dirección',barrio:'Barrio / sector',ciudad:'Ciudad',departamento:'Departamento',telefono:'Teléfono',correo:'Correo'};
-  if(!data||typeof data!=='object'||Object.keys(data).length!==8||!Object.keys(labels).every(f=>typeof data[f]==='string'&&data[f].length>=2&&data[f].length<=180&&!/[\x00-\x1f<>]/.test(data[f])))throw Error('Los datos de envío necesitan revisión.');
-  if(!/^\d{5,12}$/.test(data.cedula)||!/^(?:\+?57)?3\d{9}$/.test(data.telefono.replace(/[ ()-]/g,''))||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.correo))throw Error('Los datos de envío necesitan revisión.');
-  return Object.keys(labels).map(f=>labels[f]+': '+data[f]).join('\n');
+  if(!data||typeof data!=='object'||Object.keys(data).length!==8||!Object.keys(labels).every(f=>typeof data[f]==='string'&&(f==='cedula'||data[f].length>=2)&&data[f].length<=180&&!/[\x00-\x1f<>]/.test(data[f])))throw Error('Los datos de envío necesitan revisión.');
+  if((data.cedula!==''&&!/^\d{5,12}$/.test(data.cedula))||!/^(?:\+?57)?3\d{9}$/.test(data.telefono.replace(/[ ()-]/g,''))||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.correo))throw Error('Los datos de envío necesitan revisión.');
+  return Object.keys(labels).map(f=>labels[f]+': '+(f==='cedula'&&!data[f]?'No suministrada':data[f])).join('\n');
 }
 function llenarDatosEnvioWA(data) {
   validarDatosEnvioWA(data);
   // Sólo campos vacíos: nunca sustituir datos ya escritos por el cliente.
   llenarDatosClienteFormulario({...data,cc:data.cedula},true);
+  const notes=document.getElementById('cart-observaciones');
+  const office=/oficina/i.test(data.direccion)&&/interrapid[ií]simo/i.test(data.direccion);
+  const extra=[office?'Entrega solicitada: '+data.direccion+' — '+data.ciudad+', '+data.departamento+'. Confirmar oficina y tarifa con la asesora.':'',!data.cedula?'Cédula no suministrada; teléfono sólo como contacto.':''].filter(Boolean).join('\n');
+  if(notes&&extra&&!notes.value.includes(extra))notes.value=[notes.value,extra].filter(Boolean).join('\n');
+}
+function comprobarConflictosEnvioWA(data) {
+  const fields={nombre:'cart-nombre',cedula:'cart-cc',direccion:'cart-direccion',barrio:'cart-barrio',ciudad:'cart-ciudad',departamento:'cart-departamento',telefono:'cart-telefono',correo:'cart-correo'};
+  for(const [field,id] of Object.entries(fields)) {
+    const current=document.getElementById(id)?.value?.trim()||'';
+    if(current&&current.toUpperCase()!==data[field].trim().toUpperCase())throw Error('El formulario ya tiene datos diferentes. Abre el carrito y vacía o corrige esos campos antes de importar este envío. No mezclamos datos de clientes distintos.');
+  }
 }
 async function iniciarConsultaWA() {
   let query;
@@ -8448,7 +8465,7 @@ async function iniciarConsultaWA() {
     if(busy)return;busy=true;add.disabled=true;status.textContent='Comprobando nuevamente…';
     try {
       const data=await consultarTransferenciaWA(query.token);
-      if(data.shipping)validarDatosEnvioWA(data.shipping);
+      if(data.shipping) {validarDatosEnvioWA(data.shipping);comprobarConflictosEnvioWA(data.shipping);}
       if(!modal.isConnected)return;
       if(resumenTransferenciaWA(data)!==resumenTransferenciaWA(shown)) {shown=data;display(data);status.textContent='Cambió la selección o el precio. Revisa y confirma nuevamente.';add.disabled=false;return;}
       if(!navigator.locks) throw Error('Este navegador no permite una importación segura. Usa un navegador actualizado.');
