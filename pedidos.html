@@ -12733,4 +12733,57 @@ document.addEventListener('DOMContentLoaded', function() {
 })();
 </script>
 <script src="./escaner-camara.js"></script>
+<!-- Se integra sólo en pedidos.html, nunca en el catálogo público. -->
+<script>
+(function(){
+  let current='',refreshing=false;const endpoint='https://superkids-pagos-api.superkids-babys.workers.dev/equipo/whatsapp';
+  async function api(action,extra={}){
+    const token=await window.obtenerTokenSesion?.();if(!token){clearPrivate();throw Error('Inicia sesión con tu usuario del equipo.');}
+    const response=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action,...extra}),cache:'no-store'});
+    const data=await response.json();if(response.status===401||response.status===403)clearPrivate();if(!response.ok||data.ok!==true)throw Error(data.error||'No se pudo abrir la bandeja.');
+    if(!await window.obtenerTokenSesion?.()){clearPrivate();throw Error('La sesión se cerró.');}return data;
+  }
+  function clearPrivate(){for(const id of ['wa-inbox-messages','wa-inbox-list'])document.getElementById(id)?.replaceChildren();current='';const root=document.getElementById('wa-inbox-root');if(root)root.style.display='none';}
+  function element(tag,text){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;}
+  function status(text){document.getElementById('wa-inbox-status').textContent=text;}
+  async function openConversation(id){
+    current=id;const data=await api('messages',{conversation:id}),box=document.getElementById('wa-inbox-messages');box.replaceChildren();
+    status('Chat '+data.conversation.phone+' · '+(data.conversation.paused?'Atiende: '+data.conversation.owner_name:'Bot disponible')+' · Sólo texto en esta versión.');
+    for(const m of data.messages){const row=element('div');row.style.cssText='padding:8px;margin:5px;border:1px solid #ddd;border-radius:8px;white-space:pre-wrap';row.append(element('small',(m.direction==='in'?'Cliente':m.staff_name||'Bot')+' · '+new Date(m.created_at).toLocaleString('es-CO')+' · '+m.status),element('p',m.body||'['+m.kind+']'));
+      if(!['text','interactive'].includes(m.kind))row.append(element('small','Adjunto '+m.kind+': visualización privada pendiente de la siguiente etapa. No se ha verificado ningún pago.'));
+      box.append(row);
+    }
+  }
+  async function refresh(){
+    if(refreshing)return;refreshing=true;
+    try{const data=await api('list'),list=document.getElementById('wa-inbox-list');list.replaceChildren();
+      for(const c of data.conversations){const button=element('button',c.phone+' · '+(c.owner_name||'Sin asignar'));button.style.cssText='display:block;width:100%;margin:4px;padding:8px';button.onclick=()=>openConversation(c.id).catch(e=>status(e.message));list.append(button);}
+      if(!data.conversations.length)status('Sin conversaciones registradas. Se mostrarán mensajes nuevos tras activar la bandeja.');
+      if(current)await openConversation(current);
+    }catch(e){status(e.message);}finally{refreshing=false;}
+  }
+  async function action(name){if(!current)return status('Selecciona una conversación.');try{await api(name,{conversation:current});await refresh();}catch(e){status(e.message);}}
+  function setup(){
+    if(document.getElementById('wa-inbox-root'))return;
+    const root=element('section');root.id='wa-inbox-root';root.style.cssText='display:none;position:fixed;inset:5%;z-index:20000;background:white;border:2px solid #128c7e;border-radius:14px;padding:16px;overflow:auto';
+    root.append(element('h2','WhatsApp del equipo'),element('p','Área privada. Toma el chat antes de responder. Los adjuntos no confirman pagos.'));
+    const close=element('button','Cerrar');close.onclick=()=>{root.style.display='none';document.getElementById('wa-inbox-list').replaceChildren();document.getElementById('wa-inbox-messages').replaceChildren();current='';};root.append(close);
+    const reload=element('button','Actualizar');reload.onclick=refresh;root.append(reload);
+    const message=element('p');message.id='wa-inbox-status';message.setAttribute('role','status');root.append(message);
+    const list=element('div');list.id='wa-inbox-list';root.append(list);
+    for(const [label,name] of [['Tomar conversación','take'],['Devolver al bot','release']]){const b=element('button',label);b.onclick=()=>action(name);root.append(b);}
+    const history=element('div');history.id='wa-inbox-messages';history.style.cssText='max-height:40vh;overflow:auto';root.append(history);
+    const text=element('textarea');text.maxLength=3000;text.placeholder='Respuesta al cliente';text.style.cssText='display:block;width:100%;min-height:70px';root.append(text);
+    const send=element('button','Enviar respuesta');let pending=null;
+    send.onclick=async()=>{if(!current||!text.value.trim())return;if(!confirm('¿Enviar esta respuesta al WhatsApp del cliente?'))return;
+      const body=text.value.trim();if(!pending||pending.text!==body||pending.conversation!==current)pending={conversation:current,text:body,requestId:crypto.randomUUID()};
+      send.disabled=true;try{await api('send',pending);text.value='';pending=null;await refresh();status('Respuesta aceptada por Meta; no confirma entrega al cliente.');}catch(e){status(e.message);}finally{send.disabled=false;}
+    };root.append(send);document.body.append(root);
+    const launcher=element('button','💬 WhatsApp del equipo');launcher.id='wa-inbox-launcher';launcher.style.cssText='position:fixed;left:16px;bottom:20px;z-index:9000;padding:12px;border-radius:12px;background:#128c7e;color:white;display:none';
+    launcher.onclick=()=>{root.style.display='block';refresh();};document.body.append(launcher);
+    setInterval(()=>{const allowed=['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63'].includes(window.usuarioActual?.uid);launcher.style.display=allowed?'block':'none';if(!allowed){root.style.display='none';history.replaceChildren();list.replaceChildren();current='';}else if(root.style.display!=='none')refresh();},15000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup();
+})();
+</script>
 </body></html>
