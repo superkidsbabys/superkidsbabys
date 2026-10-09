@@ -8397,7 +8397,18 @@ async function consultarTransferenciaWA(token) {
   return data;
 }
 function resumenTransferenciaWA(data) {
-  return JSON.stringify(data.items.map(i=>[i.receipt,i.id,i.talla,i.precio]));
+  return JSON.stringify({items:data.items.map(i=>[i.receipt,i.id,i.talla,i.precio]),shipping:data.shipping||null});
+}
+function validarDatosEnvioWA(data) {
+  const labels={nombre:'Nombre y apellido',cedula:'Cédula',direccion:'Dirección',barrio:'Barrio / sector',ciudad:'Ciudad',departamento:'Departamento',telefono:'Teléfono',correo:'Correo'};
+  if(!data||typeof data!=='object'||Object.keys(data).length!==8||!Object.keys(labels).every(f=>typeof data[f]==='string'&&data[f].length>=2&&data[f].length<=180&&!/[\x00-\x1f<>]/.test(data[f])))throw Error('Los datos de envío necesitan revisión.');
+  if(!/^\d{5,12}$/.test(data.cedula)||!/^(?:\+?57)?3\d{9}$/.test(data.telefono.replace(/[ ()-]/g,''))||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.correo))throw Error('Los datos de envío necesitan revisión.');
+  return Object.keys(labels).map(f=>labels[f]+': '+data[f]).join('\n');
+}
+function llenarDatosEnvioWA(data) {
+  validarDatosEnvioWA(data);
+  // Sólo campos vacíos: nunca sustituir datos ya escritos por el cliente.
+  llenarDatosClienteFormulario({...data,cc:data.cedula},true);
 }
 async function iniciarConsultaWA() {
   let query;
@@ -8423,13 +8434,21 @@ async function iniciarConsultaWA() {
   modal.append(title,details,note,status,add,close);document.body.append(modal);modal.showModal();
   modal.addEventListener('close',()=>modal.remove());
   let shown,busy=false;
-  const display=data=>{details.textContent=data.items.map(i=>i.nombre+' — Ref. '+i.codigo+'\n'+i.talla+' · '+formatMoney(i.precio)).join('\n\n');};
+  const display=data=>{
+    details.textContent=data.items.map(i=>i.nombre+' — Ref. '+i.codigo+'\n'+i.talla+' · '+formatMoney(i.precio)).join('\n\n');
+    if(data.shipping) {
+      details.textContent+='\n\nDatos de envío confirmados en WhatsApp:\n'+validarDatosEnvioWA(data.shipping);
+      note.textContent='Al confirmar sumamos las prendas y llenamos sólo los campos vacíos del formulario. Los datos que ya escribiste se conservan. Revisa todo antes de finalizar. No crea pedidos ni realiza pagos.';
+      add.textContent='Sumar y llenar datos';
+    }
+  };
   try {shown=await consultarTransferenciaWA(query.token);if(!modal.isConnected)return;display(shown);add.disabled=false;}
   catch(e) {status.textContent=e.message;return;}
   add.onclick=async()=>{
     if(busy)return;busy=true;add.disabled=true;status.textContent='Comprobando nuevamente…';
     try {
       const data=await consultarTransferenciaWA(query.token);
+      if(data.shipping)validarDatosEnvioWA(data.shipping);
       if(!modal.isConnected)return;
       if(resumenTransferenciaWA(data)!==resumenTransferenciaWA(shown)) {shown=data;display(data);status.textContent='Cambió la selección o el precio. Revisa y confirma nuevamente.';add.disabled=false;return;}
       if(!navigator.locks) throw Error('Este navegador no permite una importación segura. Usa un navegador actualizado.');
@@ -8449,6 +8468,7 @@ async function iniciarConsultaWA() {
         renderCarrito();return merged.added;
       });
       status.textContent=added?added+' prendas sumadas. Tus prendas anteriores se conservaron.':'Estas prendas ya se habían importado. No se duplicaron.';
+      if(data.shipping) {llenarDatosEnvioWA(data.shipping);status.textContent+=' Datos cargados en los campos vacíos. Cierra y abre tu carrito para revisarlos.';}
       add.textContent='Revisado ✓';
     } catch(e) {status.textContent=e.message;add.disabled=false;}
     finally {busy=false;}
