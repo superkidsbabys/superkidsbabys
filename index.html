@@ -8480,7 +8480,7 @@ function resumenTransferenciaWA(data) {
 function validarDatosEnvioWA(data) {
   const labels={nombre:'Nombre y apellido',cedula:'Cédula',direccion:'Dirección',barrio:'Barrio / sector',ciudad:'Ciudad',departamento:'Departamento',telefono:'Teléfono',correo:'Correo'};
   if(!data||typeof data!=='object'||Object.keys(data).length!==8||!Object.keys(labels).every(f=>typeof data[f]==='string'&&(['cedula','correo','barrio'].includes(f)||data[f].length>=2)&&data[f].length<=180&&!/[\x00-\x1f<>]/.test(data[f])))throw Error('Los datos de envío necesitan revisión.');
-  if((data.cedula!==''&&!/^\d{5,12}$/.test(data.cedula))||!/^(?:\+?57)?3\d{9}$/.test(data.telefono.replace(/[ ()-]/g,''))||(data.correo!==''&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.correo)))throw Error('Los datos de envío necesitan revisión.');
+  if((data.cedula!==''&&data.cedula!=='0'&&!/^\d{5,12}$/.test(data.cedula))||!/^(?:\+?57)?3\d{9}$/.test(data.telefono.replace(/[ ()-]/g,''))||(data.correo!==''&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.correo)))throw Error('Los datos de envío necesitan revisión.');
   return Object.keys(labels).map(f=>labels[f]+': '+(f==='cedula'&&!data[f]?'No suministrada':data[f])).join('\n');
 }
 function llenarDatosEnvioWA(data) {
