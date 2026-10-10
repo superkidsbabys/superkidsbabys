@@ -455,7 +455,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
     return 'Sin asesora';
   };
   window.crearEnlaceCatalogoAsesora = function() {
-    const enlace = new URL(window.location.href);
+    const enlace = new URL('https://superkidsbabys.com/');
     const asesora = window.obtenerAsesoraContactoActual();
     enlace.searchParams.delete('seguimiento');
     if (asesora !== 'Sin asesora') enlace.searchParams.set('asesora', asesora);
@@ -641,6 +641,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             transition: background 0.2s;
         }
         .btn-compartir:hover { background: rgba(255,255,255,0.38); }
+        .filtros-accordion .btn-compartir, .producto .btn-compartir, #compartir-foto-prenda {
+            background:#fff; color:#72466b; border:1px solid #e7c5df;
+            min-height:40px; justify-content:center; margin-left:auto; margin-right:auto;
+        }
+        .filtros-accordion .btn-compartir:hover, .producto .btn-compartir:hover, #compartir-foto-prenda:hover { background:#fff0fa; }
         .logo-contenedor {
             position: relative;
             margin: 4px 0 2px;
@@ -1793,6 +1798,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
 
         <!-- ── FILTROS COLAPSABLES ── -->
         <div class="filtros-accordion">
+            <div style="text-align:center;margin:8px 0 14px">
+                <button type="button" class="btn-compartir" onclick="compartirSeleccionCatalogo()">📤 Compartir esta selección</button>
+                <div id="resumen-seleccion-compartir" style="font-size:.85em;color:#666;margin-top:6px" aria-live="polite"></div>
+            </div>
             <div class="filtros-row-toggle">
                 <div id="wrap-buscador-ref" style="display:none; flex:1;">
                     <input type="search" id="input-buscar-ref" placeholder="🔍 Nombre, referencia o categoría..." oninput="buscarPorReferencia(this.value)" style="width:100%; padding:10px 18px; border-radius:25px; border:1.5px solid #e0e0e0; font-family:Nunito,sans-serif; font-size:0.9em; box-sizing:border-box; outline:none; background:white; box-shadow:0 2px 8px rgba(0,0,0,0.06); transition:border-color 0.2s, box-shadow 0.2s;" onfocus="this.style.borderColor='var(--color-banner)';this.style.boxShadow='0 4px 16px rgba(0,0,0,0.10)'" onblur="this.style.borderColor='#e0e0e0';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.06)'">
@@ -1912,6 +1921,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         <img class="modal-contenido-foto" id="img-grande-modal" src="">
         <button class="foto-flecha foto-flecha-der" onclick="event.stopPropagation(); navegarFoto(1)">&#8250;</button>
         <div class="foto-puntos" id="foto-puntos"></div>
+        <div style="text-align:center"><button type="button" class="btn-compartir" id="compartir-foto-prenda" onclick="event.stopPropagation();compartirPrenda(this.dataset.producto)">📤 Compartir esta prenda</button></div>
     </div>
 
     <!-- MODAL EDICIÓN DE PRODUCTO -->
@@ -3441,6 +3451,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             document.getElementById('btn-gen-ninos').classList.toggle('activo', genero === 'Niños');
             document.getElementById('btn-gen-junior-ninas').classList.toggle('activo', genero === 'Junior Niñas');
             document.getElementById('btn-gen-junior-ninos').classList.toggle('activo', genero === 'Junior Niños');
+            document.getElementById('btn-gen-accesorios').classList.toggle('activo', genero === 'Accesorios');
             filtroActual = 'Todos'; tallaFiltroActual = 'Todas'; modoCollage = true;
             aplicarDiseno();
             renderizarCategoriasAdminYPublic(); renderizarFiltroTallas(); renderizarCatalogo();
@@ -3739,6 +3750,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
         }
 
         function renderizarCatalogo() {
+            aplicarEnlaceCompartidoV38();
+            const resumenCompartir = document.getElementById('resumen-seleccion-compartir');
+            if (resumenCompartir) resumenCompartir.textContent = [generoActual, filtroActual !== 'Todos' ? filtroActual : '', tallaFiltroActual !== 'Todas' ? 'Talla ' + tallaFiltroActual : '', soloPromociones ? 'Promos' : '', soloNuevaColeccion ? 'Nueva colección' : ''].filter(Boolean).join(' · ');
             const cont = document.getElementById('contenedor-productos');
             cont.innerHTML = "";
 
@@ -3850,7 +3864,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 const refVisible = opcionInicial ? (opcionInicial.codigo || prod.codigo) : prod.codigo;
                 const cargaPrincipal = indiceProducto < 8 ? 'eager' : 'lazy';
                 const prioridadPrincipal = indiceProducto < 4 ? 'high' : 'auto';
-                tarjetasCatalogo.push(`<div class="producto" id="producto-card-${prod.id}"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" data-original="${escaparAtributo(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="${cargaPrincipal}" decoding="async" fetchpriority="${prioridadPrincipal}" onerror="recuperarImagenCatalogo(this)"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia" id="ref-producto-${prod.id}">REF: ${refVisible || 'S/N'}</span></div><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p>${htmlSelectorOpcionesVenta(prod)}<div class="precio-contenedor" id="precio-producto-${prod.id}">${pNew}</div><div class="fila-tallas-curva">${htmlTallasChips}${btnCurva}</div>${btnAgregar}${btnEditarEliminar}</div></div>`);
+                tarjetasCatalogo.push(`<div class="producto" id="producto-card-${prod.id}"><div class="contenedor-imagen" onclick="abrirFotoGrande('${imgPrincipal}','${prod.id}')">${descH}${customH}<img src="${optimizarUrl(imgPrincipal)}" data-original="${escaparAtributo(imgPrincipal)}" id="img-pr-${prod.id}" class="img-principal" loading="${cargaPrincipal}" decoding="async" fetchpriority="${prioridadPrincipal}" onerror="recuperarImagenCatalogo(this)"></div>${htmlGal}<div class="info-producto"><div class="producto-meta-superior"><span class="etiqueta-categoria">${prod.categoria || 'Sin categoría'}</span><span class="producto-referencia" id="ref-producto-${prod.id}">REF: ${refVisible || 'S/N'}</span></div><h3>${prod.nombre}</h3><p class="descripcion-corta">${prod.desc || ''}</p>${htmlSelectorOpcionesVenta(prod)}<div class="precio-contenedor" id="precio-producto-${prod.id}">${pNew}</div><div class="fila-tallas-curva">${htmlTallasChips}${btnCurva}</div>${btnAgregar}<button type="button" class="btn-compartir" style="margin-top:8px;width:100%" data-producto="${escaparAtributo(prod.id)}" onclick="event.stopPropagation();compartirPrenda(this.dataset.producto)">📤 Compartir prenda</button>${btnEditarEliminar}</div></div>`);
             });
 
             cont.innerHTML = tarjetasCatalogo.join('');
@@ -7777,6 +7791,9 @@ table{width:100%;border-collapse:collapse}
         let _fotosActuales = [];
 
         function abrirFotoGrande(url, prodId) {
+            const compartirFoto = document.getElementById('compartir-foto-prenda');
+            compartirFoto.dataset.producto = prodId || '';
+            compartirFoto.hidden = !prodId;
             // Obtener todas las imágenes del producto
             if (prodId) {
                 const prod = productosDB.find(p => p.id === prodId);
@@ -7828,11 +7845,66 @@ table{width:100%;border-collapse:collapse}
             _fotosActuales = []; _fotoActual = 0;
         }
 
+        // Enlaces públicos: sólo filtros/producto y asesora; nunca carrito ni seguimiento.
+        function crearEnlaceCompartidoV38(producto) {
+            const enlace = new URL(window.crearEnlaceCatalogoAsesora());
+            if (producto) {
+                enlace.searchParams.set('producto', String(producto.id));
+            } else {
+                enlace.searchParams.set('seccion', generoActual);
+                if (filtroActual !== 'Todos') enlace.searchParams.set('categoria', filtroActual);
+                if (tallaFiltroActual !== 'Todas') enlace.searchParams.set('talla', tallaFiltroActual);
+                if (soloPromociones) enlace.searchParams.set('promos', '1');
+                if (soloNuevaColeccion) enlace.searchParams.set('nueva', '1');
+            }
+            return enlace.toString();
+        }
+        async function enviarEnlaceCompartidoV38(url, titulo) {
+            if (navigator.share) {
+                try { await navigator.share({title: titulo, url}); return; }
+                catch (error) { if (error.name === 'AbortError') return; }
+            }
+            try {
+                await navigator.clipboard.writeText(url);
+                alert('Enlace copiado. Ya puedes pegarlo en WhatsApp 💕');
+            } catch (error) { window.prompt('Copia este enlace para compartir:', url); }
+        }
         function compartirCatalogo() {
-            const enlaceCompartir = window.crearEnlaceCatalogoAsesora ? window.crearEnlaceCatalogoAsesora() : window.location.href;
-            navigator.share
-                ? navigator.share({ title: config.titulo, url: enlaceCompartir })
-                : navigator.clipboard.writeText(enlaceCompartir).then(() => alert("¡Enlace personalizado copiado!"));
+            return enviarEnlaceCompartidoV38(window.crearEnlaceCatalogoAsesora(), config.titulo);
+        }
+        function compartirSeleccionCatalogo() {
+            return enviarEnlaceCompartidoV38(crearEnlaceCompartidoV38(), config.titulo + ' — ' + generoActual);
+        }
+        function compartirPrenda(id) {
+            const producto = productosDB.find(p => String(p.id) === String(id));
+            if (!producto) return;
+            return enviarEnlaceCompartidoV38(crearEnlaceCompartidoV38(producto), producto.nombre);
+        }
+        window.compartirSeleccionCatalogo = compartirSeleccionCatalogo;
+        window.compartirPrenda = compartirPrenda;
+        function aplicarEnlaceCompartidoV38() {
+            if (window.__enlaceCompartidoV38 || !inventarioAutoritativoDisponible) return;
+            window.__enlaceCompartidoV38 = true;
+            const params = new URLSearchParams(location.search);
+            const id = params.get('producto');
+            const producto = id && productosDB.find(p => String(p.id) === id);
+            const seccion = producto ? producto.genero : params.get('seccion');
+            if (!producto && !params.has('seccion')) return;
+            if (!GENEROS_ORDEN_VISUAL.includes(seccion) && !(producto && seccion === 'Unisex')) return;
+            generoActual = seccion === 'Unisex' ? 'Niñas' : seccion;
+            filtroActual = 'Todos'; tallaFiltroActual = 'Todas';
+            soloPromociones = false; soloNuevaColeccion = false; modoCollage = false;
+            if (!producto) {
+                const categoria = params.get('categoria');
+                if (categoria && productosDB.some(p => (p.genero === generoActual || p.genero === 'Unisex') && productoCoincideCategoria(p, categoria))) filtroActual = categoria;
+                const talla = params.get('talla');
+                if (talla && talla.length <= 20 && esTallaValida(talla)) tallaFiltroActual = talla;
+                soloPromociones = params.get('promos') === '1';
+                soloNuevaColeccion = !soloPromociones && params.get('nueva') === '1';
+            }
+            const ids = ['btn-gen-ninas','btn-gen-ninos','btn-gen-junior-ninas','btn-gen-junior-ninos','btn-gen-accesorios'];
+            ids.forEach((id, i) => document.getElementById(id)?.classList.toggle('activo', GENEROS_ORDEN_VISUAL[i] === generoActual));
+            aplicarDiseno(); renderizarCategoriasAdminYPublic(); renderizarFiltroTallas();
         }
 
         [
