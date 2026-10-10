@@ -464,7 +464,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     <link rel="manifest" href="./manifest-admin.json?v=20260927-logo">
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
-    <script src="./pwa.js?v=20260927-offline-v3" defer></script>
+    <script src="./pwa.js?v=20261010-sofia-v44" defer></script>
+    <script src="./sofia-gestion-v43.js?v=44" defer></script>
     <title>SuperKids &amp; Babys - Panel de Gestión</title>
     <style id="dynamic-theme">:root { --color-banner: #f5d6ed; --color-texto-banner: #1c1717; --color-fondo: #fbeaf8; --color-tarjeta: #f9e2ed; --color-texto: #2a2222; --color-precio: #ff5cd6; --textura-banner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E"); --textura-size: 20px 20px; --tamano-titulo: 32px; --tamano-descripcion: 14px; --tamano-logo: 130px; --color-btn-carrito: #35c700; --color-btn-carrito-texto: #ffffff; --color-etiqueta-desc: #e74c3c; --color-etiqueta-desc-texto: #ffffff; --opacidad-etiqueta-desc: 0.7; }</style>
     <style>
@@ -1633,6 +1634,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <div class="seccion-admin-sub" style="background: transparent; border: none; padding: 0;">
                     <div class="filtros-pedidos">
                         <button class="btn-filtro-ped" id="fp-todos" onclick="filtrarVistaPedidos('todos')">Todos</button>
+                        <button class="btn-filtro-ped" id="fp-sofia" onclick="filtrarVistaPedidos('sofia')">Pedidos (Sofía bot)</button>
                         <button class="btn-filtro-ped activo" id="fp-nuevo" onclick="filtrarVistaPedidos('nuevo')">Nuevos</button>
                         <button class="btn-filtro-ped" id="fp-enviado" onclick="filtrarVistaPedidos('enviado')">Enviados</button>
                         <button class="btn-filtro-ped" id="fp-entregado" onclick="filtrarVistaPedidos('entregado')">Entregados</button>
@@ -2321,6 +2323,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         let pedidosResaltadosNotificacion = new Set();
         const ESTADOS_PEDIDO = [
             { valor: 'nuevo', label: 'Nuevo', seccion: 'Nuevos' },
+            { valor: 'sofia', label: 'Sofía · pendiente de aprobación', seccion: 'Pedidos (Sofía bot)' },
             { valor: 'enviado', label: 'Enviado', seccion: 'Enviados' },
             { valor: 'entregado', label: 'Entregado', seccion: 'Entregados' },
             { valor: 'pagado', label: 'Pagado', seccion: 'Pagados' },
@@ -2408,7 +2411,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (ESTADOS_PEDIDO_LEGACY[estado]) return ESTADOS_PEDIDO_LEGACY[estado];
             // Fallback: convertir a minúsculas con guión bajo
             const lower = estado.toLowerCase().replace(/\s+/g, '_');
-            const validos = ['nuevo', 'enviado', 'entregado', 'pagado', 'cancelado'];
+            const validos = ['sofia', 'nuevo', 'enviado', 'entregado', 'pagado', 'cancelado'];
             return validos.includes(lower) ? lower : 'nuevo';
         }
 
@@ -7540,6 +7543,16 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (pedIndex === -1) return;
             const pedido = historialPedidos[pedIndex];
             const estadoAnterior = normalizarEstadoPedido(pedido.estado);
+            if(estadoAnterior==='sofia'&&nuevoEstado==='nuevo') {
+                try {
+                    const result=await window.sofiaEquipoV43({action:'aprobar',num:Number(pedido.num)});
+                    historialPedidos[pedIndex]={...pedido,...result.pedido};
+                    localStorage.setItem('pedidosV36',JSON.stringify(historialPedidos));renderizarPedidosPanel();
+                }catch(error){alert(error.message);renderizarPedidosPanel();}
+                return;
+            }
+            if(estadoAnterior==='sofia'&&!['sofia','cancelado'].includes(nuevoEstado))return alert('Primero aprueba el pedido pasándolo a Nuevo, o anúlalo para devolver el stock.');
+            if(nuevoEstado==='sofia'&&estadoAnterior!=='sofia')return alert('Sólo Sofía registra pedidos en esta sección.');
             nuevoEstado = normalizarEstadoPedido(nuevoEstado);
             const esAngelaDespachos = window.usuarioActual && window.usuarioActual.uid === UID_ANGELA;
             const estadosPermitidosAngela = ['enviado', 'entregado', 'cancelado'];
@@ -8503,7 +8516,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 const estadosVisibles = esAngelaEstados
                     ? ESTADOS_PEDIDO.filter(function(e) { return e.valor === estadoActual || ['enviado','entregado','cancelado'].includes(e.valor); })
                     : ESTADOS_PEDIDO;
-                const opcionesEstado = estadosVisibles.map(e => `<option value="${e.valor}" ${estadoActual === e.valor ? 'selected' : ''}>${e.label}</option>`).join('');
+                const opcionesEstado = estadosVisibles.map(e => `<option value="${e.valor}" ${estadoActual === e.valor ? 'selected' : ''}>${estadoActual === 'sofia' && e.valor === 'nuevo' ? 'Aprobar → Nuevos' : e.label}</option>`).join('');
                 let htmlItems = agruparItemsPorProductoParaVista(ped.items).map((g) => {
                     let prodImg = productosDB.find(x => x.id === g.id_prod);
                     let imgBase = g.imagen || (prodImg && prodImg.imagenes && prodImg.imagenes[0]);
