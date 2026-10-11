@@ -467,8 +467,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     <link rel="manifest" href="./manifest-admin.json?v=20260927-logo">
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
-    <script src="./pwa.js?v=20261011-sofia-v53" defer></script>
-    <script src="./sofia-gestion-v43.js?v=53" defer></script>
+    <script src="./pwa.js?v=20261011-sofia-v55" defer></script>
+    <script src="./sofia-gestion-v43.js?v=55" defer></script>
     <title>SuperKids &amp; Babys - Panel de Gestión</title>
     <style id="dynamic-theme">:root { --color-banner: #f5d6ed; --color-texto-banner: #1c1717; --color-fondo: #fbeaf8; --color-tarjeta: #f9e2ed; --color-texto: #2a2222; --color-precio: #ff5cd6; --textura-banner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E"); --textura-size: 20px 20px; --tamano-titulo: 32px; --tamano-descripcion: 14px; --tamano-logo: 130px; --color-btn-carrito: #35c700; --color-btn-carrito-texto: #ffffff; --color-etiqueta-desc: #e74c3c; --color-etiqueta-desc-texto: #ffffff; --opacidad-etiqueta-desc: 0.7; }</style>
     <style>
@@ -12927,15 +12927,18 @@ document.addEventListener('DOMContentLoaded', function() {
       send.disabled=true;try{await api('send',pending);text.value='';pending=null;await refresh();status('Respuesta aceptada por Meta; no confirma entrega al cliente.');}catch(e){status(e.message);}finally{send.disabled=false;}
     };send.className='wa-send';input.append(send);root.append(compose);document.body.append(root);
     const launcher=element('button','💬 WhatsApp del equipo');launcher.id='wa-inbox-launcher';launcher.style.cssText='position:fixed;left:16px;bottom:84px;z-index:9000;padding:12px;border-radius:12px;background:#128c7e;color:white;display:none';
-    let lastUid='';
+    let lastUid='',requestedInbox=location.hash==='#whatsapp-equipo';
     function syncSession(){
       const uid=window.usuarioActual?.uid||'',allowed=['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63'].includes(uid);
       if(uid!==lastUid||!allowed){if(uid!==lastUid)sessionEpoch++;root.style.display='none';history.replaceChildren();list.replaceChildren();current='';text.value='';pending=null;lastUid=uid;}
       launcher.style.setProperty('display',allowed?'block':'none','important');
+      if(allowed&&requestedInbox){requestedInbox=false;root.style.display='grid';refresh();}
       return allowed;
     }
     launcher.style.zIndex='19000';
     launcher.onclick=()=>{if(!syncSession())return;if(window.matchMedia('(max-width:700px)').matches)showConversationList();root.style.display='grid';refresh();};document.body.append(launcher);
+    window.abrirWhatsappEquipo=async(id)=>{if(!syncSession())return;root.style.display='grid';if(id)await openConversation(id);else{showConversationList();await refresh();}};
+    navigator.serviceWorker?.addEventListener('message',event=>{if(event.data?.type==='SUPERKIDS_ABRIR_WHATSAPP_EQUIPO'){requestedInbox=true;syncSession();}});
     window.addEventListener('superkids-session-change',syncSession);
     window.addEventListener('focus',syncSession);
     document.addEventListener('visibilitychange',syncSession);

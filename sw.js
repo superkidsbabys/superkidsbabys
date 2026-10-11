@@ -1,4 +1,4 @@
-const VERSION = 'superkids-compartido-offline-20261011-sofia-v53';
+const VERSION = 'superkids-compartido-offline-20261011-sofia-v55';
 // Mostrar los avisos de Sofía una sola vez y esperar su publicación.
 self.addEventListener('push', event => {
   let payload;try{payload=event.data?.json();}catch{return;}
@@ -16,11 +16,12 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   if(!event.notification.data?.sofia)return;
   event.stopImmediatePropagation();event.notification.close();
-  const url=new URL('./pedidos.html',self.location.href).href;
+  const base=new URL('./pedidos.html',self.location.href).href;
+  const url=base+'#whatsapp-equipo';
   event.waitUntil((async()=>{
     const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
-    const existing=windows.find(w=>w.url.split('?')[0].split('#')[0]===url);
-    if(existing)return existing.focus();
+    const existing=windows.find(w=>w.url.split('?')[0].split('#')[0]===base);
+    if(existing){await existing.focus();existing.postMessage({type:'SUPERKIDS_ABRIR_WHATSAPP_EQUIPO'});return;}
     return self.clients.openWindow(url);
   })());
 });
@@ -31,7 +32,7 @@ try {
 } catch(error) {console.warn('FCM no disponible; modo offline conservado');}
 const CACHE_APP = VERSION + '-app';
 const CACHE_RECURSOS = VERSION + '-recursos';
-const ARCHIVOS_APP = ['./', './index.html', './pedidos.html', './manifest.json', './manifest-admin.json', './pwa.js', './sofia-gestion-v43.js?v=53', './icons/icon-192.png', './icons/icon-512.png'];
+const ARCHIVOS_APP = ['./', './index.html', './pedidos.html', './manifest.json', './manifest-admin.json', './pwa.js', './sofia-gestion-v43.js?v=55', './icons/icon-192.png', './icons/icon-512.png'];
 const LIBRERIAS = [
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js',

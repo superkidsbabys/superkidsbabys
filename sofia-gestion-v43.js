@@ -68,7 +68,7 @@
         stopForeground();unsubscribe=mod.onMessage(messaging,payload=>{
           if(uid()!==expected||sessionVersion!==version||!authorized())return;
           status.textContent=payload.notification?.body||'Hay casos pendientes de Sofía';
-          registration.showNotification(payload.notification?.title||'SuperKids · Sofía',{body:status.textContent,tag:'sofia-equipo',renotify:true}).catch(()=>{});
+          registration.showNotification(payload.notification?.title||'SuperKids · Sofía',{body:status.textContent,tag:'sofia-equipo',renotify:true,data:{sofia:true}}).catch(()=>{});
         });
         status.textContent='Dispositivo registrado. Falta comprobar un aviso real con Gestión en segundo plano.';
       }catch(error){status.textContent=error.message;}finally{paintDeviceButton();}
@@ -95,23 +95,18 @@
         const text=document.createElement('span');text.textContent=notice.tipo==='pedido'?'Pedido #SK-'+notice.numeroPedido+' pendiente':(notice.motivo==='envio-1kg'?'Envío supera 1 kg: terminar de cotizar (más de 6 prendas) · WhatsApp ':'Cliente solicita una asesora · WhatsApp ')+String(notice.telefono||'');
         if(receipt)text.textContent='Revisar comprobante · WhatsApp '+String(notice.telefono||'');
         else if(shipping&&notice.motivo!=='envio-1kg')text.textContent='Revisar solicitud de transporte · WhatsApp '+String(notice.telefono||'');
-        const digits=String(notice.telefono||'').replace(/\D/g,''),phone=/^3\d{9}$/.test(digits)?'57'+digits:digits;
-        const chatUrl=/^\d{10,15}$/.test(phone)?'https://wa.me/'+phone:'';
         const button=document.createElement('button');button.type='button';button.style.marginLeft='10px';button.textContent='Tomar caso · detener avisos';
         button.style.backgroundColor=colors[1];button.style.color='#ffffff';button.style.borderColor=colors[1];
-        button.onclick=async()=>{if(button.disabled)return;let chat=null;try{
+        button.onclick=async()=>{if(button.disabled)return;try{
           checkSession(expected,version);button.disabled=true;
-          if(chatUrl)chat=window.open('about:blank','_blank');
-          if(chat)chat.opener=null;
           checkSession(expected,version);if(notice.tipo==='asesora') {
             const token=await window.obtenerTokenSesion();checkSession(expected,version);
             const response=await fetch(API.replace('/sofia/equipo','/equipo/whatsapp'),{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action:'take',conversation:notice.conversationId})});
             const result=await response.json();checkSession(expected,version);if(!response.ok||!result.ok)throw Error(result.error||'No se pudo tomar la conversación');
           } else {await window.sofiaEquipoV43({action:'tomar',id:notice.id});window.filtrarVistaPedidos('sofia');}
-          if(chat)chat.location.replace(chatUrl);
-          else if(chatUrl){const status=root.querySelector('[role="status"]');status.replaceChildren(document.createTextNode('Caso tomado. El navegador bloqueó la apertura automática. '));const link=document.createElement('a');link.href=chatUrl;link.target='_blank';link.rel='noopener';link.textContent='Abrir chat del cliente';status.append(link);}
+          await window.abrirWhatsappEquipo(notice.conversationId||'');
           await refresh();
-        }catch(e){if(chat)chat.close();alert(e.message);}finally{button.disabled=false;}};
+        }catch(e){alert(e.message);}finally{button.disabled=false;}};
         row.append(label,text,button);list.append(row);
       }
       if(!result.avisos.length)list.textContent='No hay casos sin atender.';
