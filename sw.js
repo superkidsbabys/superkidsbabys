@@ -1,4 +1,29 @@
-const VERSION = 'superkids-compartido-offline-20261010-sofia-v47';
+const VERSION = 'superkids-compartido-offline-20261010-sofia-v48';
+// Mostrar los avisos de Sofía una sola vez y esperar su publicación.
+self.addEventListener('push', event => {
+  let payload;try{payload=event.data?.json();}catch{return;}
+  const notice=payload?.notification;
+  if(notice?.title!=='SuperKids · Sofía'||typeof notice.body!=='string')return;
+  event.stopImmediatePropagation();
+  event.waitUntil(self.registration.showNotification(notice.title,{
+    body:notice.body.slice(0,500),
+    tag:payload.webpush?.notification?.tag||'sofia-equipo',
+    renotify:true,silent:false,vibrate:[200,100,200],
+    icon:new URL('./icons/icon-192.png',self.location.href).href,
+    data:{sofia:true,url:new URL('./pedidos.html',self.location.href).href}
+  }));
+});
+self.addEventListener('notificationclick', event => {
+  if(!event.notification.data?.sofia)return;
+  event.stopImmediatePropagation();event.notification.close();
+  const url=new URL('./pedidos.html',self.location.href).href;
+  event.waitUntil((async()=>{
+    const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+    const existing=windows.find(w=>w.url.split('?')[0].split('#')[0]===url);
+    if(existing)return existing.focus();
+    return self.clients.openWindow(url);
+  })());
+});
 try {
   importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js','https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
   firebase.initializeApp({apiKey:'AIzaSyBn5zp89TGHUj6OkA8jyKm_ROfEazCRgUc',projectId:'superkidsbabys-222b0',messagingSenderId:'564588158910',appId:'1:564588158910:web:d478f56a15aa1c3f3223ef'});
@@ -6,7 +31,7 @@ try {
 } catch(error) {console.warn('FCM no disponible; modo offline conservado');}
 const CACHE_APP = VERSION + '-app';
 const CACHE_RECURSOS = VERSION + '-recursos';
-const ARCHIVOS_APP = ['./', './index.html', './pedidos.html', './manifest.json', './manifest-admin.json', './pwa.js', './sofia-gestion-v43.js?v=47', './icons/icon-192.png', './icons/icon-512.png'];
+const ARCHIVOS_APP = ['./', './index.html', './pedidos.html', './manifest.json', './manifest-admin.json', './pwa.js', './sofia-gestion-v43.js?v=48', './icons/icon-192.png', './icons/icon-512.png'];
 const LIBRERIAS = [
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js',
