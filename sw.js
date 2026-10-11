@@ -1,4 +1,4 @@
-const VERSION = 'superkids-compartido-offline-20261010-sofia-v44';
+const VERSION = 'superkids-compartido-offline-20261010-sofia-v47';
 try {
   importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js','https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
   firebase.initializeApp({apiKey:'AIzaSyBn5zp89TGHUj6OkA8jyKm_ROfEazCRgUc',projectId:'superkidsbabys-222b0',messagingSenderId:'564588158910',appId:'1:564588158910:web:d478f56a15aa1c3f3223ef'});
@@ -6,7 +6,7 @@ try {
 } catch(error) {console.warn('FCM no disponible; modo offline conservado');}
 const CACHE_APP = VERSION + '-app';
 const CACHE_RECURSOS = VERSION + '-recursos';
-const ARCHIVOS_APP = ['./', './index.html', './pedidos.html', './manifest.json', './manifest-admin.json', './pwa.js', './sofia-gestion-v43.js?v=44', './icons/icon-192.png', './icons/icon-512.png'];
+const ARCHIVOS_APP = ['./', './index.html', './pedidos.html', './manifest.json', './manifest-admin.json', './pwa.js', './sofia-gestion-v43.js?v=47', './icons/icon-192.png', './icons/icon-512.png'];
 const LIBRERIAS = [
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js',

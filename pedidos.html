@@ -464,8 +464,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     <link rel="manifest" href="./manifest-admin.json?v=20260927-logo">
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
-    <script src="./pwa.js?v=20261010-sofia-v44" defer></script>
-    <script src="./sofia-gestion-v43.js?v=44" defer></script>
+    <script src="./pwa.js?v=20261010-sofia-v47" defer></script>
+    <script src="./sofia-gestion-v43.js?v=47" defer></script>
     <title>SuperKids &amp; Babys - Panel de Gestión</title>
     <style id="dynamic-theme">:root { --color-banner: #f5d6ed; --color-texto-banner: #1c1717; --color-fondo: #fbeaf8; --color-tarjeta: #f9e2ed; --color-texto: #2a2222; --color-precio: #ff5cd6; --textura-banner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E"); --textura-size: 20px 20px; --tamano-titulo: 32px; --tamano-descripcion: 14px; --tamano-logo: 130px; --color-btn-carrito: #35c700; --color-btn-carrito-texto: #ffffff; --color-etiqueta-desc: #e74c3c; --color-etiqueta-desc-texto: #ffffff; --opacidad-etiqueta-desc: 0.7; }</style>
     <style>
@@ -12775,14 +12775,47 @@ document.addEventListener('DOMContentLoaded', function() {
 #wa-inbox-root .wa-send{background:#128c7e;color:white}
 #wa-inbox-root .wa-back{display:none}
 @media(max-width:700px){#wa-inbox-root{inset:0;border-radius:0;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto}#wa-inbox-root .wa-sidebar{grid-column:1;grid-row:3/5;border:0}#wa-inbox-root #wa-inbox-messages,#wa-inbox-root .wa-compose{display:none}#wa-inbox-root.wa-chat-open .wa-sidebar{display:none}#wa-inbox-root.wa-chat-open #wa-inbox-messages{display:flex;grid-column:1;grid-row:3;padding:12px}#wa-inbox-root.wa-chat-open .wa-compose{display:block;grid-column:1;grid-row:4;max-height:40dvh;overflow:auto}#wa-inbox-root.wa-chat-open .wa-back{display:block}#wa-inbox-root .wa-top{padding:10px;gap:6px}#wa-inbox-root h2{font-size:16px}#wa-inbox-root .wa-top button{padding:8px;font-size:12px}}
+#wa-inbox-root .wa-alert{display:inline-flex;align-items:center;gap:6px;margin:5px 6px 0 0;padding:3px 7px;border-radius:12px;font-size:12px;font-weight:700;white-space:normal}
+#wa-inbox-root .wa-alert-blue{background:#dbeafe;color:#1e40af}
+#wa-inbox-root .wa-alert-red{background:#fee2e2;color:#991b1b}
+#wa-inbox-root .wa-alert-dot{width:8px;height:8px;border-radius:50%;background:currentColor;animation:wa-alert-pulse 2s ease-in-out infinite}
+@keyframes wa-alert-pulse{50%{opacity:.4}}
+@media(prefers-reduced-motion:reduce){#wa-inbox-root .wa-alert-dot{animation:none}}
+
+#wa-inbox-root{inset:5%;border:1px solid #d9e8e1;border-radius:22px;font-family:Nunito,Segoe UI,Arial,sans-serif;grid-template-columns:310px minmax(0,1fr);box-shadow:0 24px 100px #12382d40}
+#wa-inbox-root .wa-top{background:#075e54;padding:14px 18px}
+#wa-inbox-root .wa-top h2{font-size:18px;letter-spacing:-.2px}
+#wa-inbox-root .wa-top button{padding:7px 11px;font-size:12px;background:#ffffff20;color:#fff;border:1px solid #ffffff30;border-radius:18px}
+#wa-inbox-root #wa-inbox-status{padding:8px 18px;color:#526b62;background:#f5faf7;font-size:12px}
+#wa-inbox-root .wa-side-title{padding:16px 18px;font-size:13px;background:#f8fbfa;border-bottom:1px solid #e7efea}
+#wa-inbox-root #wa-inbox-list button{padding:13px 16px;line-height:1.6;color:#173e32;font-size:13px;transition:background .15s}
+#wa-inbox-root #wa-inbox-list button.wa-selected{background:#e0f3e9;box-shadow:inset 3px 0 #128c7e}
+#wa-inbox-root .wa-avatar{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;margin-right:8px;border-radius:50%;background:#e8f0ed;color:#286450;font-weight:800;font-size:12px;vertical-align:middle}
+#wa-inbox-root #wa-inbox-messages{background-color:#f4f0e8;background-image:radial-gradient(#b7c7bc45 1px,transparent 1px);background-size:20px 20px;padding:22px;gap:12px}
+#wa-inbox-root .wa-bubble{max-width:78%;border:1px solid #e3e8e1;padding:9px 13px;border-radius:4px 16px 16px;box-shadow:0 2px 4px #12382d08;line-height:1.55}
+#wa-inbox-root .wa-out{background:#dff6dc;border-color:#c9e7c6;border-radius:16px 4px 16px 16px}
+#wa-inbox-root .wa-bubble small{display:block;font-size:10px;color:#638071}
+#wa-inbox-root .wa-bubble p{font-size:14px;margin:5px 0 0}
+#wa-inbox-root .wa-compose{background:#f9fcfa;padding:12px 16px}
+#wa-inbox-root .wa-controls button{padding:6px 10px;font-size:12px;border-radius:16px}
+#wa-inbox-root .wa-note{font-size:11px;margin:7px 0}
+#wa-inbox-root textarea{border-radius:22px;min-height:46px;padding:12px 16px;font-size:13px;background:white}
+#wa-inbox-root .wa-send{border-radius:22px;padding:12px 15px;font-size:12px;min-height:44px}
+#wa-inbox-root .wa-empty{margin:auto;max-width:320px;text-align:center;color:#577066;background:#ffffffb8;padding:26px;border:1px solid #ffffff;border-radius:24px}
+#wa-inbox-root .wa-empty strong{display:block;margin:8px;font-size:18px;color:#205947}
+#wa-inbox-root .wa-empty p{margin:8px 0;font-size:13px}
+@media(max-width:700px){#wa-inbox-root{inset:0;border-radius:0;grid-template-columns:minmax(0,1fr)}#wa-inbox-root .wa-bubble{max-width:90%}#wa-inbox-root .wa-top{padding:12px}#wa-inbox-root .wa-top h2{font-size:15px}#wa-inbox-root .wa-compose{padding:10px}#wa-inbox-root .wa-controls{gap:5px}}
 </style>
 <script>
 (function(){
-  let current='',refreshing=false;const endpoint='https://superkids-pagos-api.superkids-babys.workers.dev/equipo/whatsapp';
+  let current='',refreshing=false,sessionEpoch=0;const endpoint='https://superkids-pagos-api.superkids-babys.workers.dev/equipo/whatsapp';
   async function api(action,extra={}){
-    const token=await window.obtenerTokenSesion?.();if(!token){clearPrivate();throw Error('Inicia sesión con tu usuario del equipo.');}
+    const actorUid=window.usuarioActual?.uid,epoch=sessionEpoch;
+    if(!['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63'].includes(actorUid))throw Error('Integrante no autorizada');
+    const token=await window.obtenerTokenSesion?.();
+    if(actorUid!==window.usuarioActual?.uid||epoch!==sessionEpoch)throw Error('La sesión cambió');if(!token){clearPrivate();throw Error('Inicia sesión con tu usuario del equipo.');}
     const response=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action,...extra}),cache:'no-store'});
-    const data=await response.json();if(response.status===401||response.status===403)clearPrivate();if(!response.ok||data.ok!==true)throw Error(data.error||'No se pudo abrir la bandeja.');
+    const data=await response.json();if(actorUid!==window.usuarioActual?.uid||epoch!==sessionEpoch)throw Error('La sesión cambió');if(response.status===401||response.status===403)clearPrivate();if(!response.ok||data.ok!==true)throw Error(data.error||'No se pudo abrir la bandeja.');
     if(!await window.obtenerTokenSesion?.()){clearPrivate();throw Error('La sesión se cerró.');}return data;
   }
   function clearPrivate(){for(const id of ['wa-inbox-messages','wa-inbox-list'])document.getElementById(id)?.replaceChildren();current='';const root=document.getElementById('wa-inbox-root');if(root)root.style.display='none';}
@@ -12802,9 +12835,14 @@ document.addEventListener('DOMContentLoaded', function() {
   async function refresh(){
     if(refreshing)return;refreshing=true;
     try{const data=await api('list'),list=document.getElementById('wa-inbox-list');list.replaceChildren();
-      for(const c of data.conversations){const button=element('button','💬 '+c.phone+'\n'+(c.paused?'Atiende: '+(c.owner_name||'Equipo'):'🤖 Bot disponible'));button.className=current===c.id?'wa-selected':'';button.onclick=()=>{document.querySelectorAll('#wa-inbox-list button').forEach(b=>b.classList.remove('wa-selected'));button.classList.add('wa-selected');openConversation(c.id).catch(e=>status(e.message));};list.append(button);}
+      for(const c of data.conversations){const button=element('button');const avatar=element('span','WA');avatar.className='wa-avatar';button.append(avatar,element('strong',c.phone),element('br'),element('span',c.paused?'Atiende: '+(c.owner_name||'Equipo'):'🤖 Sofía · bot disponible'));button.className=current===c.id?'wa-selected':'';
+        for(const [pending,label,color] of [[c.advisor_pending,'Solicita asesora','blue'],[c.receipt_pending,'Revisar comprobante','red']]){
+          if(!pending)continue;const badge=element('span',label);badge.className='wa-alert wa-alert-'+color;
+          const dot=element('span');dot.className='wa-alert-dot';dot.setAttribute('aria-hidden','true');badge.prepend(dot);button.append(element('br'),badge);
+        }button.onclick=()=>{document.querySelectorAll('#wa-inbox-list button').forEach(b=>b.classList.remove('wa-selected'));button.classList.add('wa-selected');openConversation(c.id).catch(e=>status(e.message));};list.append(button);}
       if(!data.conversations.length)status('Sin conversaciones registradas. Se mostrarán mensajes nuevos tras activar la bandeja.');
       if(current)await openConversation(current);
+      if(data.attentionUnavailable)status('No se pudieron consultar las solicitudes de asesora. Los chats siguen disponibles; vuelve a actualizar.');
     }catch(e){status(e.message);}finally{refreshing=false;}
   }
   async function action(name){if(!current)return status('Selecciona una conversación.');try{await api(name,{conversation:current});await refresh();}catch(e){status(e.message);}}
@@ -12816,8 +12854,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const reload=element('button','Actualizar');reload.onclick=refresh;top.append(reload);
     const message=element('p');message.id='wa-inbox-status';message.setAttribute('role','status');root.append(message);
     const sidebar=element('aside');sidebar.className='wa-sidebar';sidebar.append(Object.assign(element('div','Conversaciones'),{className:'wa-side-title'}));const list=element('div');list.id='wa-inbox-list';sidebar.append(list);root.append(sidebar);const compose=element('div');compose.className='wa-compose';const controls=element('div');controls.className='wa-controls';compose.append(controls);
-    for(const [label,name] of [['🙋 Tomar conversación','take'],['🤖 Devolver al bot','release']]){const b=element('button',label);b.onclick=()=>action(name);controls.append(b);}
-    const history=element('div');history.id='wa-inbox-messages';history.append(element('p','Selecciona un chat para ver sus mensajes.'));root.append(history);const note=element('p','Área privada · Toma el chat antes de responder. Los adjuntos no confirman pagos.');note.className='wa-note';compose.append(note);const input=element('div');input.className='wa-input';compose.append(input);
+    for(const [label,name] of [['🙋 Tomar conversación','take'],['🤖 Devolver al bot','release'],['🔴 Revisar comprobante','marcar-comprobante'],['✓ Revisión terminada','comprobante-revisado']]){const b=element('button',label);b.onclick=()=>action(name);controls.append(b);}
+    const history=element('div');history.id='wa-inbox-messages';const empty=element('div');empty.className='wa-empty';empty.append(element('span','💬'),element('strong','Cada conversación, a mano'),element('p','Selecciona un chat para ver los mensajes y sus pendientes.'),element('p','🔵 Solicita asesora · 🔴 Revisar comprobante'));history.append(empty);root.append(history);const note=element('p','Área privada · Toma el chat antes de responder. Marca comprobantes para revisión. Terminar la revisión no aprueba pagos.');note.className='wa-note';compose.append(note);const input=element('div');input.className='wa-input';compose.append(input);
     const text=element('textarea');text.maxLength=3000;text.placeholder='Escribe una respuesta…';text.setAttribute('aria-label','Respuesta al cliente');input.append(text);
     const send=element('button','Enviar respuesta');let pending=null;
     send.onclick=async()=>{if(!current||!text.value.trim())return;if(!confirm('¿Enviar esta respuesta al WhatsApp del cliente?'))return;
@@ -12828,7 +12866,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let lastUid='';
     function syncSession(){
       const uid=window.usuarioActual?.uid||'',allowed=['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63'].includes(uid);
-      if(uid!==lastUid||!allowed){root.style.display='none';history.replaceChildren();list.replaceChildren();current='';text.value='';pending=null;lastUid=uid;}
+      if(uid!==lastUid||!allowed){if(uid!==lastUid)sessionEpoch++;root.style.display='none';history.replaceChildren();list.replaceChildren();current='';text.value='';pending=null;lastUid=uid;}
       launcher.style.setProperty('display',allowed?'block':'none','important');
       return allowed;
     }
@@ -12844,4 +12882,5 @@ document.addEventListener('DOMContentLoaded', function() {
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup();
 })();
 </script>
+
 </body></html>
