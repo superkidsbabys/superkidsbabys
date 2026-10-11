@@ -76,8 +76,8 @@
       try{if(!deviceToken)throw Error('No hay un dispositivo registrado en este navegador');await revokeDevice();status.textContent='Avisos desactivados';}catch(e){status.textContent=e.message;}finally{paintDeviceButton();}
     };
     header.append(enable);root.append(header,status);const list=document.createElement('div');list.id='sofia-casos-v43';root.append(list);
-    paintDeviceButton();
-    document.getElementById('fp-sofia')?.parentElement.insertAdjacentElement('afterend',root);return root;
+    document.getElementById('fp-sofia')?.parentElement.insertAdjacentElement('afterend',root);
+    paintDeviceButton();return root;
   }
   async function refresh(){
     installLogout();const requestVersion=++refreshVersion,expected=uid(),version=sessionVersion;
