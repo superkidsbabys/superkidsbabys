@@ -467,7 +467,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     <link rel="manifest" href="./manifest-admin.json?v=20260927-logo">
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
-    <script src="./pwa.js?v=20261011-sofia-v55" defer></script>
+    <script src="./pwa.js?v=20261011-sofia-v57" defer></script>
     <script src="./sofia-gestion-v43.js?v=55" defer></script>
     <title>SuperKids &amp; Babys - Panel de Gestión</title>
     <style id="dynamic-theme">:root { --color-banner: #f5d6ed; --color-texto-banner: #1c1717; --color-fondo: #fbeaf8; --color-tarjeta: #f9e2ed; --color-texto: #2a2222; --color-precio: #ff5cd6; --textura-banner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E"); --textura-size: 20px 20px; --tamano-titulo: 32px; --tamano-descripcion: 14px; --tamano-logo: 130px; --color-btn-carrito: #35c700; --color-btn-carrito-texto: #ffffff; --color-etiqueta-desc: #e74c3c; --color-etiqueta-desc-texto: #ffffff; --opacidad-etiqueta-desc: 0.7; }</style>
@@ -4232,7 +4232,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             renderOpcionesVentaAdmin('edit', p.opcionesVenta);
             document.getElementById('edit-prod-etiqueta').value = p.etiquetaPersonalizada || '';
             let contTallas = document.getElementById('contenedor-edit-tallas-stock'); contTallas.innerHTML = '';
-            if (p.tallasObj && p.tallasObj.length > 0) p.tallasObj.forEach(t => agregarFilaTallaEdit(t.nombre, t.stock, t.imgIndex || '', t.precio || ''));
+            if (p.tallasObj && p.tallasObj.length > 0) p.tallasObj.forEach(t => agregarFilaTallaEdit(t.nombre, t.stock, t.imgIndex || '', t.precio || '', t.codigo || ''));
             else agregarFilaTallaEdit('', '');
             document.getElementById('modal-editar-producto').style.display = 'block';
 
@@ -4269,9 +4269,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             }
         }
 
-        function agregarFilaTallaEdit(nom = '', stk = '', imgIndex = '', precio = '') {
+        function agregarFilaTallaEdit(nom = '', stk = '', imgIndex = '', precio = '', codigo = '') {
             const div = document.createElement('div'); div.className = 'fila-talla';
             div.innerHTML = `<input type="text" class="inp-talla-nombre-edit" placeholder="Talla / Color" value="${nom}"><input type="number" class="inp-talla-stock-edit" placeholder="Cantidad" min="0" value="${stk}"><input type="number" class="inp-talla-img-index-edit" placeholder="Foto #" min="1" value="${imgIndex || ''}" title="Numero de foto para esta talla/color"><input type="number" class="inp-talla-precio-edit" placeholder="Precio" min="0" value="${precio || ''}" title="Precio solo para esta talla; vacío = precio general"><button type="button" class="btn-remover-fila" onclick="this.parentElement.remove()">X</button>`;
+            const referencia=document.createElement('input');referencia.type='hidden';referencia.className='inp-talla-codigo-edit';referencia.value=codigo;
+            const boton=document.createElement('button');boton.type='button';boton.className='btn-secundario';boton.style.cssText='background:#e0e7ff;color:#3730a3;border:1px solid #818cf8;white-space:normal';
+            const pintarReferencia=()=>{boton.textContent=referencia.value?'Ref: '+referencia.value:'Referencia';boton.title='Referencia de este color o talla';};pintarReferencia();
+            boton.onclick=()=>{const color=div.querySelector('.inp-talla-nombre-edit').value;const valor=prompt('Referencia para '+(color||'este renglón')+':',referencia.value);if(valor===null)return;referencia.value=valor.trim();pintarReferencia();};
+            div.insertBefore(boton,div.querySelector('.btn-remover-fila'));div.appendChild(referencia);div.style.flexWrap='wrap';
             document.getElementById('contenedor-edit-tallas-stock').appendChild(div);
         }
 
@@ -4483,6 +4488,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     let tallaObj = { nombre: nom, stock: stk };
                     if (!isNaN(imgIndex) && imgIndex > 0) tallaObj.imgIndex = imgIndex;
                     if (!isNaN(precioTalla) && precioTalla > 0) tallaObj.precio = precioTalla;
+                    const codigoColor=(fila.querySelector('.inp-talla-codigo-edit')?.value||'').trim();
+                    if(codigoColor)tallaObj.codigo=codigoColor;
                     if (nom && !isNaN(stk)) tallasObjArr.push(tallaObj);
                 });
                 p.tallasObj = tallasObjArr;

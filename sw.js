@@ -1,4 +1,4 @@
-const VERSION = 'superkids-compartido-offline-20261011-sofia-v55';
+const VERSION = 'superkids-compartido-offline-20261011-sofia-v57';
 // Mostrar los avisos de Sofía una sola vez y esperar su publicación.
 self.addEventListener('push', event => {
   let payload;try{payload=event.data?.json();}catch{return;}
