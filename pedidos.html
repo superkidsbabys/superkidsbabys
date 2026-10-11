@@ -464,7 +464,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     <link rel="manifest" href="./manifest-admin.json?v=20260927-logo">
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
-    <script src="./pwa.js?v=20261010-sofia-v48" defer></script>
+    <script src="./pwa.js?v=20261010-sofia-v49" defer></script>
     <script src="./sofia-gestion-v43.js?v=48" defer></script>
     <title>SuperKids &amp; Babys - Panel de Gestión</title>
     <style id="dynamic-theme">:root { --color-banner: #f5d6ed; --color-texto-banner: #1c1717; --color-fondo: #fbeaf8; --color-tarjeta: #f9e2ed; --color-texto: #2a2222; --color-precio: #ff5cd6; --textura-banner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E"); --textura-size: 20px 20px; --tamano-titulo: 32px; --tamano-descripcion: 14px; --tamano-logo: 130px; --color-btn-carrito: #35c700; --color-btn-carrito-texto: #ffffff; --color-etiqueta-desc: #e74c3c; --color-etiqueta-desc-texto: #ffffff; --opacidad-etiqueta-desc: 0.7; }</style>
@@ -1876,11 +1876,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
                         <div>
                             <h3 style="margin:0;color:#9d174d;">🚚 Tarifas de envío personalizadas</h3>
-                            <p style="margin:5px 0 0;color:#667085;font-size:.86em;max-width:720px;">Agrega una ciudad después de cotizarla. La próxima compra usará automáticamente este valor y tendrá prioridad sobre las tarifas generales.</p>
+                            <p style="margin:5px 0 0;color:#667085;font-size:.86em;max-width:720px;">Guarda el valor completo del envío desde Bogotá, incluidos los $900 de la cotización. Sofía usará exactamente el valor guardado, sin convertirlo. Sofía consultará esta tarifa y comparará el total de 23M&amp;M (1,4%) e Inter (7%, incluido seguro). Marca recaudo solamente si está confirmado para ese destino.</p>
                         </div>
                         <button onclick="olvidarClaveTarifasEnvio()" style="border:1px solid #f1b8d2;background:white;color:#9d174d;border-radius:9px;padding:8px 12px;font-weight:800;cursor:pointer;">Olvidar clave en este equipo</button>
                     </div>
-                    <div style="display:grid;grid-template-columns:minmax(160px,1fr) minmax(160px,1fr) minmax(150px,1fr) minmax(120px,.65fr) auto;gap:9px;align-items:end;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:12px;padding:14px;margin-bottom:15px;">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;align-items:end;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:12px;padding:14px;margin-bottom:15px;">
                         <label style="font-size:.79em;font-weight:800;color:#831843;">Departamento
                             <input id="tarifa-envio-departamento" type="text" placeholder="Ej: Cesar" style="display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:10px;border:1.5px solid #f1b8d2;border-radius:9px;font-family:Nunito,sans-serif;">
                         </label>
@@ -1894,11 +1894,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                                 <option>23M&amp;M</option>
                             </select>
                         </label>
-                        <label style="font-size:.79em;font-weight:800;color:#831843;">Valor
+                        <label style="font-size:.79em;font-weight:800;color:#831843;">Envío completo
                             <input id="tarifa-envio-valor" type="number" min="0" max="100000" step="100" placeholder="18500" style="display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:10px;border:1.5px solid #f1b8d2;border-radius:9px;font-family:Nunito,sans-serif;">
                         </label>
+                        <label><input id="tarifa-envio-recaudo" type="checkbox"> Recaudo confirmado en este destino</label>
                         <button id="btn-guardar-tarifa-envio" onclick="guardarTarifaEnvioGestion()" style="border:0;background:#db2777;color:white;border-radius:9px;padding:11px 17px;font-weight:900;cursor:pointer;white-space:nowrap;">Guardar tarifa</button>
                     </div>
+                    <button onclick="completarBaseTarifasV49(this)" style="padding:10px;margin-bottom:12px;">Cargar base verificada sin reemplazar mis tarifas</button>
                     <div id="tarifas-envio-mensaje" style="display:none;margin-bottom:12px;padding:10px 12px;border-radius:9px;font-weight:800;font-size:.84em;"></div>
                     <div style="overflow:auto;border:1.5px solid #f3d2e1;border-radius:11px;background:white;">
                         <table style="width:100%;border-collapse:collapse;font-size:.84em;min-width:620px;">
@@ -8626,7 +8628,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                           var comision = Number(ped.comisionRecaudo) || 0;
                           var subtotal = Math.max(0,(ped.tot||0) - envio - comision);
                           if (esInterPedido(ped) && ped.tipoVenta === 'Recaudo') {
-                              return '<div style="font-size:13px;font-weight:900;margin-bottom:5px;">'+(esPagoCasaContado(ped)?'Pago en casa contado':'Pago en casa contraentrega')+'</div><div style="font-size:12px;line-height:1.5;font-weight:600;">Valor prendas: '+formatMoney(subtotal)+'<br>Envío base: '+formatMoney(envio)+'<br>Comisión recaudo Interrapidísimo (7 %): '+formatMoney(comision)+'<br><strong>Total envío + comisión: '+formatMoney(envio+comision)+'</strong></div><div style="margin-top:8px;padding-top:8px;border-top:1px solid #e9d5ff;font-size:17px;font-weight:900;">Total a recaudar: '+formatMoney(esPagoCasaContado(ped)?subtotal:ped.tot)+'</div>';
+                              return '<div style="font-size:13px;font-weight:900;margin-bottom:5px;">'+(esPagoCasaContado(ped)?'Pago en casa contado':'Pago en casa contraentrega')+'</div><div style="font-size:12px;line-height:1.5;font-weight:600;">Valor prendas: '+formatMoney(subtotal)+'<br>Envío completo: '+formatMoney(envio)+'<br>Comisión recaudo Interrapidísimo (7 %): '+formatMoney(comision)+'<br><strong>Total envío + comisión: '+formatMoney(envio+comision)+'</strong></div><div style="margin-top:8px;padding-top:8px;border-top:1px solid #e9d5ff;font-size:17px;font-weight:900;">Total a recaudar: '+formatMoney(esPagoCasaContado(ped)?subtotal:ped.tot)+'</div>';
                           }
                           if (envio > 0) {
                               return 'Prendas: ' + formatMoney(subtotal) + ' &nbsp;+&nbsp; Envío: ' + formatMoney(envio) + ' &nbsp;=&nbsp; <strong>Total: ' + formatMoney(ped.tot) + '</strong>';
@@ -11092,7 +11094,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 return '<tr style="border-bottom:1px solid #f7dce8;">' +
                     '<td style="padding:11px;font-weight:800;color:#475467;">' + escaparTarifaHtml(tarifa.departamento || 'Registro anterior') + '</td>' +
                     '<td style="padding:11px;font-weight:900;color:#344054;">' + escaparTarifaHtml(tarifa.ciudad || clave) + '</td>' +
-                    '<td style="padding:11px;">' + escaparTarifaHtml(tarifa.transportadora || '') + '</td>' +
+                    '<td style="padding:11px;">' + escaparTarifaHtml(tarifa.transportadora || '') + '<br><small>' + (tarifa.contraentrega === true ? 'Recaudo confirmado' : 'Recaudo por confirmar') + '</small></td>' +
                     '<td style="padding:11px;text-align:right;font-weight:900;color:#9d174d;">$' + Number(tarifa.valor || 0).toLocaleString('es-CO') + '</td>' +
                     '<td style="padding:8px;text-align:center;white-space:nowrap;">' +
                     '<button onclick="editarTarifaEnvioGestion(\'' + claveUrl + '\')" style="border:1px solid #f1b8d2;background:white;color:#9d174d;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer;margin-right:5px;">Editar</button>' +
@@ -11122,6 +11124,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             document.getElementById('tarifa-envio-ciudad').value = tarifa.ciudad || clave;
             document.getElementById('tarifa-envio-transportadora').value = tarifa.transportadora || 'Envía';
             document.getElementById('tarifa-envio-valor').value = tarifa.valor || '';
+            document.getElementById('tarifa-envio-recaudo').checked = tarifa.contraentrega === true;
             document.getElementById('tarifa-envio-ciudad').focus();
         }
 
@@ -11142,6 +11145,16 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             renderizarTarifasEnvioGestion();
         }
 
+        async function completarBaseTarifasV49(boton) {
+            if (!esYohanaInventario()) return;
+            boton.disabled = true;
+            try {
+                await enviarCambioTarifaEnvio({accion:'completar-base'});
+                mostrarMensajeTarifasEnvio('Base cargada sin reemplazar tarifas existentes. Inter requiere confirmar recaudo por destino.',false);
+            } catch(error) { mostrarMensajeTarifasEnvio(error.message,true); }
+            finally { boton.disabled=false; }
+        }
+
         async function guardarTarifaEnvioGestion() {
             if (!esYohanaInventario()) return alert('Esta función es exclusiva de Yohana.');
             const departamento = document.getElementById('tarifa-envio-departamento').value.trim();
@@ -11157,11 +11170,12 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             boton.disabled = true;
             boton.textContent = 'Guardando...';
             try {
-                await enviarCambioTarifaEnvio({ accion: 'guardar', departamento, ciudad, transportadora, valor });
+                await enviarCambioTarifaEnvio({ accion: 'guardar', departamento, ciudad, transportadora, valor, contraentrega: document.getElementById('tarifa-envio-recaudo').checked });
+                document.getElementById('tarifa-envio-recaudo').checked = false;
                 document.getElementById('tarifa-envio-departamento').value = '';
                 document.getElementById('tarifa-envio-ciudad').value = '';
                 document.getElementById('tarifa-envio-valor').value = '';
-                mostrarMensajeTarifasEnvio('Tarifa guardada. La tienda y Wompi ya usarán este valor.', false);
+                mostrarMensajeTarifasEnvio('Tarifa guardada. Sofía consultará el envío base y el recaudo confirmado para este destino.', false);
             } catch (error) {
                 mostrarMensajeTarifasEnvio(error.message || 'Error guardando la tarifa', true);
             } finally {
@@ -12884,3 +12898,4 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 </body></html>
+
