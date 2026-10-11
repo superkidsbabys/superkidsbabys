@@ -38,7 +38,7 @@
   };
   function panel(){
     let root=document.getElementById('sofia-alertas-v43');if(root)return root;
-    root=document.createElement('section');root.id='sofia-alertas-v43';root.style.cssText='margin:12px;padding:14px;background:#fff6fc;border:1px solid #edcce5;border-radius:12px';
+    root=document.createElement('section');root.id='sofia-alertas-v43';root.style.cssText='margin:12px;padding:14px;background:#fff8e8;border:2px solid #9a6700;border-radius:12px;color:#231b09';
     const header=document.createElement('div');header.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap';
     const title=document.createElement('strong');title.textContent='Sofía · avisos del equipo';header.append(title);
     const enable=document.createElement('button');enable.type='button';enable.id='sofia-device-toggle-v44';
@@ -86,20 +86,33 @@
     const root=panel();if(!ALLOWED.has(window.usuarioActual?.uid)){root.hidden=true;return;}root.hidden=false;
     try {
       const result=await window.sofiaEquipoV43();checkSession(expected,version);if(requestVersion!==refreshVersion)return;const list=root.querySelector('#sofia-casos-v43');list.replaceChildren();
-      for(const notice of result.avisos){
-        const row=document.createElement('div');row.style.cssText='padding:8px;border-top:1px solid #eee';
+      for(const [index,notice] of result.avisos.entries()){
+        const kind=String(notice.tipo||'')+' '+String(notice.motivo||'');
+        const receipt=/comprobante|pago/i.test(kind),shipping=/envio|transportadora|transporte/i.test(kind);
+        const colors=receipt?['#d1fae5','#065f46']:shipping?['#dbeafe','#1e40af']:[['#ffe1ef','#831843'],['#ffedd5','#9a3412'],['#ede9fe','#5b21b6']][index%3];
+        const row=document.createElement('div');row.style.cssText='padding:8px;margin-top:8px;border:2px solid '+colors[1]+';border-left-width:6px;border-radius:8px;background:'+colors[0]+';color:'+colors[1];
+        const label=document.createElement('strong');label.textContent=receipt?'💳 Comprobante · ':shipping?'🚚 Transportadora · ':notice.tipo==='pedido'?'🛍️ Pedido · ':'💬 Asesora · ';
         const text=document.createElement('span');text.textContent=notice.tipo==='pedido'?'Pedido #SK-'+notice.numeroPedido+' pendiente':(notice.motivo==='envio-1kg'?'Envío supera 1 kg: terminar de cotizar (más de 6 prendas) · WhatsApp ':'Cliente solicita una asesora · WhatsApp ')+String(notice.telefono||'');
+        if(receipt)text.textContent='Revisar comprobante · WhatsApp '+String(notice.telefono||'');
+        else if(shipping&&notice.motivo!=='envio-1kg')text.textContent='Revisar solicitud de transporte · WhatsApp '+String(notice.telefono||'');
+        const digits=String(notice.telefono||'').replace(/\D/g,''),phone=/^3\d{9}$/.test(digits)?'57'+digits:digits;
+        const chatUrl=/^\d{10,15}$/.test(phone)?'https://wa.me/'+phone:'';
         const button=document.createElement('button');button.type='button';button.style.marginLeft='10px';button.textContent='Tomar caso · detener avisos';
-        button.onclick=async()=>{try{
+        button.style.backgroundColor=colors[1];button.style.color='#ffffff';button.style.borderColor=colors[1];
+        button.onclick=async()=>{if(button.disabled)return;let chat=null;try{
+          checkSession(expected,version);button.disabled=true;
+          if(chatUrl)chat=window.open('about:blank','_blank');
+          if(chat)chat.opener=null;
           checkSession(expected,version);if(notice.tipo==='asesora') {
             const token=await window.obtenerTokenSesion();checkSession(expected,version);
             const response=await fetch(API.replace('/sofia/equipo','/equipo/whatsapp'),{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action:'take',conversation:notice.conversationId})});
             const result=await response.json();checkSession(expected,version);if(!response.ok||!result.ok)throw Error(result.error||'No se pudo tomar la conversación');
-            alert('Conversación tomada. Abre la bandeja WhatsApp para atender al '+String(notice.telefono||''));
           } else {await window.sofiaEquipoV43({action:'tomar',id:notice.id});window.filtrarVistaPedidos('sofia');}
+          if(chat)chat.location.replace(chatUrl);
+          else if(chatUrl){const status=root.querySelector('[role="status"]');status.replaceChildren(document.createTextNode('Caso tomado. El navegador bloqueó la apertura automática. '));const link=document.createElement('a');link.href=chatUrl;link.target='_blank';link.rel='noopener';link.textContent='Abrir chat del cliente';status.append(link);}
           await refresh();
-        }catch(e){alert(e.message);}};
-        row.append(text,button);list.append(row);
+        }catch(e){if(chat)chat.close();alert(e.message);}finally{button.disabled=false;}};
+        row.append(label,text,button);list.append(row);
       }
       if(!result.avisos.length)list.textContent='No hay casos sin atender.';
     }catch(e){if(uid()===expected&&sessionVersion===version&&requestVersion===refreshVersion)root.querySelector('[role="status"]').textContent=e.message;}
