@@ -57,6 +57,8 @@
         const app=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
         const messaging=mod.getMessaging(app.getApps()[0]);const registration=await navigator.serviceWorker.ready;
         checkSession(expected,version);
+        await mod.getToken(messaging,{vapidKey:settings.vapidKey,serviceWorkerRegistration:registration});
+        checkSession(expected,version);
         await mod.deleteToken(messaging);
         checkSession(expected,version);
         const nextToken=await mod.getToken(messaging,{vapidKey:settings.vapidKey,serviceWorkerRegistration:registration});
