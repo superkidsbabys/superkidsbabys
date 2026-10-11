@@ -225,6 +225,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
       document.querySelectorAll('.btn-tab-tarifas').forEach(b => {
         b.style.display = (window.usuarioActual && window.usuarioActual.uid === UID_YOHANA) ? 'inline-block' : 'none';
       });
+      document.querySelectorAll('.btn-tab-respuestas-sofia').forEach(b => {
+        b.style.display = (window.usuarioActual && window.usuarioActual.uid === UID_YOHANA) ? 'inline-block' : 'none';
+      });
       document.querySelectorAll('.btn-tab-inventario-personal').forEach(b => {
         b.style.display = (window.usuarioActual && window.usuarioActual.uid === UID_YOHANA) ? 'inline-block' : 'none';
       });
@@ -464,7 +467,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     <link rel="manifest" href="./manifest-admin.json?v=20260927-logo">
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
-    <script src="./pwa.js?v=20261010-sofia-v49" defer></script>
+    <script src="./pwa.js?v=20261011-sofia-v52" defer></script>
     <script src="./sofia-gestion-v43.js?v=48" defer></script>
     <title>SuperKids &amp; Babys - Panel de Gestión</title>
     <style id="dynamic-theme">:root { --color-banner: #f5d6ed; --color-texto-banner: #1c1717; --color-fondo: #fbeaf8; --color-tarjeta: #f9e2ed; --color-texto: #2a2222; --color-precio: #ff5cd6; --textura-banner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E"); --textura-size: 20px 20px; --tamano-titulo: 32px; --tamano-descripcion: 14px; --tamano-logo: 130px; --color-btn-carrito: #35c700; --color-btn-carrito-texto: #ffffff; --color-etiqueta-desc: #e74c3c; --color-etiqueta-desc-texto: #ffffff; --opacidad-etiqueta-desc: 0.7; }</style>
@@ -1371,6 +1374,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('inventario')" style="display:none;">Inventario</button>
                 <button class="btn-tab btn-tab-inventario-personal" onclick="cambiarTab('inventario-personal')" style="display:none;">Inventario mudanza</button>
                 <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('clientes')" style="display:none;">Clientes</button>
+                <button class="btn-tab btn-tab-respuestas-sofia" onclick="cambiarTab('respuestas-sofia')" style="display:none;">Respuestas de Sofía</button>
                 <button class="btn-tab btn-tab-tarifas" onclick="cambiarTab('tarifas-envio')" style="display:none;">Tarifas de envío</button>
                 <button class="btn-tab" onclick="window.open('https://superkidsbabys.com/?asesora='+encodeURIComponent((window.usuarioActual&&window.usuarioActual.nombre)||'Sin asesora'),'_blank')">Ver tienda</button>
                 <button class="btn-tab" onclick="cambiarTab('papelera')">Papelera</button>
@@ -1868,6 +1872,17 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <button id="ip-btn-mudanza" onclick="abrirInventarioMudanza()" style="border:0;background:#ea580c;color:white;border-radius:9px;padding:11px 18px;font-weight:900;cursor:pointer;">Abrir inventario de mudanza</button>
                     </div>
                 </div>
+            </div>
+
+            <div id="tab-respuestas-sofia" class="seccion-tab">
+              <div style="padding:20px;background:#fffafd;border:1px solid #f1b8d2;border-radius:14px;max-width:950px;">
+                <h3>💬 Respuestas de Sofía</h3>
+                <p>Personaliza cómo habla Sofía. Conserva {envio} y {porcentaje}: se rellenan automáticamente con tus tarifas. Esta sección cambia saludos, explicaciones de pago, avisos de asesora y agradecimientos; los datos del pedido y su estado se calculan aparte.</p>
+                <div id="sofia-respuestas-campos"></div>
+                <button onclick="guardarRespuestasSofiaV52(this,false)">Guardar respuestas</button>
+                <button onclick="guardarRespuestasSofiaV52(this,true)">Restaurar textos iniciales</button>
+                <p id="sofia-respuestas-mensaje" role="status"></p>
+              </div>
             </div>
 
             <!-- TAB TARIFAS DE ENVÍO (SOLO YOHANA) -->
@@ -6858,6 +6873,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
         function calcularComisionRecaudo(ped, subtotal) {
             const limpio = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+            if(ped.origen==='sofia-bot'&&['anticipado','contraentrega'].includes(ped.modoPago)) {
+                const carrier=limpio(ped.transportadora);
+                const rate=ped.modoPago==='anticipado'?0:carrier==='interrapidisimo'?0.07:['mm','mym'].includes(carrier)?0.014:null;
+                if(rate!==null)return Math.round(Math.max(0,Number(subtotal)||0)*rate);
+            }
             return limpio(ped.tipoVenta) === 'recaudo' && limpio(ped.transportadora) === 'interrapidisimo' ? Math.round(Math.max(0, Number(subtotal) || 0) * 7 / 100) : 0;
         }
         function actualizarImportesEntrega(ped) {
@@ -11044,6 +11064,34 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             vent.document.close();
         }
 
+
+        const RESPUESTAS_API_V52='https://superkids-pagos-api.superkids-babys.workers.dev/respuestas-sofia';
+        const RESPUESTAS_LABELS_V52={saludo:'Saludo para una consulta nueva',anticipado:'Envío con pago anticipado',contraentrega:'Envío con contraentrega',asesora:'Solicitud de asesora registrada',confirmacion:'Agradecimiento al registrar un pedido'};
+        let respuestasCacheV52={};
+        function pintarRespuestasV52() {
+          const target=document.getElementById('sofia-respuestas-campos');
+          target.innerHTML=Object.entries(RESPUESTAS_LABELS_V52).map(([key,label])=>'<label style="display:block;margin:15px 0;font-weight:bold;">'+label+'<textarea id="sofia-texto-'+key+'" maxlength="800" style="display:block;width:100%;box-sizing:border-box;min-height:90px;margin-top:6px;padding:10px;">'+escaparTarifaHtml(respuestasCacheV52[key]||'')+'</textarea></label>').join('');
+        }
+        async function cargarRespuestasSofiaV52() {
+          if(!esYohanaInventario())return;
+          const msg=document.getElementById('sofia-respuestas-mensaje');msg.textContent='Cargando…';
+          try{const res=await fetch(RESPUESTAS_API_V52,{cache:'no-store'});const data=await res.json();if(!res.ok)throw Error(data.error||'No fue posible cargar');respuestasCacheV52=data.respuestas||{};pintarRespuestasV52();msg.textContent='';}catch(e){msg.textContent=e.message;}
+        }
+        async function guardarRespuestasSofiaV52(button,restaurar) {
+          if(!esYohanaInventario())return;
+          if(restaurar&&!confirm('¿Restaurar los textos iniciales de Sofía?'))return;
+          const msg=document.getElementById('sofia-respuestas-mensaje');button.disabled=true;
+          try{
+            const token=await window.obtenerTokenSesion();if(!token)throw Error('Inicia sesión nuevamente para guardar.');
+            const respuestas={};for(const key of Object.keys(RESPUESTAS_LABELS_V52))respuestas[key]=document.getElementById('sofia-texto-'+key)?.value||'';
+            const res=await fetch(RESPUESTAS_API_V52,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({respuestas,restaurar})});
+            const data=await res.json();if(!res.ok)throw Error(data.error||'No se pudo guardar');respuestasCacheV52=data.respuestas;pintarRespuestasV52();msg.textContent='Guardado. Sofía usará estos textos en las siguientes respuestas.';
+          }catch(e){msg.textContent=e.message;}finally{button.disabled=false;}
+        }
+        function accesoRespuestasV52(){const b=document.querySelector('.btn-tab-respuestas-sofia');if(b)b.style.display=esYohanaInventario()?'':'none';if(!esYohanaInventario())document.getElementById('tab-respuestas-sofia')?.classList.remove('activo');}
+        window.addEventListener('superkids-session-change',accesoRespuestasV52);
+        window.addEventListener('DOMContentLoaded',accesoRespuestasV52);
+
         const TARIFAS_ENVIO_API = 'https://superkids-pagos-api.superkids-babys.workers.dev/tarifas-envio';
         const TARIFAS_ENVIO_CLAVE_LOCAL = 'superkidsTarifasAdminSecret';
         let tarifasEnvioGestionCache = {};
@@ -12220,6 +12268,8 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
         };
 
         function cambiarTab(tab) {
+            accesoRespuestasV52();
+            if(tab==='respuestas-sofia'){if(!esYohanaInventario())return;cargarRespuestasSofiaV52();}
             document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('activo'));
             document.querySelectorAll('.seccion-tab').forEach(s => s.classList.remove('activo'));
             const btnActivo = document.querySelector(`.btn-tab[onclick="cambiarTab('${tab}')"]`);
