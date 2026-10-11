@@ -1374,7 +1374,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('inventario')" style="display:none;">Inventario</button>
                 <button class="btn-tab btn-tab-inventario-personal" onclick="cambiarTab('inventario-personal')" style="display:none;">Inventario mudanza</button>
                 <button class="btn-tab btn-tab-inventario" onclick="cambiarTab('clientes')" style="display:none;">Clientes</button>
-                <button class="btn-tab btn-tab-respuestas-sofia" onclick="cambiarTab('respuestas-sofia')" style="display:none;">Respuestas de Sofía</button>
+                
                 <button class="btn-tab btn-tab-tarifas" onclick="cambiarTab('tarifas-envio')" style="display:none;">Tarifas de envío</button>
                 <button class="btn-tab" onclick="window.open('https://superkidsbabys.com/?asesora='+encodeURIComponent((window.usuarioActual&&window.usuarioActual.nombre)||'Sin asesora'),'_blank')">Ver tienda</button>
                 <button class="btn-tab" onclick="cambiarTab('papelera')">Papelera</button>
@@ -12844,6 +12844,11 @@ document.addEventListener('DOMContentLoaded', function() {
 #wa-inbox-root .wa-input{display:flex;align-items:flex-end;gap:10px}
 #wa-inbox-root textarea{flex:1;min-width:0;border:1px solid #d5dfda;border-radius:12px;padding:12px;min-height:65px;max-height:150px;resize:vertical;font:inherit}
 #wa-inbox-root .wa-send{background:#128c7e;color:white}
+#wa-inbox-root .wa-correction{margin-top:10px;padding:10px 12px;background:#fff7ed;border:1px solid #fdba74;border-radius:12px}
+#wa-inbox-root .wa-correction label{display:block;font-weight:800;color:#9a3412;font-size:12px;margin-bottom:5px}
+#wa-inbox-root .wa-correction-row{display:flex;gap:8px;align-items:flex-end}
+#wa-inbox-root .wa-correction textarea{min-height:42px;border-radius:10px}
+#wa-inbox-root .wa-correction button{background:#f97316;color:#fff;white-space:nowrap}
 #wa-inbox-root .wa-back{display:none}
 @media(max-width:700px){#wa-inbox-root{inset:0;border-radius:0;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto}#wa-inbox-root .wa-sidebar{grid-column:1;grid-row:3/5;border:0}#wa-inbox-root #wa-inbox-messages,#wa-inbox-root .wa-compose{display:none}#wa-inbox-root.wa-chat-open .wa-sidebar{display:none}#wa-inbox-root.wa-chat-open #wa-inbox-messages{display:flex;grid-column:1;grid-row:3;padding:12px}#wa-inbox-root.wa-chat-open .wa-compose{display:block;grid-column:1;grid-row:4;max-height:40dvh;overflow:auto}#wa-inbox-root.wa-chat-open .wa-back{display:block}#wa-inbox-root .wa-top{padding:10px;gap:6px}#wa-inbox-root h2{font-size:16px}#wa-inbox-root .wa-top button{padding:8px;font-size:12px}}
 #wa-inbox-root .wa-alert{display:inline-flex;align-items:center;gap:6px;margin:5px 6px 0 0;padding:3px 7px;border-radius:12px;font-size:12px;font-weight:700;white-space:normal}
@@ -12933,19 +12938,19 @@ document.addEventListener('DOMContentLoaded', function() {
       const body=text.value.trim();if(!pending||pending.text!==body||pending.conversation!==current)pending={conversation:current,text:body,requestId:crypto.randomUUID()};
       send.disabled=true;try{await api('send',pending);text.value='';pending=null;await refresh();status('Respuesta aceptada por Meta; no confirma entrega al cliente.');}catch(e){status(e.message);}finally{send.disabled=false;}
     };send.className='wa-send';input.append(send);root.append(compose);document.body.append(root);
+    const correction=element('section');correction.className='wa-correction';const correctionLabel=element('label','✏️ Corregir a Sofía para su próxima respuesta');const correctionRow=element('div');correctionRow.className='wa-correction-row';const correctionText=element('textarea');correctionText.maxLength=900;correctionText.placeholder='Ej.: Para recién nacido explica que 0M cubre de 0 a 3 meses.';correctionText.setAttribute('aria-label','Corrección para Sofía');const correctionSave=element('button','Guardar corrección');
+    correctionSave.onclick=async()=>{if(!current)return status('Selecciona una conversación.');const value=correctionText.value.trim();if(!value)return status('Escribe la corrección para Sofía.');correctionSave.disabled=true;try{await api('correction',{conversation:current,text:value});correctionText.value='';status('Corrección guardada. Sofía la aplicará en su próxima respuesta automática a este chat.');}catch(e){status(e.message);}finally{correctionSave.disabled=false;}};
+    correctionRow.append(correctionText,correctionSave);correction.append(correctionLabel,correctionRow);compose.insertBefore(correction,note);
     const launcher=element('button','💬 WhatsApp del equipo');launcher.id='wa-inbox-launcher';launcher.style.cssText='position:fixed;left:16px;bottom:84px;z-index:9000;padding:12px;border-radius:12px;background:#128c7e;color:white;display:none';
-    let lastUid='',requestedInbox=location.hash==='#whatsapp-equipo';
+    let lastUid='';
     function syncSession(){
       const uid=window.usuarioActual?.uid||'',allowed=['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63'].includes(uid);
       if(uid!==lastUid||!allowed){if(uid!==lastUid)sessionEpoch++;root.style.display='none';history.replaceChildren();list.replaceChildren();current='';text.value='';pending=null;lastUid=uid;}
       launcher.style.setProperty('display',allowed?'block':'none','important');
-      if(allowed&&requestedInbox){requestedInbox=false;root.style.display='grid';refresh();}
       return allowed;
     }
     launcher.style.zIndex='19000';
     launcher.onclick=()=>{if(!syncSession())return;if(window.matchMedia('(max-width:700px)').matches)showConversationList();root.style.display='grid';refresh();};document.body.append(launcher);
-    window.abrirWhatsappEquipo=async(id)=>{if(!syncSession())return;root.style.display='grid';if(id)await openConversation(id);else{showConversationList();await refresh();}};
-    navigator.serviceWorker?.addEventListener('message',event=>{if(event.data?.type==='SUPERKIDS_ABRIR_WHATSAPP_EQUIPO'){requestedInbox=true;syncSession();}});
     window.addEventListener('superkids-session-change',syncSession);
     window.addEventListener('focus',syncSession);
     document.addEventListener('visibilitychange',syncSession);
@@ -12958,4 +12963,6 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 </body></html>
+
+
 
