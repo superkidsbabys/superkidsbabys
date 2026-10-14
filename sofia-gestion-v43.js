@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const API='https://superkids-pagos-api.superkids-babys.workers.dev/sofia/equipo';
-  const ALLOWED=new Set(['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63']);
+  const ALLOWED=new Set(['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63','IEB65uKdgldevmgRuenCj7pPwc12']);
   const DEVICE_KEY='superkids-sofia-device-v44';
   let deviceToken='',unsubscribe=null,sessionVersion=0,refreshVersion=0;
   try {deviceToken=localStorage.getItem(DEVICE_KEY)||'';}catch{}
@@ -110,7 +110,7 @@
         row.append(label,text,button);list.append(row);
       }
       if(!result.avisos.length)list.textContent='No hay casos sin atender.';
-    }catch(e){if(uid()===expected&&sessionVersion===version&&requestVersion===refreshVersion)root.querySelector('[role="status"]').textContent=e.message;}
+    }catch(e){if(uid()===expected&&sessionVersion===version&&requestVersion===refreshVersion)root.querySelector('[role="status"]').textContent=(e && e.message === 'Failed to fetch') ? 'No se pudo conectar con los avisos de Sofía. Verifica la conexión y vuelve a actualizar.' : e.message;}
   }
   window.addEventListener('superkids-session-change',()=>{
     sessionVersion++;refreshVersion++;stopForeground();

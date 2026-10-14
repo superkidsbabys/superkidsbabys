@@ -39,9 +39,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
   // ── ROLES ─────────────────────────────────────────────────
   const ROLES = {
     'F2SHGFQYSuMWlkbQKV8yrKAXgaH3': { nombre: 'Yohana',  rol: 'admin',   whatsapp: '573025451526' },
-    'yI067cx29zbmiBOd9wyKcwp0HpF2':  { nombre: 'Gina',    rol: 'asesora', whatsapp: '573021065943' },
     'MtQpryHLGYab5v3UjhRZw88CAD63':  { nombre: 'Bibiana', rol: 'asesora', whatsapp: '15512627086', editarPrecio: true },
-    'IEB65uKdgldevmgRuenCj7pPwc12':  { nombre: 'Ángela',  rol: 'consulta', whatsapp: '573176459474' },
+    'IEB65uKdgldevmgRuenCj7pPwc12':  { nombre: 'Ángela',  rol: 'asesora', whatsapp: '573176459474' },
   };
 
   let usuarioActual = null;
@@ -427,7 +426,6 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 <script>
   window.ASESORAS_WHATSAPP = Object.freeze({
     'Yohana': '573025451526',
-    'Gina': '573021065943',
     'Bibiana': '15512627086',
     'Ángela': '573176459474',
     'Sin asesora': '573025451526'
@@ -468,7 +466,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
     <script src="./pwa.js?v=20261011-sofia-v57" defer></script>
-    <script src="./sofia-gestion-v43.js?v=55" defer></script>
+    <script src="./sofia-gestion-v43.js?v=78" defer></script>
     <title>SuperKids &amp; Babys - Panel de Gestión</title>
     <style id="dynamic-theme">:root { --color-banner: #f5d6ed; --color-texto-banner: #1c1717; --color-fondo: #fbeaf8; --color-tarjeta: #f9e2ed; --color-texto: #2a2222; --color-precio: #ff5cd6; --textura-banner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E"); --textura-size: 20px 20px; --tamano-titulo: 32px; --tamano-descripcion: 14px; --tamano-logo: 130px; --color-btn-carrito: #35c700; --color-btn-carrito-texto: #ffffff; --color-etiqueta-desc: #e74c3c; --color-etiqueta-desc-texto: #ffffff; --opacidad-etiqueta-desc: 0.7; }</style>
     <style>
@@ -1275,7 +1273,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         if (overlay) overlay.style.display = 'none';
         try { localStorage.setItem(KEY, '1'); } catch(e) {}
     };
-    // Mostrar con pequeño delay para que la página cargue primero
+    // Mostrar con pequeño delay para que la páanterior cargue primero
     setTimeout(sceMostrarModal, 800);
 })();
 </script>
@@ -1397,7 +1395,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <div class="seccion-admin-sub form-admin">
                     <h3>Textos Principales <span style="font-size:0.7em; background:#f0f2f5; padding:4px 10px; border-radius:20px; font-weight:normal;">(Aplica a toda la tienda)</span></h3>
                     <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #c3e6cb;">
-                        <p style="margin-top: 0; font-size: 0.85em; font-weight: bold; color: #155724;">☁️ Sube el Logo desde tu PC (calidad original):</p>
+                        <p style="margin-top: 0; font-size: 0.85em; font-weight: bold; color: #155724;">☁️ Sube el Logo desde tu PC (calidad orianteriorl):</p>
                         <input type="file" id="edit-logo-file" accept="image/*" style="width: 100%;">
                         <p style="font-size: 0.8em; color: #666; margin: 5px 0 0;">(Si no seleccionas nada, se mantiene el logo actual)</p>
                     </div>
@@ -1435,7 +1433,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                             </div>
                             <div class="selector-color-box"><label>Banner y Botones:</label><input type="color" id="edit-color-banner" oninput="actualizarColoresVivo()"></div>
                             <div class="selector-color-box"><label>Letras del Banner:</label><input type="color" id="edit-color-texto-header" oninput="actualizarColoresVivo()"></div>
-                            <div class="selector-color-box"><label>Fondo de Página:</label><input type="color" id="edit-color-fondo" oninput="actualizarColoresVivo()"></div>
+                            <div class="selector-color-box"><label>Fondo de Páanterior:</label><input type="color" id="edit-color-fondo" oninput="actualizarColoresVivo()"></div>
                             <div class="selector-color-box"><label>Fondo Tarjetas:</label><input type="color" id="edit-color-tarjeta" oninput="actualizarColoresVivo()"></div>
                             <div class="selector-color-box" style="grid-column: 1 / -1;"><label>Letras Generales:</label><input type="color" id="edit-color-texto" oninput="actualizarColoresVivo()"></div>
                         </div>
@@ -1938,7 +1936,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Desde<input id="rv-desde" type="date" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;"></label>
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Hasta<input id="rv-hasta" type="date" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;"></label>
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Tipo de venta<select id="rv-tipo" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todos</option><option>Contraentrega</option><option>Contado</option><option>Recaudo</option><option>Pago Wompi</option></select></label>
-                        <label style="font-size:.78em;font-weight:800;color:#475467;">Asesora<select id="rv-asesora" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todas</option><option>Yohana</option><option>Gina</option><option>Bibiana</option></select></label>
+                        <label style="font-size:.78em;font-weight:800;color:#475467;">Asesora<select id="rv-asesora" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todas</option><option>Yohana</option><option>Ángela</option><option>Bibiana</option></select></label>
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Buscar referencia<input id="rv-ref" type="search" placeholder="Ej: 2000038" oninput="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"></label>
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Buscar guía<input id="rv-guia" type="search" placeholder="Número o sin guía" oninput="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"></label>
                     </div>
@@ -2041,7 +2039,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <input type="email" id="cart-correo" placeholder="✉️ Correo electrónico" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <select id="cart-asesora" aria-label="Asesora que atendió al cliente" style="width:100%;padding:13px 16px;border:2px solid rgb(240,214,245);border-radius:12px;font-size:.95em;margin-bottom:10px;outline:none;box-sizing:border-box;background:white;color:#555;font-family:inherit;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                     <option value="Sin asesora">👩‍💼 ¿Qué asesora te atendió?</option>
-                    <option value="Yohana">Yohana</option><option value="Gina">Gina</option><option value="Bibiana">Bibiana</option><option value="Ángela">Ángela</option>
+                    <option value="Yohana">Yohana</option><option value="Bibiana">Bibiana</option><option value="Ángela">Ángela</option>
                 </select>
                 <textarea id="cart-observaciones" placeholder="📝 Observaciones (opcional)" rows="2" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 16px; outline: none; box-sizing: border-box; resize: none; font-family: inherit;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'"></textarea>
 
@@ -2359,8 +2357,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             'Anulada': 'cancelado', 'anulada': 'cancelado'
         };
 
-        // ── BUSCADOR POR REFERENCIA (solo admin y Gina) ───────────────────────
-        const UID_GINA    = 'yI067cx29zbmiBOd9wyKcwp0HpF2';
+        // ── BUSCADOR POR REFERENCIA (admin y Ángela) ───────────────────────
         const UID_YOHANA  = 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3';
         const UID_BIBIANA = 'MtQpryHLGYab5v3UjhRZw88CAD63';
         const UID_ANGELA  = 'IEB65uKdgldevmgRuenCj7pPwc12';
@@ -2369,10 +2366,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const u = window.usuarioActual;
             if (!u) return;
             const esAdmin = u.rol === 'admin' || u.uid === UID_YOHANA;
-            const esGina  = u.uid === UID_GINA;
             const esAngela = u.uid === UID_ANGELA;
             const wrap = document.getElementById('wrap-buscador-ref');
-            if (wrap) wrap.style.display = (esAdmin || esGina || esAngela) ? 'flex' : 'none';
+            if (wrap) wrap.style.display = (esAdmin || esAngela) ? 'flex' : 'none';
         }
 
         function buscarPorReferencia(valor) {
@@ -5270,7 +5266,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         async function procesarDevolucionesStockPendientes() {
-            // Las colas antiguas se originaron en operaciones locales que no
+            // Las colas antiguas se orianteriorron en operaciones locales que no
             // podían comprobar si Firebase ya había devuelto el stock. No se
             // ejecutan: se conservan como evidencia y las anulaciones nuevas
             // pasan exclusivamente por el endpoint atómico del servidor.
@@ -6084,7 +6080,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
             var buscar = (document.getElementById('stock-buscar') || {value:''}).value.trim().toLowerCase();
             var filtroCat = (document.getElementById('stock-filtro-cat') || {value:''}).value;
-            var puedeEditarStock = !!(window.usuarioActual && (window.usuarioActual.uid === UID_GINA || window.usuarioActual.uid === UID_BIBIANA || window.usuarioActual.rol === 'admin'));
+            var puedeEditarStock = !!(window.usuarioActual && (window.usuarioActual.uid === UID_ANGELA || window.usuarioActual.uid === UID_BIBIANA || window.usuarioActual.rol === 'admin'));
 
             // Poblar select de categorías (solo la primera vez o si cambió)
             var selCat = document.getElementById('stock-filtro-cat');
@@ -6195,7 +6191,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         '<td style="padding:8px 12px;border-bottom:1px solid #f0e6ff;font-weight:600;color:#222;">' + (p.nombre || '') + '</td>' +
                         '<td style="padding:6px 12px;border-bottom:1px solid #f0e6ff;">' + chipsHtml + '</td>' +
                         '<td style="text-align:center;padding:8px;border-bottom:1px solid #f0e6ff;font-weight:900;color:#7e22ce;font-size:1.05em;">' + totalProd +
-                            (puedeEditarStock ? '<br><button type="button" onclick="abrirEditarStockGina(\'' + p.id + '\')" style="margin-top:5px;border:1px solid #c084fc;background:#faf5ff;color:#7e22ce;border-radius:7px;padding:4px 8px;font-size:0.7em;font-weight:900;cursor:pointer;">✏️ Editar</button>' : '') +
+                            (puedeEditarStock ? '<br><button type="button" onclick="abrirEditarStockÁngela(\'' + p.id + '\')" style="margin-top:5px;border:1px solid #c084fc;background:#faf5ff;color:#7e22ce;border-radius:7px;padding:4px 8px;font-size:0.7em;font-weight:900;cursor:pointer;">✏️ Editar</button>' : '') +
                         '</td>' +
                         '</tr>';
                 });
@@ -6204,7 +6200,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         function usuarioPuedeEditarStockRestringido() {
-            return !!(window.usuarioActual && (window.usuarioActual.uid === UID_GINA || window.usuarioActual.uid === UID_BIBIANA || window.usuarioActual.rol === 'admin'));
+            return !!(window.usuarioActual && (window.usuarioActual.uid === UID_ANGELA || window.usuarioActual.uid === UID_BIBIANA || window.usuarioActual.rol === 'admin'));
         }
 
         function esYohanaParaReporteConteo() {
@@ -6232,7 +6228,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         window.exportarRespaldoPedidosExcel = async function() {
             if (!esYohanaParaReporteConteo()) return alert('Este respaldo es exclusivo de Yohana.');
             const boton = document.getElementById('btn-respaldo-pedidos-excel');
-            const textoOriginal = boton ? boton.innerHTML : '';
+            const textoOrianteriorl = boton ? boton.innerHTML : '';
             if (boton) { boton.disabled = true; boton.innerHTML = 'Preparando respaldo…'; }
             try {
                 const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
@@ -6308,7 +6304,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             } catch(e) {
                 alert('No se pudo crear el respaldo de pedidos: ' + e.message);
             } finally {
-                if (boton) { boton.disabled = false; boton.innerHTML = textoOriginal; }
+                if (boton) { boton.disabled = false; boton.innerHTML = textoOrianteriorl; }
             }
         };
 
@@ -6377,7 +6373,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         };
 
         // Conteo físico: busca una referencia y abre su editor de tallas sin
-        // obligar a Gina a navegar por el catálogo ni crearla de nuevo.
+        // obligar a Ángela a navegar por el catálogo ni crearla de nuevo.
         function usuarioPuedeConsultarConteoRapido() {
             return usuarioPuedeEditarStockRestringido() || !!(window.usuarioActual && window.usuarioActual.uid === UID_ANGELA);
         }
@@ -6491,56 +6487,56 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         window.editarConteoRapido = function(){
             if (!usuarioPuedeEditarStockRestringido()) return alert('Tu acceso es solo de consulta. No puedes modificar las cantidades.');
             const salida=document.getElementById('conteo-rapido-resultado'); const id=salida&&salida.dataset.id;
-            if(!id)return; window._conteoRapidoActivo=true; cerrarConteoRapido(); abrirEditarStockGina(id);
+            if(!id)return; window._conteoRapidoActivo=true; cerrarConteoRapido(); abrirEditarStockÁngela(id);
         };
 
-        function abrirEditarStockGina(idProducto) {
+        function abrirEditarStockÁngela(idProducto) {
             if (!usuarioPuedeEditarStockRestringido()) return alert('No tienes permiso para editar el stock.');
             const producto = (productosDB || []).find(p => p.id === idProducto);
             if (!producto) return alert('No se encontró la prenda.');
-            let modal = document.getElementById('modal-editar-stock-gina');
+            let modal = document.getElementById('modal-editar-stock-anterior');
             if (!modal) {
                 modal = document.createElement('div');
-                modal.id = 'modal-editar-stock-gina';
+                modal.id = 'modal-editar-stock-anterior';
                 modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100008;overflow-y:auto;padding:20px;box-sizing:border-box;';
                 modal.innerHTML = '<div style="background:white;max-width:540px;margin:25px auto;border-radius:16px;padding:22px;font-family:Nunito,sans-serif;box-shadow:0 20px 55px rgba(0,0,0,.3);">'
-                    + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;"><h3 style="margin:0;color:#7e22ce;">✏️ Editar prenda desde Inventario</h3><button type="button" onclick="cerrarEditarStockGina()" style="border:0;background:#eee;border-radius:50%;width:34px;height:34px;font-size:1.1em;font-weight:900;cursor:pointer;">✕</button></div>'
-                    + '<p style="color:#667085;font-size:.82em;margin:6px 0 10px;">Solo puedes modificar código, nombre, tallas y cantidades.</p><img id="edit-stock-gina-foto" alt="Foto del producto" style="display:none;width:100%;max-height:160px;object-fit:contain;border-radius:10px;background:#f7faf8;margin-bottom:12px;">'
-                    + '<input type="hidden" id="edit-stock-gina-id"><input type="hidden" id="edit-stock-gina-codigo-original">'
-                    + '<label style="font-weight:800;font-size:.82em;display:block;margin-bottom:9px;">Código<input id="edit-stock-gina-codigo" style="width:100%;padding:9px;border:1.5px solid #d8b4fe;border-radius:8px;box-sizing:border-box;margin-top:3px;"></label>'
-                    + '<label style="font-weight:800;font-size:.82em;display:block;margin-bottom:11px;">Nombre<input id="edit-stock-gina-nombre" style="width:100%;padding:9px;border:1.5px solid #d8b4fe;border-radius:8px;box-sizing:border-box;margin-top:3px;"></label>'
-                    + '<div style="font-weight:900;font-size:.84em;color:#475467;margin-bottom:6px;">Tallas y cantidades</div><div id="edit-stock-gina-tallas"></div>'
-                    + '<button type="button" onclick="agregarTallaStockGina()" style="margin-top:5px;border:1px solid #a8e6c1;background:#eefaf2;color:#1a7a4a;border-radius:8px;padding:7px 10px;font-weight:800;cursor:pointer;">+ Agregar talla</button>'
-                    + '<div id="edit-stock-gina-msg" style="display:none;text-align:center;margin-top:10px;font-size:.84em;font-weight:800;"></div>'
-                    + '<button type="button" id="btn-guardar-stock-gina" onclick="guardarEdicionStockGina()" style="width:100%;margin-top:14px;border:0;background:linear-gradient(135deg,#8e44ad,#7e22ce);color:white;border-radius:9px;padding:12px;font-weight:900;cursor:pointer;">💾 Guardar cambios</button>'
+                    + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;"><h3 style="margin:0;color:#7e22ce;">✏️ Editar prenda desde Inventario</h3><button type="button" onclick="cerrarEditarStockÁngela()" style="border:0;background:#eee;border-radius:50%;width:34px;height:34px;font-size:1.1em;font-weight:900;cursor:pointer;">✕</button></div>'
+                    + '<p style="color:#667085;font-size:.82em;margin:6px 0 10px;">Solo puedes modificar código, nombre, tallas y cantidades.</p><img id="edit-stock-anterior-foto" alt="Foto del producto" style="display:none;width:100%;max-height:160px;object-fit:contain;border-radius:10px;background:#f7faf8;margin-bottom:12px;">'
+                    + '<input type="hidden" id="edit-stock-anterior-id"><input type="hidden" id="edit-stock-anterior-codigo-orianteriorl">'
+                    + '<label style="font-weight:800;font-size:.82em;display:block;margin-bottom:9px;">Código<input id="edit-stock-anterior-codigo" style="width:100%;padding:9px;border:1.5px solid #d8b4fe;border-radius:8px;box-sizing:border-box;margin-top:3px;"></label>'
+                    + '<label style="font-weight:800;font-size:.82em;display:block;margin-bottom:11px;">Nombre<input id="edit-stock-anterior-nombre" style="width:100%;padding:9px;border:1.5px solid #d8b4fe;border-radius:8px;box-sizing:border-box;margin-top:3px;"></label>'
+                    + '<div style="font-weight:900;font-size:.84em;color:#475467;margin-bottom:6px;">Tallas y cantidades</div><div id="edit-stock-anterior-tallas"></div>'
+                    + '<button type="button" onclick="agregarTallaStockÁngela()" style="margin-top:5px;border:1px solid #a8e6c1;background:#eefaf2;color:#1a7a4a;border-radius:8px;padding:7px 10px;font-weight:800;cursor:pointer;">+ Agregar talla</button>'
+                    + '<div id="edit-stock-anterior-msg" style="display:none;text-align:center;margin-top:10px;font-size:.84em;font-weight:800;"></div>'
+                    + '<button type="button" id="btn-guardar-stock-anterior" onclick="guardarEdicionStockÁngela()" style="width:100%;margin-top:14px;border:0;background:linear-gradient(135deg,#8e44ad,#7e22ce);color:white;border-radius:9px;padding:12px;font-weight:900;cursor:pointer;">💾 Guardar cambios</button>'
                     + '</div>';
                 document.body.appendChild(modal);
             }
-            document.getElementById('edit-stock-gina-id').value = producto.id;
-            document.getElementById('edit-stock-gina-codigo-original').value = producto.codigo || '';
-            document.getElementById('edit-stock-gina-codigo').value = producto.codigo || '';
-            document.getElementById('edit-stock-gina-nombre').value = producto.nombre || '';
-            const foto = document.getElementById('edit-stock-gina-foto');
+            document.getElementById('edit-stock-anterior-id').value = producto.id;
+            document.getElementById('edit-stock-anterior-codigo-orianteriorl').value = producto.codigo || '';
+            document.getElementById('edit-stock-anterior-codigo').value = producto.codigo || '';
+            document.getElementById('edit-stock-anterior-nombre').value = producto.nombre || '';
+            const foto = document.getElementById('edit-stock-anterior-foto');
             if (foto) { foto.src = (producto.imagenes || [])[0] || ''; foto.style.display = foto.src ? 'block' : 'none'; }
-            const cont = document.getElementById('edit-stock-gina-tallas');
+            const cont = document.getElementById('edit-stock-anterior-tallas');
             cont.innerHTML = '';
-            (producto.tallasObj || []).forEach(t => agregarTallaStockGina(t.nombre, t.stock));
-            if (!(producto.tallasObj || []).length) agregarTallaStockGina('', 0);
-            const msg = document.getElementById('edit-stock-gina-msg'); if (msg) msg.style.display = 'none';
+            (producto.tallasObj || []).forEach(t => agregarTallaStockÁngela(t.nombre, t.stock));
+            if (!(producto.tallasObj || []).length) agregarTallaStockÁngela('', 0);
+            const msg = document.getElementById('edit-stock-anterior-msg'); if (msg) msg.style.display = 'none';
             modal.style.display = 'block';
         }
 
-        function agregarTallaStockGina(nombre, cantidad) {
-            const cont = document.getElementById('edit-stock-gina-tallas');
+        function agregarTallaStockÁngela(nombre, cantidad) {
+            const cont = document.getElementById('edit-stock-anterior-tallas');
             if (!cont) return;
             const fila = document.createElement('div');
-            fila.className = 'fila-stock-gina';
+            fila.className = 'fila-stock-anterior';
             fila.style.cssText = 'display:flex;gap:7px;margin-bottom:7px;';
             const inpTalla = document.createElement('input');
-            inpTalla.className = 'stock-gina-talla'; inpTalla.placeholder = 'Talla'; inpTalla.value = nombre || '';
+            inpTalla.className = 'stock-anterior-talla'; inpTalla.placeholder = 'Talla'; inpTalla.value = nombre || '';
             inpTalla.style.cssText = 'flex:1;padding:8px;border:1.5px solid #d8b4fe;border-radius:8px;min-width:0;';
             const inpCant = document.createElement('input');
-            inpCant.className = 'stock-gina-cantidad'; inpCant.type = 'number'; inpCant.min = '0'; inpCant.placeholder = 'Cantidad'; inpCant.value = Number(cantidad || 0);
+            inpCant.className = 'stock-anterior-cantidad'; inpCant.type = 'number'; inpCant.min = '0'; inpCant.placeholder = 'Cantidad'; inpCant.value = Number(cantidad || 0);
             inpCant.style.cssText = 'width:110px;padding:8px;border:1.5px solid #d8b4fe;border-radius:8px;';
             const quitar = document.createElement('button');
             quitar.type = 'button'; quitar.textContent = '✕'; quitar.title = 'Quitar talla';
@@ -6549,24 +6545,24 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             fila.append(inpTalla, inpCant, quitar); cont.appendChild(fila);
         }
 
-        function cerrarEditarStockGina() {
-            const modal = document.getElementById('modal-editar-stock-gina');
+        function cerrarEditarStockÁngela() {
+            const modal = document.getElementById('modal-editar-stock-anterior');
             if (modal) modal.style.display = 'none';
         }
 
-        async function guardarEdicionStockGina() {
+        async function guardarEdicionStockÁngela() {
             if (!usuarioPuedeEditarStockRestringido()) return alert('No tienes permiso para guardar estos cambios.');
-            const id = document.getElementById('edit-stock-gina-id').value;
-            const codigoOriginal = document.getElementById('edit-stock-gina-codigo-original').value.trim();
-            const codigo = document.getElementById('edit-stock-gina-codigo').value.trim();
-            const nombre = document.getElementById('edit-stock-gina-nombre').value.trim();
-            const msg = document.getElementById('edit-stock-gina-msg');
+            const id = document.getElementById('edit-stock-anterior-id').value;
+            const codigoOrianteriorl = document.getElementById('edit-stock-anterior-codigo-orianteriorl').value.trim();
+            const codigo = document.getElementById('edit-stock-anterior-codigo').value.trim();
+            const nombre = document.getElementById('edit-stock-anterior-nombre').value.trim();
+            const msg = document.getElementById('edit-stock-anterior-msg');
             if (!codigo || !nombre) { msg.style.display='block'; msg.style.color='#e74c3c'; msg.textContent='Completa código y nombre.'; return; }
             if (referenciaProductoExiste(codigo, id)) { msg.style.display='block'; msg.style.color='#e74c3c'; msg.textContent='Ese código ya pertenece a otra prenda publicada.'; return; }
             const tallasObj = [];
-            document.querySelectorAll('#edit-stock-gina-tallas .fila-stock-gina').forEach(function(fila) {
-                const talla = fila.querySelector('.stock-gina-talla').value.trim();
-                const stock = Math.max(0, parseInt(fila.querySelector('.stock-gina-cantidad').value, 10) || 0);
+            document.querySelectorAll('#edit-stock-anterior-tallas .fila-stock-anterior').forEach(function(fila) {
+                const talla = fila.querySelector('.stock-anterior-talla').value.trim();
+                const stock = Math.max(0, parseInt(fila.querySelector('.stock-anterior-cantidad').value, 10) || 0);
                 if (talla) tallasObj.push({ nombre: talla, stock: stock });
             });
             if (!tallasObj.length) { msg.style.display='block'; msg.style.color='#e74c3c'; msg.textContent='Agrega al menos una talla.'; return; }
@@ -6585,13 +6581,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 stockTotal: tallasFinales.reduce((s,t) => s + Number(t.stock || 0), 0),
                 actualizadoEn: new Date().toISOString()
             });
-            const btn = document.getElementById('btn-guardar-stock-gina');
+            const btn = document.getElementById('btn-guardar-stock-anterior');
             try {
                 btn.disabled = true; msg.style.display='block'; msg.style.color='#56836a'; msg.textContent='Guardando en catálogo...';
                 const { doc, setDoc, collection, getDocs, query, where, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 await setDoc(doc(db, 'productos', actualizado.id), actualizado, { merge: true });
-                if (codigoOriginal) {
-                    const snap = await getDocs(query(collection(db, 'inventario_mercancia'), where('ref', '==', codigoOriginal)));
+                if (codigoOrianteriorl) {
+                    const snap = await getDocs(query(collection(db, 'inventario_mercancia'), where('ref', '==', codigoOrianteriorl)));
                     await Promise.all(snap.docs.map(d => updateDoc(doc(db, 'inventario_mercancia', d.id), { ref: codigo, desc: nombre })));
                 }
                 productosDB[indice] = actualizado;
@@ -6621,7 +6617,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         : '⚠️ Stock guardado en Firebase; el catálogo público quedó pendiente. Avísale a Yohana.';
                 }
                 setTimeout(function() {
-                    cerrarEditarStockGina();
+                    cerrarEditarStockÁngela();
                     if (window._conteoRapidoActivo) { window._conteoRapidoActivo = false; abrirConteoRapido(); }
                 }, 700);
             } catch(e) {
@@ -6848,7 +6844,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         function puedeEditarPrendasPedido() {
             const u = window.usuarioActual;
-            return !!(u && (u.rol === 'admin' || u.uid === UID_GINA || u.uid === 'MtQpryHLGYab5v3UjhRZw88CAD63'));
+            return !!(u && (u.rol === 'admin' || u.uid === UID_ANGELA || u.uid === 'MtQpryHLGYab5v3UjhRZw88CAD63'));
         }
 
         function puedeEditarPrecioPedido() {
@@ -6903,9 +6899,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             renderizarPedidosPanel();
         };
         function selectorModalidadInter(ped) {
-            if (!esInterPedido(ped)) return '';
-            const modo = ped.tipoVenta === 'Recaudo' ? (ped.modalidadInter || 'contraentrega') : '';
-            return '<div style="margin:8px 0;"><label style="font-weight:800;">Pago en casa · Interrapidísimo<select onchange="cambiarModalidadInter('+Number(ped.num)+',this.value)" style="display:block;width:100%;padding:8px;border:1px solid #a8d8ea;border-radius:8px;"><option value="">Selecciona modalidad</option><option value="contado"'+(modo==='contado'?' selected':'')+'>Pago en casa contado</option><option value="contraentrega"'+(modo==='contraentrega'?' selected':'')+'>Pago en casa contraentrega</option></select></label></div>';
+            if (!esInterPedido(ped) || ped.tipoVenta !== 'Recaudo') return '';
+            const modo = ped.modalidadInter || 'contraentrega';
+            return '<div style="margin:8px 0;"><label style="font-weight:800;">Modalidad de recaudo · Interrapidísimo<select onchange="cambiarModalidadInter('+Number(ped.num)+',this.value)" style="display:block;width:100%;padding:8px;border:1px solid #a8d8ea;border-radius:8px;"><option value="">Selecciona modalidad</option><option value="contado"'+(modo==='contado'?' selected':'')+'>Contado</option><option value="contraentrega"'+(modo==='contraentrega'?' selected':'')+'>Contraentrega</option></select></label></div>';
         }
 
         function recalcularTotalPedidoConEnvio(ped) {
@@ -6951,7 +6947,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         function htmlSelectorAsesoraPedido(ped) {
             const actual = String(ped.asesora || 'Sin asesora');
             if (!(window.usuarioActual && window.usuarioActual.rol === 'admin')) return '<div style="text-align:right;margin-top:7px;font-size:.78em;font-weight:800;color:#7e22ce;">Asesora: ' + escapeHtml(actual) + '</div>';
-            const opciones = ['Yohana','Gina','Bibiana','Ángela','Sin asesora'].map(function(nombre) {
+            const opciones = ['Yohana','Ángela','Bibiana','Ángela','Sin asesora'].map(function(nombre) {
                 return '<option value="' + escapeHtmlAttr(nombre) + '"' + (nombre === actual ? ' selected' : '') + '>' + escapeHtml(nombre) + '</option>';
             }).join('');
             return '<div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:7px;"><span style="font-size:.76em;font-weight:800;color:#7e22ce;">Asesora:</span><select onchange="cambiarAsesoraPedido(' + Number(ped.num) + ',this.value)" style="padding:6px 8px;border:1.5px solid #d8b4fe;border-radius:8px;background:white;color:#7e22ce;font-weight:900;">' + opciones + '</select></div>';
@@ -7584,10 +7580,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if(nuevoEstado==='sofia'&&estadoAnterior!=='sofia')return alert('Sólo Sofía registra pedidos en esta sección.');
             nuevoEstado = normalizarEstadoPedido(nuevoEstado);
             const esAngelaDespachos = window.usuarioActual && window.usuarioActual.uid === UID_ANGELA;
-            const estadosPermitidosAngela = ['enviado', 'entregado', 'cancelado'];
+            const estadosPermitidosAngela = ['nuevo', 'enviado', 'entregado', 'pagado', 'cancelado'];
             if (esAngelaDespachos && nuevoEstado !== estadoAnterior && !estadosPermitidosAngela.includes(nuevoEstado)) {
                 renderizarPedidosPanel();
-                alert('Ángela solamente puede mover pedidos a Enviado, Entregado o Anulado.');
+                alert('Ángela puede mover el pedido entre los estados operativos. Para anularlo debe registrar el motivo.');
                 return;
             }
             if (esAngelaDespachos && estadoAnterior === 'cancelado' && nuevoEstado !== 'cancelado') {
@@ -7645,8 +7641,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (!pedido) return;
             const copia = JSON.parse(JSON.stringify(pedido));
             copia.eliminadoEn = new Date().toISOString();
-            copia._firebaseIdOriginal = pedido._firebaseId || ('pedido_' + pedido.num);
-            copia._papeleraId = 'papelera_' + String(copia._firebaseIdOriginal).replace(/[^a-zA-Z0-9_-]/g,'_');
+            copia._firebaseIdOrianteriorl = pedido._firebaseId || ('pedido_' + pedido.num);
+            copia._papeleraId = 'papelera_' + String(copia._firebaseIdOrianteriorl).replace(/[^a-zA-Z0-9_-]/g,'_');
             const lista = obtenerPapeleraPedidosLocal().filter(p => p._papeleraId !== copia._papeleraId);
             lista.unshift(copia); guardarPapeleraPedidosLocal(lista);
             try {
@@ -7688,8 +7684,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (!pedido) return alert('No se encontró el pedido en la papelera. Pulsa Actualizar.');
             if (!confirm('¿Restaurar el pedido ' + (pedido.numOrden || pedido.num) + '?')) return;
             const restaurado = JSON.parse(JSON.stringify(pedido));
-            const firebaseId = restaurado._firebaseIdOriginal || restaurado._firebaseId || ('pedido_'+restaurado.num);
-            delete restaurado.eliminadoEn; delete restaurado._papeleraId; delete restaurado._firebaseIdOriginal;
+            const firebaseId = restaurado._firebaseIdOrianteriorl || restaurado._firebaseId || ('pedido_'+restaurado.num);
+            delete restaurado.eliminadoEn; delete restaurado._papeleraId; delete restaurado._firebaseIdOrianteriorl;
             restaurado._firebaseId = firebaseId;
             try {
                 const { doc, setDoc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
@@ -7751,7 +7747,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (pedIndex === -1) return;
             const pedido = historialPedidos[pedIndex];
             const btn = document.getElementById('btn-comprobante-' + numPed);
-            const textoOriginal = btn ? btn.innerHTML : '';
+            const textoOrianteriorl = btn ? btn.innerHTML : '';
             if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Subiendo comprobante(s)...'; }
             try {
                 const nuevos = [];
@@ -7769,7 +7765,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 renderizarPedidosPanel();
             } catch (e) {
                 alert('No se pudo subir el comprobante. Intenta de nuevo.\n' + e);
-                if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
+                if (btn) { btn.disabled = false; btn.innerHTML = textoOrianteriorl; }
             } finally {
                 inputEl.value = '';
             }
@@ -7836,7 +7832,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             const pedido = (historialPedidos || []).find(function(p){ return Number(p.num) === Number(numPed); });
             if (!pedido) return;
             const btn = document.getElementById('btn-guia-' + numPed);
-            const textoOriginal = btn ? btn.innerHTML : '';
+            const textoOrianteriorl = btn ? btn.innerHTML : '';
             if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Subiendo guía...'; }
             try {
                 pedido.guiaImagenUrl = await subirACloudinary(file);
@@ -7847,7 +7843,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 mostrarToast('✅ Foto de la guía guardada', '#27ae60');
             } catch (error) {
                 alert('No se pudo subir la foto de la guía. Intenta nuevamente.\n' + (error.message || error));
-                if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
+                if (btn) { btn.disabled = false; btn.innerHTML = textoOrianteriorl; }
             } finally {
                 inputEl.value = '';
             }
@@ -7946,7 +7942,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                   </div>
                 </div>
                 ${resumenRecaudo}
-                <div class="nota">Una etiqueta por media página · Recorta por el borde negro y pega en el paquete.</div>
+                <div class="nota">Una etiqueta por media páanterior · Recorta por el borde negro y pega en el paquete.</div>
               </section>
               <div class="acciones"><button onclick="window.print()">🖨️ Imprimir etiqueta</button></div>
             </body></html>`);
@@ -8208,7 +8204,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 '}';
             vent.document.head.appendChild(scriptEl);
 
-            // Chrome usa el titulo de la pagina principal al guardar un iframe como PDF.
+            // Chrome usa el titulo de la paanterior principal al guardar un iframe como PDF.
             // Lo cambiamos solo durante la impresion y luego lo restauramos.
             var scriptPdf = vent.document.createElement('script');
             scriptPdf.textContent =
@@ -8341,33 +8337,14 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 color: '#1a3fa4', colorLight: '#eef2ff', border: '#93adef'
             },
             {
-                key: 'Domicilios Gina',
-                label: 'Domicilios Gina',
-                logo: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 52" style="height:44px;width:auto;display:block;">
-  <rect width="160" height="52" rx="10" fill="#fce4f6"/>
-  <!-- Moto -->
-  <circle cx="30" cy="38" r="8" fill="none" stroke="#c0196e" stroke-width="2.5"/>
-  <circle cx="30" cy="38" r="3" fill="#c0196e"/>
-  <circle cx="54" cy="38" r="8" fill="none" stroke="#c0196e" stroke-width="2.5"/>
-  <circle cx="54" cy="38" r="3" fill="#c0196e"/>
-  <path d="M30 38 L30 28 L40 22 L54 24 L58 30 L54 30" stroke="#c0196e" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
-  <path d="M40 22 L44 18 L50 18 L54 24" stroke="#c0196e" stroke-width="2" fill="#f9b8e0"/>
-  <line x1="22" y1="38" x2="30" y2="38" stroke="#c0196e" stroke-width="2.5"/>
-  <!-- Chica -->
-  <circle cx="43" cy="17" r="5" fill="#f4a0c8"/>
-  <!-- Pelo -->
-  <path d="M38 16 Q38 10 43 10 Q50 10 50 17 Q48 13 43 13 Q39 13 38 16Z" fill="#7b1f5e"/>
-  <!-- Cuerpo -->
-  <path d="M40 22 Q43 20 46 22 L47 30 L39 30Z" fill="#e040a0"/>
-  <!-- Brazos -->
-  <path d="M40 23 L36 28 M46 23 L52 27" stroke="#f4a0c8" stroke-width="2" stroke-linecap="round"/>
-  <!-- Casco mini -->
-  <path d="M38.5 14 Q43 11 47.5 14" stroke="#7b1f5e" stroke-width="1.5" fill="none"/>
-  <!-- Texto -->
-  <text x="68" y="24" font-family="Nunito,Arial,sans-serif" font-size="11" font-weight="900" fill="#c0196e">Domicilios</text>
-  <text x="68" y="39" font-family="Nunito,Arial,sans-serif" font-size="13" font-weight="900" fill="#7b1f5e">Gina 🛵</text>
-</svg>`,
-                color: '#c0196e', colorLight: '#fce4f6', border: '#f09ed8'
+                key: 'Domicilio', label: 'Domicilio',
+                logo: '<div style="height:44px;display:flex;align-items:center;font-weight:900;color:#7b1f5e">🏠 Domicilio</div>',
+                color: '#7b1f5e', colorLight: '#faf0f8', border: '#e7b9dc'
+            },
+            {
+                key: 'Moto - aplicación', label: 'Moto - aplicación',
+                logo: '<div style="height:44px;display:flex;align-items:center;font-weight:900;color:#0e7490">🏍️ Moto - aplicación</div>',
+                color: '#0e7490', colorLight: '#ecfeff', border: '#8bd3df'
             }
         ];
 
@@ -8377,8 +8354,8 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             'inter rapidísimo': 'Interrapidísimo', 'inter rapidisimo': 'Interrapidísimo',
             'envía': 'Envía', 'envia': 'Envía',
             '23m': '23M&M', '23 m': '23M&M', '23m&m': '23M&M', '23mym': '23M&M',
-            'domicilio gina': 'Domicilios Gina', 'domicilios gina': 'Domicilios Gina',
-            'domicilio-gina': 'Domicilios Gina'
+            'domicilio': 'Domicilio', 'domicilios': 'Domicilio', 'domicilio anterior': 'Domicilio', 'domicilios anterior': 'Domicilio', 'domicilio-anterior': 'Domicilio',
+            'moto': 'Moto - aplicación', 'moto aplicacion': 'Moto - aplicación', 'moto-app': 'Moto - aplicación'
         };
 
         function normalizarTransportadora(val) {
@@ -8525,7 +8502,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
         function renderizarPedidosPanel() {
             const cont = document.getElementById('contenedor-historial-pedidos'); if (!cont) return;
             cont.innerHTML = "";
-            const esGina = window.usuarioActual && window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2';
+            const esAngela = window.usuarioActual && window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2';
             const esYohana = window.usuarioActual && window.usuarioActual.uid === UID_YOHANA;
             const pedido59Pendiente = (historialPedidos || []).find(function(p) {
                 const es59 = String(p.num) === '59' || String(p.numOrden || '').replace(/[^0-9]/g,'') === '00059';
@@ -8599,7 +8576,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 const tipoVentaOpts = ['Contraentrega','Contado','Recaudo','Pago Wompi'].map(function(op) {
                     return '<option value="'+op+'"'+(tipoVentaActual===op?' selected':'')+'>'+op+'</option>';
                 }).join('');
-                const transpOpts = ['','Interrapidísimo','Envía','23M&M','Domicilios Gina'].map(function(op) {
+                const transpOpts = ['','Interrapidísimo','Envía','23M&M','Domicilio'].map(function(op) {
                     const sel = normalizarTransportadora(ped.transportadora||'') === op ? ' selected' : '';
                     return '<option value="'+op+'"'+sel+'>'+(op||'— Transportadora —')+'</option>';
                 }).join('');
@@ -8836,7 +8813,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 'Interrapidísimo': { emoji: '⚡', imgUrl: 'https://interrapidisimo.com/wp-content/uploads/2021/05/logo-inter.png' },
                 'Envía':           { emoji: '🟢', imgUrl: 'https://envia.co/img/logo-envia.svg' },
                 '23M&M':           { emoji: '🔵', imgUrl: '' },
-                'Domicilios Gina': { emoji: '🩷', imgUrl: '' },
+                'Domicilio': { emoji: '🩷', imgUrl: '' },
             };
 
             const nivel2 = document.createElement('div');
@@ -9378,7 +9355,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             }, 450);
         }
 
-        function renderizarPaginaPendientesCatalogo(reiniciar) {
+        function renderizarPaanteriorPendientesCatalogo(reiniciar) {
             const lista = document.getElementById('inv-pendientes-lista');
             const pendientes = window._pendientesCatalogoDatos || [];
             if (!lista) return;
@@ -9393,7 +9370,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
         }
 
         function mostrarMasPendientesCatalogo() {
-            renderizarPaginaPendientesCatalogo(false);
+            renderizarPaanteriorPendientesCatalogo(false);
         }
 
         async function cargarPendientesPorPublicar(forzar) {
@@ -9413,7 +9390,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 window._pendientesCatalogoDatos = _cachePendientesCatalogo.datos;
                 window._galeriasPendientesCatalogo = _cachePendientesCatalogo.datos.map(function(p) { return p.fotos.slice(); });
                 if (contador) contador.textContent = String(_cachePendientesCatalogo.datos.length);
-                renderizarPaginaPendientesCatalogo(true);
+                renderizarPaanteriorPendientesCatalogo(true);
                 return;
             }
             if (_cargaPendientesCatalogo) return _cargaPendientesCatalogo;
@@ -9467,7 +9444,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                     return;
                 }
                 window._galeriasPendientesCatalogo = pendientes.map(function(p) { return p.fotos.slice(); });
-                renderizarPaginaPendientesCatalogo(true);
+                renderizarPaanteriorPendientesCatalogo(true);
             } catch(e) {
                 lista.innerHTML = '<div style="grid-column:1/-1;color:#c0392b;text-align:center;font-weight:800;padding:15px;">No se pudo realizar la comparación: '+escapeHtml(e.message)+'</div>';
             } finally {
@@ -9895,8 +9872,8 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             const inicio = url.slice(0, posicion + marcador.length);
             const partes = url.slice(posicion + marcador.length).split('/');
             const indiceVersion = partes.findIndex(function(parte) { return /^v\d+$/.test(parte); });
-            const rutaOriginal = indiceVersion >= 0 ? partes.slice(indiceVersion).join('/') : partes.join('/');
-            return inicio + 'f_jpg,q_82,c_limit,w_1600/' + rutaOriginal;
+            const rutaOrianteriorl = indiceVersion >= 0 ? partes.slice(indiceVersion).join('/') : partes.join('/');
+            return inicio + 'f_jpg,q_82,c_limit,w_1600/' + rutaOrianteriorl;
         }
 
         async function descargarFotoCloudinaryParaMigracion(url) {
@@ -9987,7 +9964,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             const boton = document.getElementById('btn-migrar-r2');
             const cancelar = document.getElementById('btn-cancelar-migracion-r2');
             if (!candidatos.length) {
-                if (estado) estado.textContent = candidatosTodos.length ? 'Los productos restantes presentaron error. Recarga la página para reintentarlos.' : 'Todos los productos están migrados.';
+                if (estado) estado.textContent = candidatosTodos.length ? 'Los productos restantes presentaron error. Recarga la páanterior para reintentarlos.' : 'Todos los productos están migrados.';
                 actualizarPanelMigracionR2();
                 return;
             }
@@ -10126,8 +10103,8 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             var cont = document.getElementById('edit-entrada-tallas-cont');
             cont.innerHTML = '';
             var tallas = typeof tallasJson === 'string' ? JSON.parse(tallasJson) : tallasJson;
-            window._editEntradaRefOriginal = ref;
-            window._editEntradaTallasOriginales = JSON.parse(JSON.stringify(tallas || []));
+            window._editEntradaRefOrianteriorl = ref;
+            window._editEntradaTallasOrianteriorles = JSON.parse(JSON.stringify(tallas || []));
             (tallas || []).forEach(function(t) {
                 agregarFilaEditEntrada(t.talla, t.cantidad);
             });
@@ -10147,9 +10124,9 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             cont.appendChild(div);
         }
 
-        async function sincronizarCorreccionEntradaConCatalogo(refOriginal, refNueva, tallasOriginales, tallasNuevas, valor) {
+        async function sincronizarCorreccionEntradaConCatalogo(refOrianteriorl, refNueva, tallasOrianteriorles, tallasNuevas, valor) {
             const normalizarRef = valor => String(valor || '').trim().toUpperCase();
-            const refAntes = normalizarRef(refOriginal);
+            const refAntes = normalizarRef(refOrianteriorl);
             const refDespues = normalizarRef(refNueva);
             const publicados = (productosDB || []).filter(function(p) {
                 const referencias = referenciasProductoCatalogo(p);
@@ -10166,7 +10143,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 });
                 return mapa;
             }
-            const antes = mapaCantidades(tallasOriginales);
+            const antes = mapaCantidades(tallasOrianteriorles);
             const despues = mapaCantidades(tallasNuevas);
             const tallasAfectadas = new Set(Object.keys(antes).concat(Object.keys(despues)));
 
@@ -10244,9 +10221,9 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                     fotoUrl: fotosFinales[0] || ''
                 });
                 const productosSincronizados = await sincronizarCorreccionEntradaConCatalogo(
-                    window._editEntradaRefOriginal || ref,
+                    window._editEntradaRefOrianteriorl || ref,
                     ref,
-                    window._editEntradaTallasOriginales || [],
+                    window._editEntradaTallasOrianteriorles || [],
                     tallas,
                     valor
                 );
@@ -11440,12 +11417,12 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             Object.keys(copia).forEach(function(ref) {
                 const registro = copia[ref];
                 if (!registro || typeof registro !== 'object') return;
-                const tallasOriginales = registro.tallas && typeof registro.tallas === 'object' ? registro.tallas : {};
+                const tallasOrianteriorles = registro.tallas && typeof registro.tallas === 'object' ? registro.tallas : {};
                 const tallasLimpias = {};
                 let cantidadPendiente = 0;
-                Object.keys(tallasOriginales).forEach(function(talla) {
+                Object.keys(tallasOrianteriorles).forEach(function(talla) {
                     const nombre = String(talla == null ? '' : talla).trim();
-                    const cantidad = Math.max(0, parseInt(tallasOriginales[talla], 10) || 0);
+                    const cantidad = Math.max(0, parseInt(tallasOrianteriorles[talla], 10) || 0);
                     if (!nombre) cantidadPendiente += cantidad;
                     else if (cantidad) tallasLimpias[nombre] = (parseInt(tallasLimpias[nombre], 10) || 0) + cantidad;
                 });
@@ -11744,7 +11721,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             } catch(error) {
                 detenerLectorCamaraMudanza();
                 if(box)box.style.display='block';
-                if(estado){estado.style.color='#fecaca';estado.textContent='No se pudo usar la cámara: '+(error.message||error)+'. Abre la página publicada en GitHub y permite el acceso a la cámara.';}
+                if(estado){estado.style.color='#fecaca';estado.textContent='No se pudo usar la cámara: '+(error.message||error)+'. Abre la páanterior publicada en GitHub y permite el acceso a la cámara.';}
             }
         };
 
@@ -11931,11 +11908,11 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             if (boton) { boton.disabled=true; boton.textContent='⏳ Preparando...'; }
             try {
                 await cargarCodigoBarrasMudanza();
-                const paginas = etiquetas.map(function(etiqueta) {
+                const paanteriors = etiquetas.map(function(etiqueta) {
                     return '<section class="etiqueta"><div class="codigo">'+svgCodigoBarrasMudanza(codigoInternoTalla(etiqueta.ref,etiqueta.talla))+'</div><div class="referencia">'+escapeHtml(etiqueta.ref)+'</div><div class="talla">'+escapeHtml(etiqueta.talla)+'</div></section>';
                 }).join('');
                 ventana.document.open();
-                ventana.document.write('<!doctype html><html><head><meta charset="UTF-8"><title>Etiquetas '+escapeHtml(ref)+'</title><style>@page{size:89mm 28mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;background:white;font-family:Arial,sans-serif}.etiqueta{width:89mm;height:28mm;margin:0;padding:1.5mm 5mm;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;page-break-after:always;break-after:page}.etiqueta:last-child{page-break-after:auto;break-after:auto}.codigo{width:76mm;height:10.5mm;display:flex;align-items:center;justify-content:center}.codigo svg{width:100%;height:100%;display:block}.referencia{font-size:13pt;font-weight:800;line-height:1.05;margin-top:.4mm;letter-spacing:.6mm}.talla{font-size:18pt;font-weight:900;line-height:1.05;margin-top:.8mm}</style></head><body>'+paginas+'<script>window.addEventListener("load",function(){setTimeout(function(){window.print()},250)});window.addEventListener("afterprint",function(){window.close()});<\/script></body></html>');
+                ventana.document.write('<!doctype html><html><head><meta charset="UTF-8"><title>Etiquetas '+escapeHtml(ref)+'</title><style>@page{size:89mm 28mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;background:white;font-family:Arial,sans-serif}.etiqueta{width:89mm;height:28mm;margin:0;padding:1.5mm 5mm;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;page-break-after:always;break-after:page}.etiqueta:last-child{page-break-after:auto;break-after:auto}.codigo{width:76mm;height:10.5mm;display:flex;align-items:center;justify-content:center}.codigo svg{width:100%;height:100%;display:block}.referencia{font-size:13pt;font-weight:800;line-height:1.05;margin-top:.4mm;letter-spacing:.6mm}.talla{font-size:18pt;font-weight:900;line-height:1.05;margin-top:.8mm}</style></head><body>'+paanteriors+'<script>window.addEventListener("load",function(){setTimeout(function(){window.print()},250)});window.addEventListener("afterprint",function(){window.close()});<\/script></body></html>');
                 ventana.document.close();
             } catch(error) {
                 try { ventana.close(); } catch(e) {}
@@ -11966,11 +11943,11 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             if (boton) { boton.disabled=true; boton.textContent='⏳ Preparando...'; }
             try {
                 await cargarCodigoBarrasMudanza();
-                const paginas = etiquetas.map(function(etiqueta) {
+                const paanteriors = etiquetas.map(function(etiqueta) {
                     return '<section class="etiqueta"><div class="codigo">'+svgCodigoBarrasMudanza(codigoInternoTalla(etiqueta.ref,etiqueta.talla))+'</div><div class="referencia">'+escapeHtml(etiqueta.ref)+'</div><div class="talla">'+escapeHtml(etiqueta.talla)+'</div></section>';
                 }).join('');
                 ventana.document.open();
-                ventana.document.write('<!doctype html><html><head><meta charset="UTF-8"><title>Etiquetas '+escapeHtml(ref)+'</title><style>@page{size:89mm 28mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;background:white;font-family:Arial,sans-serif}.etiqueta{width:89mm;height:28mm;margin:0;padding:1.5mm 5mm;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;page-break-after:always;break-after:page}.etiqueta:last-child{page-break-after:auto;break-after:auto}.codigo{width:76mm;height:10.5mm;display:flex;align-items:center;justify-content:center}.codigo svg{width:100%;height:100%;display:block}.referencia{font-size:13pt;font-weight:800;line-height:1.05;margin-top:.4mm;letter-spacing:.6mm}.talla{font-size:18pt;font-weight:900;line-height:1.05;margin-top:.8mm}</style></head><body>'+paginas+'<script>window.addEventListener("load",function(){setTimeout(function(){window.print()},250)});window.addEventListener("afterprint",function(){window.close()});<\/script></body></html>');
+                ventana.document.write('<!doctype html><html><head><meta charset="UTF-8"><title>Etiquetas '+escapeHtml(ref)+'</title><style>@page{size:89mm 28mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;background:white;font-family:Arial,sans-serif}.etiqueta{width:89mm;height:28mm;margin:0;padding:1.5mm 5mm;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;page-break-after:always;break-after:page}.etiqueta:last-child{page-break-after:auto;break-after:auto}.codigo{width:76mm;height:10.5mm;display:flex;align-items:center;justify-content:center}.codigo svg{width:100%;height:100%;display:block}.referencia{font-size:13pt;font-weight:800;line-height:1.05;margin-top:.4mm;letter-spacing:.6mm}.talla{font-size:18pt;font-weight:900;line-height:1.05;margin-top:.8mm}</style></head><body>'+paanteriors+'<script>window.addEventListener("load",function(){setTimeout(function(){window.print()},250)});window.addEventListener("afterprint",function(){window.close()});<\/script></body></html>');
                 ventana.document.close();
             } catch(error) {
                 try { ventana.close(); } catch(e) {}
@@ -12412,7 +12389,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
         }
 
         [
-            'abrirEditarEntradaBtn','abrirEditarStockGina','agregarTallaStockGina','cerrarEditarStockGina','guardarEdicionStockGina','abrirEditarDatosClientePedido','cerrarEditarDatosClientePedido','guardarDatosClientePedido','abrirEditarPrendasPedido','cerrarEditarPrendasPedido','buscarProductoParaPedido','cambiarTallaProductoPedido','agregarProductoAPedidoDesdeEditor','cambiarDescuentoPedido','abrirFotoGrande','abrirGaleriaPendiente','previsualizarFotoEntradaInventario','renderResumenVisualInventario','actualizarBotonResumenInventario','toggleHistorialInventario','togglePendientesCatalogo','cargarPendientesPorPublicar','mostrarMasPendientesCatalogo','invalidarPendientesCatalogo','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
+            'abrirEditarEntradaBtn','abrirEditarStockÁngela','agregarTallaStockÁngela','cerrarEditarStockÁngela','guardarEdicionStockÁngela','abrirEditarDatosClientePedido','cerrarEditarDatosClientePedido','guardarDatosClientePedido','abrirEditarPrendasPedido','cerrarEditarPrendasPedido','buscarProductoParaPedido','cambiarTallaProductoPedido','agregarProductoAPedidoDesdeEditor','cambiarDescuentoPedido','abrirFotoGrande','abrirGaleriaPendiente','previsualizarFotoEntradaInventario','renderResumenVisualInventario','actualizarBotonResumenInventario','toggleHistorialInventario','togglePendientesCatalogo','cargarPendientesPorPublicar','mostrarMasPendientesCatalogo','invalidarPendientesCatalogo','abrirModalCheckout','abrirModalEditar','actualizarBotonesCategoriaVivo','actualizarNuevaColeccionCarrito',
             'agregarAlCarrito','agregarCategoria','agregarFilaEditEntrada','agregarFilaTalla',
             'agregarFilaTallaEdit','agregarFilaTallaInv','cambiarGenero','cambiarGeneroDiseno',
             'cambiarImg','cambiarTab','cerrarModalCheckout','cerrarModalEditar','cerrarModalFoto',
@@ -12469,7 +12446,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
           <div id="li-error" style="color:#e74c3c;font-size:0.82em;margin-bottom:10px;display:none;"></div>
           <button onclick="window.fbLogin()" style="width:100%;padding:12px;background:linear-gradient(135deg,#c0557a,#e8a0b4);color:white;border:none;border-radius:12px;font-size:1em;font-weight:700;cursor:pointer;font-family:Nunito,sans-serif;">Ingresar</button>
           <button onclick="document.getElementById('login-overlay').style.display='none'" style="width:100%;padding:10px;background:none;border:none;color:#b0778a;font-size:0.85em;cursor:pointer;margin-top:8px;font-family:Nunito,sans-serif;">Cancelar</button>
-        </div></div><!-- MODAL EDITAR ENTRADA INVENTARIO (solo Gina) -->
+        </div></div><!-- MODAL EDITAR ENTRADA INVENTARIO (solo Ángela) -->
 <div id="modal-editar-entrada" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;overflow-y:auto;">
   <div style="background:white;border-radius:16px;padding:24px;max-width:480px;margin:40px auto;font-family:Nunito,sans-serif;">
     <h3 style="color:#27ae60;margin-bottom:16px;">✏️ Editar Entrada de Inventario</h3>
@@ -12500,7 +12477,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
 </div>
 
 
-<!-- MODAL EDITAR ENTRADA INVENTARIO (solo Gina) -->
+<!-- MODAL EDITAR ENTRADA INVENTARIO (solo Ángela) -->
 <div id="modal-editar-entrada" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;overflow-y:auto;">
   <div style="background:white;border-radius:16px;padding:24px;max-width:480px;margin:40px auto;font-family:Nunito,sans-serif;">
     <h3 style="color:#27ae60;margin-bottom:16px;">✏️ Editar Entrada de Inventario</h3>
@@ -12527,7 +12504,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
 </div>
 
 
-<!-- MODAL EDITAR ENTRADA INVENTARIO (solo Gina) -->
+<!-- MODAL EDITAR ENTRADA INVENTARIO (solo Ángela) -->
 <div id="modal-editar-entrada" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;overflow-y:auto;">
   <div style="background:white;border-radius:16px;padding:24px;max-width:480px;margin:40px auto;font-family:Nunito,sans-serif;">
     <h3 style="color:#27ae60;margin-bottom:16px;">✏️ Editar Entrada de Inventario</h3>
@@ -12644,8 +12621,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const esDevolucionAnteriorAlDocumentoCanonico=Number.isFinite(fechaEventoMs)&&fechaEventoMs<new Date('2026-10-02T13:27:32Z').getTime();
     if((detalle.stockDevuelto!==false&&!esDevolucionAnteriorAlDocumentoCanonico)||!prenda.referencia||!prenda.talla)return alert('Este registro no corresponde a una devolución pendiente válida.');
     const cantidad=Math.max(1,parseInt(prenda.cantidad,10)||1),pedido=String(evento.recursoId||'').replace(/[^0-9]/g,'');
-    if(!confirm('Se corregirá el documento original agregando '+cantidad+' unidad(es) de la REF '+prenda.referencia+', talla '+prenda.talla+', eliminadas del pedido '+(pedido||'sin número')+'. Esta reparación solo podrá ejecutarse una vez. ¿Continuar?'))return;
-    const textoOriginal=boton&&boton.textContent;if(boton){boton.disabled=true;boton.textContent='⏳ Restaurando…'}
+    if(!confirm('Se corregirá el documento orianteriorl agregando '+cantidad+' unidad(es) de la REF '+prenda.referencia+', talla '+prenda.talla+', eliminadas del pedido '+(pedido||'sin número')+'. Esta reparación solo podrá ejecutarse una vez. ¿Continuar?'))return;
+    const textoOrianteriorl=boton&&boton.textContent;if(boton){boton.disabled=true;boton.textContent='⏳ Restaurando…'}
     try{
       const producto=await cargarProductoCompletoParaStock({id_prod:prenda.productoId,cod:prenda.referencia},true);
       if(!producto)throw new Error('No se encontró la referencia '+prenda.referencia+' en Firebase');
@@ -12679,14 +12656,14 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       for(const cambio of actualizados){const confirmado=await getDoc(doc(db,'productos',cambio.id)),tallaConfirmada=confirmado.exists()&&(confirmado.data().tallasObj||[]).find(t=>normalizarTallaValor(t.nombre)===normalizarTallaValor(prenda.talla));if(!tallaConfirmada||Number(tallaConfirmada.stock)!==Number(cambio.nuevo))throw new Error('Firebase no confirmó la talla '+prenda.talla+' en el documento '+cambio.id);(productosDB||[]).filter(p=>String(p._firebaseId||'')===String(cambio.id)||String(p.id||'')===String(confirmado.data().id||'')).forEach(p=>Object.assign(p,confirmado.data(),{_firebaseId:cambio.id}))}
       localStorage.setItem('productosV36',JSON.stringify(productosDB));
-      await window.registrarActividadEquipo('restaurar_stock_desde_historial','pedido',pedido,{referencia:prenda.referencia,talla:prenda.talla,cantidad:cantidad,eventoOriginal:evento.fecha||evento.timestamp||'',reparacion:idReparacion,version:'documentos_sincronizados_v3',documentos:actualizados.map(x=>({id:x.id,anterior:x.anterior,nuevo:x.nuevo}))},'exitoso');
+      await window.registrarActividadEquipo('restaurar_stock_desde_historial','pedido',pedido,{referencia:prenda.referencia,talla:prenda.talla,cantidad:cantidad,eventoOrianteriorl:evento.fecha||evento.timestamp||'',reparacion:idReparacion,version:'documentos_sincronizados_v3',documentos:actualizados.map(x=>({id:x.id,anterior:x.anterior,nuevo:x.nuevo}))},'exitoso');
       reparacionesLocales.push(idReparacion);localStorage.setItem('reparacionesStockHistorialV3',JSON.stringify(reparacionesLocales.slice(-500)));
       if(window.sincronizarCatalogoPublico)await window.sincronizarCatalogoPublico();
       if(boton){boton.textContent='✅ Stock restaurado';boton.style.background='#166534'}
       alert('Listo: se restauraron '+cantidad+' unidad(es) de la REF '+prenda.referencia+', talla '+prenda.talla+'.');
     }catch(e){
       if(String(e&&e.message)==='YA_RESTAURADO'){if(boton){boton.textContent='✅ Ya restaurado';boton.style.background='#166534'}alert('Esta devolución ya había sido restaurada. No se sumó nuevamente.');}
-      else{if(boton){boton.disabled=false;boton.textContent=textoOriginal||'↩ Restaurar stock'}alert('No se restauró el stock: '+(e.message||e));}
+      else{if(boton){boton.disabled=false;boton.textContent=textoOrianteriorl||'↩ Restaurar stock'}alert('No se restauró el stock: '+(e.message||e));}
     }
   };
   async function sincronizarCatalogoDespuesDeCambio(){
@@ -12724,11 +12701,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if(estado) estado.textContent='✅ Se restauraron '+faltantes.length+' referencias. Recarga Gestión para ver el inventario completo.';
     await window.registrarActividadEquipo('restaurar_referencias','productos','respaldo-index',{restauradas:faltantes.length},'exitoso');
-    alert('Listo: se restauraron '+faltantes.length+' referencias faltantes sin cambiar las existentes. Recarga la página.');
+    alert('Listo: se restauraron '+faltantes.length+' referencias faltantes sin cambiar las existentes. Recarga la páanterior.');
   }
   function envolver(nombre,accion,recurso,idFn,sincronizaCatalogo){
-    const original=window[nombre];if(typeof original!=='function'||original.__audit)return;
-    const fn=async function(){const args=[...arguments],id=idFn?idFn(args):'';try{const r=await original.apply(this,args);await window.registrarActividadEquipo(accion,recurso,id,{argumentos:args.slice(0,4)});if(sincronizaCatalogo)await sincronizarCatalogoDespuesDeCambio();return r}catch(e){await window.registrarActividadEquipo(accion,recurso,id,{error:e.message},'error');throw e}};fn.__audit=true;window[nombre]=fn;
+    const orianteriorl=window[nombre];if(typeof orianteriorl!=='function'||orianteriorl.__audit)return;
+    const fn=async function(){const args=[...arguments],id=idFn?idFn(args):'';try{const r=await orianteriorl.apply(this,args);await window.registrarActividadEquipo(accion,recurso,id,{argumentos:args.slice(0,4)});if(sincronizaCatalogo)await sincronizarCatalogoDespuesDeCambio();return r}catch(e){await window.registrarActividadEquipo(accion,recurso,id,{error:e.message},'error');throw e}};fn.__audit=true;window[nombre]=fn;
   }
   async function corregirStockRef100014Pedido96(){
     if(!(window.usuarioActual&&window.usuarioActual.uid===UID_YOHANA))return alert('Esta corrección solo está disponible para Yohana.');
@@ -12759,7 +12736,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function instalarWrappers(){
     envolver('procesarYAgregarProducto','crear_producto','producto',()=> 'nuevo',true);
     envolver('eliminarProducto','eliminar_producto','producto',a=>a[0],true);
-    envolver('guardarEdicionStockGina','editar_stock_producto','producto',()=>String(window.stockGinaEditandoId||''),false);
+    envolver('guardarEdicionStockÁngela','editar_stock_producto','producto',()=>String(window.stockÁngelaEditandoId||''),false);
     envolver('guardarEntradaInventario','entrada_inventario','inventario',()=> 'entrada',true);
     envolver('guardarEdicionEntrada','editar_entrada','inventario',()=> 'entrada',true);
     envolver('eliminarEntradaInventario','eliminar_entrada','inventario',a=>a[0],true);
@@ -12962,7 +12939,7 @@ document.addEventListener('DOMContentLoaded', function() {
 })();
 </script>
 
-</body></html>
+<script src="gestion-cotizaciones-apartados-v77.js"></script></body></html>
 
 
 
