@@ -4435,6 +4435,24 @@
     <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/6b8e8165-60ad-4fe0-9fbe-9b3b90460b1a/full.jpg</image:loc></image:image>
   </url>
   <url>
+    <loc>https://superkidsbabys.com/producto/elefante-gris-cobija/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-10/b8fcce55-b9bb-4abf-b5d4-1e0e01e41749/full.jpg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://superkidsbabys.com/producto/elefante-rosado-cobija/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-10/694b372a-7cd5-4e74-9d2f-664ddc626dd3/full.jpg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://superkidsbabys.com/producto/elefante-azul-cobija/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-10/8e52faa8-4525-4a2b-bc0f-a6cb4d436dd0/full.jpg</image:loc></image:image>
+  </url>
+  <url>
     <loc>https://superkidsbabys.com/categoria/mamelucos-enterizos-25-000/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
@@ -4566,6 +4584,11 @@
   </url>
   <url>
     <loc>https://superkidsbabys.com/categoria/chaquetas/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://superkidsbabys.com/categoria/otros/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
