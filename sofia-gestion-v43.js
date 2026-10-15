@@ -1,5 +1,12 @@
 (function(){
   'use strict';
+  // Compatibilidad con la bandeja ya cargada por pedidos.html.
+  // La función nueva abre el mismo panel cuando aún no expone su API global.
+  if(typeof window.abrirWhatsappEquipo!=='function')window.abrirWhatsappEquipo=async()=>{
+    const launcher=document.getElementById('wa-inbox-launcher');
+    if(launcher){launcher.click();return;}
+    window.location.hash='whatsapp-equipo';
+  };
   const API='https://superkids-pagos-api.superkids-babys.workers.dev/sofia/equipo';
   const ALLOWED=new Set(['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63','IEB65uKdgldevmgRuenCj7pPwc12']);
   const DEVICE_KEY='superkids-sofia-device-v44';
