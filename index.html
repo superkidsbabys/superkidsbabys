@@ -1843,7 +1843,15 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             <div style="padding:18px 20px 0;">
                 <p style="font-weight:800; color:#333; font-size:0.85em; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">Productos seleccionados</p>
                 <div id="lista-carrito" style="max-height:220px; overflow-y:auto;"><p style="color:#aaa;text-align:center;padding:10px 0;">Tu carrito está vacío.</p></div>
-                <div id="total-display" style="text-align:right; font-size:1.25em; font-weight:900; color:#ff4db8; margin:12px 0 0; padding-top:10px; border-top:2px dashed #fde8f7;">Total: $0</div>
+                <div id="total-display" style="text-align:right; font-size:1.25em; font-weight:900; color:#ff4db8; margin:12px 0 0; padding-top:10px; border-top:2px dashed #fde8f7;">Total: $0</div>                <section id="sk-cotizacion-publica" style="margin:16px 0 2px;padding:14px;border:1.5px solid #f3b7d8;border-radius:14px;background:#fff7fc;">
+                    <strong style="display:block;color:#9d174d;">¿Aún estás decidiendo?</strong>
+                    <p style="margin:5px 0 10px;color:#6b3352;font-size:.84em;line-height:1.4;">Guarda una cotización sin datos de envío. No reserva prendas ni descuenta inventario.</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <button type="button" onclick="guardarCotizacionPublica(false)" style="border:1px solid #db2777;background:white;color:#9d174d;padding:11px 8px;border-radius:10px;font-weight:800;cursor:pointer;">🧾 Guardar cotización</button>
+                        <button type="button" onclick="guardarCotizacionPublica(true)" style="border:0;background:#9d174d;color:white;padding:11px 8px;border-radius:10px;font-weight:800;cursor:pointer;">💗 Quiero apartar</button>
+                    </div>
+                    <p id="sk-cotizacion-publica-estado" role="status" style="display:none;margin:10px 0 0;font-size:.82em;line-height:1.4;"></p>
+                </section>
             </div>
             <div style="height:1px; background:#f0f0f0; margin:16px 0;"></div>
             <div style="padding:0 20px 24px;">
@@ -5835,6 +5843,44 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             }
         }
 
+        async function guardarCotizacionPublica(quiereApartar) {
+            if (!Array.isArray(carrito) || !carrito.length) return alert('Agrega al menos una prenda al carrito.');
+            const validacionStock = validarCarritoContraStockReal();
+            if (!validacionStock.ok) return alert(validacionStock.msg);
+            if (!turnstilePedidoToken) return alert('Completa la verificación de seguridad antes de guardar la cotización.');
+            const estado = document.getElementById('sk-cotizacion-publica-estado');
+            const botones = document.querySelectorAll('#sk-cotizacion-publica button');
+            const huella = JSON.stringify(carrito.map(function(item) { return [String(item.id || ''), String(item.talla || ''), Number(item.precio || 0)]; }));
+            let solicitud = null;
+            try { solicitud = JSON.parse(sessionStorage.getItem('superkidsCotizacionPublicaV92') || 'null'); } catch (e) {}
+            if (!solicitud || solicitud.huella !== huella || !solicitud.requestId) {
+                solicitud = { huella: huella, requestId: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(16) + '-' + Math.random().toString(16).slice(2)) };
+                try { sessionStorage.setItem('superkidsCotizacionPublicaV92', JSON.stringify(solicitud)); } catch (e) {}
+            }
+            botones.forEach(function(b) { b.disabled = true; b.style.opacity = '.65'; });
+            if (estado) { estado.style.display = 'block'; estado.style.color = '#6b3352'; estado.textContent = 'Guardando tu cotización…'; }
+            try {
+                const respuesta = await fetch('https://superkids-pagos-api.superkids-babys.workers.dev/cotizaciones/publicas', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ requestId: solicitud.requestId, turnstileToken: turnstilePedidoToken, items: carrito.map(function(item) { return { id: String(item.id || ''), talla: String(item.talla || ''), cantidad: 1 }; }) })
+                });
+                const datos = await respuesta.json().catch(function() { return {}; });
+                if (!respuesta.ok || !datos.ok || !datos.cotizacion) throw new Error(datos.error || 'No fue posible guardar la cotización.');
+                turnstilePedidoToken = '';
+                if (window.turnstile && turnstilePedidoId !== null) window.turnstile.reset(turnstilePedidoId);
+                const cotizacion = datos.cotizacion;
+                const texto = 'Cotización ' + cotizacion.id + ' guardada por ' + formatMoney(cotizacion.total) + '. No se reservaron prendas ni se descontó inventario.';
+                if (estado) { estado.style.color = '#166534'; estado.textContent = texto + (quiereApartar ? ' Te abrimos WhatsApp para que una asesora confirme el abono antes de apartar.' : ' Guarda este código para consultarla con una asesora.'); }
+                if (quiereApartar) {
+                    const asesora = window.obtenerAsesoraSeleccionada ? window.obtenerAsesoraSeleccionada() : 'Sin asesora';
+                    const numero = window.obtenerWhatsappAsesora ? window.obtenerWhatsappAsesora(asesora) : '573025451526';
+                    const mensaje = 'Hola 💕 Quiero apartar la cotización ' + cotizacion.id + '. Total prendas: ' + formatMoney(cotizacion.total) + '. Entiendo que una asesora debe confirmar disponibilidad y abono antes de reservar.';
+                    window.open('https://wa.me/' + String(numero || '').replace(/\D/g, '') + '?text=' + encodeURIComponent(mensaje), '_blank', 'noopener');
+                }
+            } catch (error) {
+                if (estado) { estado.style.color = '#b42318'; estado.textContent = error && error.message ? error.message : 'No fue posible guardar la cotización.'; }
+            } finally { botones.forEach(function(b) { b.disabled = false; b.style.opacity = ''; }); }
+        }
         async function procesarOrdenWA() {
             if (window._procesandoOrdenWA) return;
             let n = document.getElementById('cart-nombre').value.trim();
