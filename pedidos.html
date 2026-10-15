@@ -466,7 +466,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
     <script src="./pwa.js?v=20261011-sofia-v57" defer></script>
-    <script src="./sofia-gestion-v43.js?v=78" defer></script>
+    <script src="./sofia-gestion-v43.js?v=88" defer></script>
     <title>SuperKids &amp; Babys - Panel de Gestión</title>
     <style id="dynamic-theme">:root { --color-banner: #f5d6ed; --color-texto-banner: #1c1717; --color-fondo: #fbeaf8; --color-tarjeta: #f9e2ed; --color-texto: #2a2222; --color-precio: #ff5cd6; --textura-banner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E"); --textura-size: 20px 20px; --tamano-titulo: 32px; --tamano-descripcion: 14px; --tamano-logo: 130px; --color-btn-carrito: #35c700; --color-btn-carrito-texto: #ffffff; --color-etiqueta-desc: #e74c3c; --color-etiqueta-desc-texto: #ffffff; --opacidad-etiqueta-desc: 0.7; }</style>
     <style>
@@ -12939,7 +12939,145 @@ document.addEventListener('DOMContentLoaded', function() {
 })();
 </script>
 
-<script src="gestion-cotizaciones-apartados-v77.js"></script></body></html>
+<script src="gestion-cotizaciones-apartados-v79.js"></script>
+<style id="wa-inbox-theme">
+#wa-inbox-root{display:none;position:fixed;inset:4%;z-index:20000;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 20px 80px #0005;font:14px/1.5 Arial,sans-serif;color:#172b31;grid-template-columns:300px minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto}
+#wa-inbox-root *{box-sizing:border-box}
+#wa-inbox-root .wa-top{grid-column:1/-1;background:#075e54;color:white;padding:16px 20px;display:flex;align-items:center;gap:12px}
+#wa-inbox-root h2{font-size:20px;margin:0;flex:1;color:white}
+#wa-inbox-root button{cursor:pointer;border:0;border-radius:8px;padding:10px 14px;font:inherit;background:#e9f2ef;color:#075e54}
+#wa-inbox-root button:focus-visible,#wa-inbox-root textarea:focus-visible{outline:3px solid #f4b942;outline-offset:2px}
+#wa-inbox-root #wa-inbox-status{grid-column:1/-1;margin:0;padding:10px 20px;background:#eff7f3;border-bottom:1px solid #d7e4df;font-size:13px}
+#wa-inbox-root .wa-sidebar{grid-column:1;grid-row:3/5;overflow:auto;border-right:1px solid #d7e4df;background:#fff}
+#wa-inbox-root .wa-side-title{padding:15px;font-weight:700;color:#075e54}
+#wa-inbox-root #wa-inbox-list button{display:block;width:100%;border-radius:0;padding:16px;text-align:left;background:white;border-bottom:1px solid #edf1ef;white-space:pre-line}
+#wa-inbox-root #wa-inbox-list button:hover,#wa-inbox-root #wa-inbox-list button.wa-selected{background:#dff3ea}
+#wa-inbox-root #wa-inbox-messages{grid-column:2;grid-row:3;overflow:auto;padding:20px;background:#efeae2;display:flex;flex-direction:column;gap:10px}
+#wa-inbox-root .wa-bubble{align-self:flex-start;background:white;max-width:85%;padding:10px 14px;border-radius:0 12px 12px;box-shadow:0 1px 2px #0002;white-space:pre-wrap;overflow-wrap:anywhere}
+#wa-inbox-root .wa-out{align-self:flex-end;background:#d9fdd3;border-radius:12px 0 12px 12px}
+#wa-inbox-root .wa-bubble p{margin:6px 0}
+#wa-inbox-root .wa-bubble small{font-size:11px;color:#526660}
+#wa-inbox-root .wa-compose{grid-column:2;grid-row:4;background:#f7f9f8;padding:12px;border-top:1px solid #d7e4df}
+#wa-inbox-root .wa-controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+#wa-inbox-root .wa-note{font-size:12px;color:#63756e;margin:8px 0}
+#wa-inbox-root .wa-input{display:flex;align-items:flex-end;gap:10px}
+#wa-inbox-root textarea{flex:1;min-width:0;border:1px solid #d5dfda;border-radius:12px;padding:12px;min-height:65px;max-height:150px;resize:vertical;font:inherit}
+#wa-inbox-root .wa-send{background:#128c7e;color:white}
+#wa-inbox-root .wa-back{display:none}
+@media(max-width:700px){#wa-inbox-root{inset:0;border-radius:0;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto}#wa-inbox-root .wa-sidebar{grid-column:1;grid-row:3/5;border:0}#wa-inbox-root #wa-inbox-messages,#wa-inbox-root .wa-compose{display:none}#wa-inbox-root.wa-chat-open .wa-sidebar{display:none}#wa-inbox-root.wa-chat-open #wa-inbox-messages{display:flex;grid-column:1;grid-row:3;padding:12px}#wa-inbox-root.wa-chat-open .wa-compose{display:block;grid-column:1;grid-row:4;max-height:40dvh;overflow:auto}#wa-inbox-root.wa-chat-open .wa-back{display:block}#wa-inbox-root .wa-top{padding:10px;gap:6px}#wa-inbox-root h2{font-size:16px}#wa-inbox-root .wa-top button{padding:8px;font-size:12px}}
+#wa-inbox-root .wa-alert{display:inline-flex;align-items:center;gap:6px;margin:5px 6px 0 0;padding:3px 7px;border-radius:12px;font-size:12px;font-weight:700;white-space:normal}
+#wa-inbox-root .wa-alert-blue{background:#dbeafe;color:#1e40af}
+#wa-inbox-root .wa-alert-red{background:#fee2e2;color:#991b1b}
+#wa-inbox-root .wa-alert-dot{width:8px;height:8px;border-radius:50%;background:currentColor;animation:wa-alert-pulse 2s ease-in-out infinite}
+@keyframes wa-alert-pulse{50%{opacity:.4}}
+@media(prefers-reduced-motion:reduce){#wa-inbox-root .wa-alert-dot{animation:none}}
+
+#wa-inbox-root{inset:5%;border:1px solid #d9e8e1;border-radius:22px;font-family:Nunito,Segoe UI,Arial,sans-serif;grid-template-columns:310px minmax(0,1fr);box-shadow:0 24px 100px #12382d40}
+#wa-inbox-root .wa-top{background:#075e54;padding:14px 18px}
+#wa-inbox-root .wa-top h2{font-size:18px;letter-spacing:-.2px}
+#wa-inbox-root .wa-top button{padding:7px 11px;font-size:12px;background:#ffffff20;color:#fff;border:1px solid #ffffff30;border-radius:18px}
+#wa-inbox-root #wa-inbox-status{padding:8px 18px;color:#526b62;background:#f5faf7;font-size:12px}
+#wa-inbox-root .wa-side-title{padding:16px 18px;font-size:13px;background:#f8fbfa;border-bottom:1px solid #e7efea}
+#wa-inbox-root #wa-inbox-list button{padding:13px 16px;line-height:1.6;color:#173e32;font-size:13px;transition:background .15s}
+#wa-inbox-root #wa-inbox-list button.wa-selected{background:#e0f3e9;box-shadow:inset 3px 0 #128c7e}
+#wa-inbox-root .wa-avatar{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;margin-right:8px;border-radius:50%;background:#e8f0ed;color:#286450;font-weight:800;font-size:12px;vertical-align:middle}
+#wa-inbox-root #wa-inbox-messages{background-color:#f4f0e8;background-image:radial-gradient(#b7c7bc45 1px,transparent 1px);background-size:20px 20px;padding:22px;gap:12px}
+#wa-inbox-root .wa-bubble{max-width:78%;border:1px solid #e3e8e1;padding:9px 13px;border-radius:4px 16px 16px;box-shadow:0 2px 4px #12382d08;line-height:1.55}
+#wa-inbox-root .wa-out{background:#dff6dc;border-color:#c9e7c6;border-radius:16px 4px 16px 16px}
+#wa-inbox-root .wa-bubble small{display:block;font-size:10px;color:#638071}
+#wa-inbox-root .wa-bubble p{font-size:14px;margin:5px 0 0}
+#wa-inbox-root .wa-compose{background:#f9fcfa;padding:12px 16px}
+#wa-inbox-root .wa-controls button{padding:6px 10px;font-size:12px;border-radius:16px}
+#wa-inbox-root .wa-note{font-size:11px;margin:7px 0}
+#wa-inbox-root textarea{border-radius:22px;min-height:46px;padding:12px 16px;font-size:13px;background:white}
+#wa-inbox-root .wa-send{border-radius:22px;padding:12px 15px;font-size:12px;min-height:44px}
+#wa-inbox-root .wa-empty{margin:auto;max-width:320px;text-align:center;color:#577066;background:#ffffffb8;padding:26px;border:1px solid #ffffff;border-radius:24px}
+#wa-inbox-root .wa-empty strong{display:block;margin:8px;font-size:18px;color:#205947}
+#wa-inbox-root .wa-empty p{margin:8px 0;font-size:13px}
+@media(max-width:700px){#wa-inbox-root{inset:0;border-radius:0;grid-template-columns:minmax(0,1fr)}#wa-inbox-root .wa-bubble{max-width:90%}#wa-inbox-root .wa-top{padding:12px}#wa-inbox-root .wa-top h2{font-size:15px}#wa-inbox-root .wa-compose{padding:10px}#wa-inbox-root .wa-controls{gap:5px}}
+</style>
+<script>
+(function(){
+  let current='',refreshing=false,sessionEpoch=0;const endpoint='https://superkids-pagos-api.superkids-babys.workers.dev/equipo/whatsapp';
+  async function api(action,extra={}){
+    const actorUid=window.usuarioActual?.uid,epoch=sessionEpoch;
+    if(!['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63'].includes(actorUid))throw Error('Integrante no autorizada');
+    const token=await window.obtenerTokenSesion?.();
+    if(actorUid!==window.usuarioActual?.uid||epoch!==sessionEpoch)throw Error('La sesión cambió');if(!token){clearPrivate();throw Error('Inicia sesión con tu usuario del equipo.');}
+    const response=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action,...extra}),cache:'no-store'});
+    const data=await response.json();if(actorUid!==window.usuarioActual?.uid||epoch!==sessionEpoch)throw Error('La sesión cambió');if(response.status===401||response.status===403)clearPrivate();if(!response.ok||data.ok!==true)throw Error(data.error||'No se pudo abrir la bandeja.');
+    if(!await window.obtenerTokenSesion?.()){clearPrivate();throw Error('La sesión se cerró.');}return data;
+  }
+  function clearPrivate(){for(const id of ['wa-inbox-messages','wa-inbox-list'])document.getElementById(id)?.replaceChildren();current='';const root=document.getElementById('wa-inbox-root');if(root)root.style.display='none';}
+  function element(tag,text){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;}
+  function status(text){document.getElementById('wa-inbox-status').textContent=text;}
+  function showConversationList(){current='';const root=document.getElementById('wa-inbox-root');root?.classList.remove('wa-chat-open');document.getElementById('wa-inbox-messages')?.replaceChildren();document.querySelectorAll('#wa-inbox-list button').forEach(b=>b.classList.remove('wa-selected'));status('Selecciona una conversación para abrir el chat.');}
+  async function openConversation(id){
+    document.getElementById('wa-inbox-root').classList.add('wa-chat-open');
+    const changed=current!==id;current=id;const data=await api('messages',{conversation:id});if(current!==id)return;const box=document.getElementById('wa-inbox-messages'),atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<70,oldScroll=box.scrollTop;box.replaceChildren();
+    status('Chat '+data.conversation.phone+' · '+(data.conversation.paused?'Atiende: '+data.conversation.owner_name:'Bot disponible')+' · Sólo texto en esta versión.');
+    for(const m of data.messages){const row=element('div');row.className='wa-bubble'+(m.direction==='in'?'':' wa-out');const labels={received:'Recibido',accepted:'Aceptado por Meta',uncertain:'Envío sin confirmar',sending:'Enviando'};let body=m.body||'['+m.kind+']';if(/^skm1:buy:/.test(body))body='Pulsó: Realizar un pedido';else if(/^skm1:tracking:/.test(body))body='Pulsó: Seguimiento pedido';row.append(element('small',(m.direction==='in'?'Cliente':m.staff_name||'Bot')+' · '+new Date(m.created_at).toLocaleString('es-CO')+' · '+(labels[m.status]||m.status)),element('p',body));
+      if(!['text','interactive'].includes(m.kind))row.append(element('small','Adjunto '+m.kind+': visualización privada pendiente de la siguiente etapa. No se ha verificado ningún pago.'));
+      box.append(row);
+    }
+    box.scrollTop=changed||atBottom?box.scrollHeight:oldScroll;
+  }
+  async function refresh(){
+    if(refreshing)return;refreshing=true;
+    try{const data=await api('list'),list=document.getElementById('wa-inbox-list');list.replaceChildren();
+      for(const c of data.conversations){const button=element('button');const avatar=element('span','WA');avatar.className='wa-avatar';button.append(avatar,element('strong',c.phone),element('br'),element('span',c.paused?'Atiende: '+(c.owner_name||'Equipo'):'🤖 Sofía · bot disponible'));button.className=current===c.id?'wa-selected':'';
+        for(const [pending,label,color] of [[c.advisor_pending,'Solicita asesora','blue'],[c.receipt_pending,'Revisar comprobante','red']]){
+          if(!pending)continue;const badge=element('span',label);badge.className='wa-alert wa-alert-'+color;
+          const dot=element('span');dot.className='wa-alert-dot';dot.setAttribute('aria-hidden','true');badge.prepend(dot);button.append(element('br'),badge);
+        }button.onclick=()=>{document.querySelectorAll('#wa-inbox-list button').forEach(b=>b.classList.remove('wa-selected'));button.classList.add('wa-selected');openConversation(c.id).catch(e=>status(e.message));};list.append(button);}
+      if(!data.conversations.length)status('Sin conversaciones registradas. Se mostrarán mensajes nuevos tras activar la bandeja.');
+      if(current)await openConversation(current);
+      if(data.attentionUnavailable)status('No se pudieron consultar las solicitudes de asesora. Los chats siguen disponibles; vuelve a actualizar.');
+    }catch(e){status(e.message);}finally{refreshing=false;}
+  }
+  async function action(name){if(!current)return status('Selecciona una conversación.');try{await api(name,{conversation:current});await refresh();}catch(e){status(e.message);}}
+  function setup(){
+    if(document.getElementById('wa-inbox-root'))return;
+    const root=element('section');root.id='wa-inbox-root';root.setAttribute('aria-label','WhatsApp del equipo');const top=element('header');top.className='wa-top';top.append(element('h2','💬 WhatsApp del equipo'));root.append(top);
+    const back=element('button','← Atrás');back.className='wa-back';back.setAttribute('aria-label','Volver a todas las conversaciones');back.onclick=showConversationList;top.prepend(back);
+    const close=element('button','Cerrar');close.onclick=()=>{root.style.display='none';document.getElementById('wa-inbox-list').replaceChildren();document.getElementById('wa-inbox-messages').replaceChildren();current='';};top.append(close);
+    const reload=element('button','Actualizar');reload.onclick=refresh;top.append(reload);
+    const message=element('p');message.id='wa-inbox-status';message.setAttribute('role','status');root.append(message);
+    const sidebar=element('aside');sidebar.className='wa-sidebar';sidebar.append(Object.assign(element('div','Conversaciones'),{className:'wa-side-title'}));const list=element('div');list.id='wa-inbox-list';sidebar.append(list);root.append(sidebar);const compose=element('div');compose.className='wa-compose';const controls=element('div');controls.className='wa-controls';compose.append(controls);
+    for(const [label,name] of [['🙋 Tomar conversación','take'],['🤖 Devolver al bot','release'],['🔴 Revisar comprobante','marcar-comprobante'],['✓ Revisión terminada','comprobante-revisado']]){const b=element('button',label);b.onclick=()=>action(name);controls.append(b);}
+    const history=element('div');history.id='wa-inbox-messages';const empty=element('div');empty.className='wa-empty';empty.append(element('span','💬'),element('strong','Cada conversación, a mano'),element('p','Selecciona un chat para ver los mensajes y sus pendientes.'),element('p','🔵 Solicita asesora · 🔴 Revisar comprobante'));history.append(empty);root.append(history);const note=element('p','Área privada · Toma el chat antes de responder. Marca comprobantes para revisión. Terminar la revisión no aprueba pagos.');note.className='wa-note';compose.append(note);const input=element('div');input.className='wa-input';compose.append(input);
+    const text=element('textarea');text.maxLength=3000;text.placeholder='Escribe una respuesta…';text.setAttribute('aria-label','Respuesta al cliente');input.append(text);
+    const send=element('button','Enviar respuesta');let pending=null;
+    send.onclick=async()=>{if(!current||!text.value.trim())return;if(!confirm('¿Enviar esta respuesta al WhatsApp del cliente?'))return;
+      const body=text.value.trim();if(!pending||pending.text!==body||pending.conversation!==current)pending={conversation:current,text:body,requestId:crypto.randomUUID()};
+      send.disabled=true;try{await api('send',pending);text.value='';pending=null;await refresh();status('Respuesta aceptada por Meta; no confirma entrega al cliente.');}catch(e){status(e.message);}finally{send.disabled=false;}
+    };send.className='wa-send';input.append(send);root.append(compose);document.body.append(root);
+    const launcher=element('button','💬 WhatsApp del equipo');launcher.id='wa-inbox-launcher';launcher.style.cssText='position:fixed;left:16px;bottom:84px;z-index:9000;padding:12px;border-radius:12px;background:#128c7e;color:white;display:none';
+    let lastUid='',requestedInbox=location.hash==='#whatsapp-equipo';
+    function syncSession(){
+      const uid=window.usuarioActual?.uid||'',allowed=['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63','IEB65uKdgldevmgRuenCj7pPwc12'].includes(uid);
+      if(uid!==lastUid||!allowed){if(uid!==lastUid)sessionEpoch++;root.style.display='none';history.replaceChildren();list.replaceChildren();current='';text.value='';pending=null;lastUid=uid;}
+      launcher.style.setProperty('display',allowed?'block':'none','important');
+      if(allowed&&requestedInbox){requestedInbox=false;root.style.display='grid';refresh();}
+      return allowed;
+    }
+    launcher.style.zIndex='19000';
+    launcher.onclick=()=>{if(!syncSession())return;if(window.matchMedia('(max-width:700px)').matches)showConversationList();root.style.display='grid';refresh();};document.body.append(launcher);
+    window.abrirWhatsappEquipo=async(id)=>{if(!syncSession())return;root.style.display='grid';if(id)await openConversation(id);else{showConversationList();await refresh();}};
+    navigator.serviceWorker?.addEventListener('message',event=>{if(event.data?.type==='SUPERKIDS_ABRIR_WHATSAPP_EQUIPO'){requestedInbox=true;syncSession();}});
+    window.addEventListener('superkids-session-change',syncSession);
+    window.addEventListener('focus',syncSession);
+    document.addEventListener('visibilitychange',syncSession);
+    syncSession();
+    setInterval(syncSession,500);
+    setInterval(()=>{if(syncSession()&&root.style.display!=='none')refresh();},15000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup();
+})();
+</script>
+
+
+</body></html>
 
 
 
