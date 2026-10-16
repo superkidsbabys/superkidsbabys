@@ -515,8 +515,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
       "image": "https://superkidsbabys.com/icons/icon-512.png",
       "description": "Tienda online de ropa importada para bebés y niños de 0 a 10 años. Carter's y otras marcas. Envíos a toda Colombia con pago contra entrega.",
       "address": {
-        "@type": "PostalAddress",
-        "addressCountry": "CO"
+        "@type": "PostalAddress",`r`n        "streetAddress": "Calle 122 #15-09, Edificio Epicentro, oficina 303",`r`n        "addressLocality": "Bogotá",`r`n        "addressRegion": "Bogotá D.C.",`r`n        "addressCountry": "CO"
       },
       "sameAs": []
     }
@@ -621,6 +620,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             transition: background 0.2s;
         }
         .red-social-btn:hover { background: rgba(255,255,255,0.42); }
+        .direccion-tienda { display:inline-flex; align-items:center; justify-content:center; gap:7px; max-width:calc(100% - 28px); margin:6px auto 2px; padding:6px 11px; border-radius:14px; background:rgba(255,255,255,.52); border:1px solid rgba(255,255,255,.82); color:inherit; font-size:.78em; font-weight:800; line-height:1.25; box-shadow:0 3px 10px rgba(74,42,66,.08); }
+        .direccion-tienda a { color:inherit; text-decoration:none; }
+        .direccion-tienda a:hover { text-decoration:underline; }
         .banner-top {
             padding: 4px 16px;
             display: flex;
@@ -1191,6 +1193,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             .whatsapp-tienda { font-size: 0.74em; padding: 3px 10px; margin-top: 2px; }
             .redes-sociales { margin: 2px 0 0; gap: 8px; }
             .red-social-btn { padding: 3px 8px; font-size: 0.72em; }
+            .direccion-tienda { margin:4px auto 1px; padding:5px 9px; font-size:.68em; }
             .selector-genero { margin: 14px auto 10px; gap: 6px; }
         }
         @media (min-width: 1400px) {
@@ -1748,7 +1751,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
             <a href="https://wa.me/573025451526" target="_blank" class="whatsapp-tienda" id="wa-header" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;cursor:pointer;">📱 3025451526</a>
             <button type="button" class="btn-mis-pedidos" onclick="abrirMisPedidos()">📦 Mis pedidos</button>
         </div>
-        <div class="redes-sociales">
+        <div class="direccion-tienda"><span aria-hidden="true">📍</span><a href="https://www.google.com/maps/search/?api=1&amp;query=Calle+122+%2315-09%2C+Edificio+Epicentro%2C+Oficina+303%2C+Bogot%C3%A1" target="_blank" rel="noopener" aria-label="Abrir dirección en Google Maps">Calle 122 #15-09 · Edificio Epicentro, oficina 303 · Bogotá</a></div>`r`n        <div class="redes-sociales">
             <a href="https://www.instagram.com/superkidsbabys?igsh=MTd0d2huazFha3UzOQ==" target="_blank" class="red-social-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="ig" x1="0" y1="24" x2="24" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#f09433"/><stop offset="25%" stop-color="#e6683c"/><stop offset="50%" stop-color="#dc2743"/><stop offset="75%" stop-color="#cc2366"/><stop offset="100%" stop-color="#bc1888"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="5" fill="url(#ig)"/><path d="M12 7a5 5 0 100 10A5 5 0 0012 7zm0 8a3 3 0 110-6 3 3 0 010 6zm5.2-8.8a1.2 1.2 0 100 2.4 1.2 1.2 0 000-2.4z" fill="white"/></svg>
                 Instagram
@@ -8589,5 +8592,6 @@ async function iniciarConsultaWA() {
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',iniciarConsultaWA,{once:true});else iniciarConsultaWA();
 </script>
 </body></html>
+
 
 
