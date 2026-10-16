@@ -12873,7 +12873,18 @@ document.addEventListener('DOMContentLoaded', function() {
 </style>
 <script>
 (function(){
-  let current='',refreshing=false,sessionEpoch=0;const endpoint='https://superkids-pagos-api.superkids-babys.workers.dev/equipo/whatsapp';
+  let current='',refreshing=false,sessionEpoch=0,currentConversation=null,inboxControls=null;const endpoint='https://superkids-pagos-api.superkids-babys.workers.dev/equipo/whatsapp';
+  const UID_YOHANA_BANDEJA='F2SHGFQYSuMWlkbQKV8yrKAXgaH3',UID_BIBIANA_BANDEJA='MtQpryHLGYab5v3UjhRZw88CAD63',UID_ANGELA_BANDEJA='IEB65uKdgldevmgRuenCj7pPwc12';
+  function renderInboxControls(){
+    if(!inboxControls)return;
+    inboxControls.replaceChildren();
+    const uid=window.usuarioActual?.uid||'',puedeTomar=[UID_YOHANA_BANDEJA,UID_BIBIANA_BANDEJA,UID_ANGELA_BANDEJA].includes(uid),esAngela=uid===UID_ANGELA_BANDEJA;
+    const chatAjenoActivo=Boolean(currentConversation?.paused&&currentConversation?.owner_uid&&currentConversation.owner_uid!==uid);
+    for(const [label,name] of [['🙋 Tomar conversación','take'],['🤖 Devolver al bot','release'],['🔴 Revisar comprobante','marcar-comprobante'],['✓ Revisión terminada','comprobante-revisado']]){
+      if(name==='take'&&(!puedeTomar||(esAngela&&chatAjenoActivo)))continue;
+      const b=element('button',label);b.onclick=()=>action(name);inboxControls.append(b);
+    }
+  }
   async function api(action,extra={}){
     const actorUid=window.usuarioActual?.uid,epoch=sessionEpoch;
     if(!['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63','IEB65uKdgldevmgRuenCj7pPwc12'].includes(actorUid))throw Error('Integrante no autorizada');
@@ -12886,10 +12897,11 @@ document.addEventListener('DOMContentLoaded', function() {
   function clearPrivate(){for(const id of ['wa-inbox-messages','wa-inbox-list'])document.getElementById(id)?.replaceChildren();current='';const root=document.getElementById('wa-inbox-root');if(root)root.style.display='none';}
   function element(tag,text){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;}
   function status(text){document.getElementById('wa-inbox-status').textContent=text;}
-  function showConversationList(){current='';const root=document.getElementById('wa-inbox-root');root?.classList.remove('wa-chat-open');document.getElementById('wa-inbox-messages')?.replaceChildren();document.querySelectorAll('#wa-inbox-list button').forEach(b=>b.classList.remove('wa-selected'));status('Selecciona una conversación para abrir el chat.');}
+  function showConversationList(){current='';currentConversation=null;renderInboxControls();const root=document.getElementById('wa-inbox-root');root?.classList.remove('wa-chat-open');document.getElementById('wa-inbox-messages')?.replaceChildren();document.querySelectorAll('#wa-inbox-list button').forEach(b=>b.classList.remove('wa-selected'));status('Selecciona una conversación para abrir el chat.');}
   async function openConversation(id){
     document.getElementById('wa-inbox-root').classList.add('wa-chat-open');
     const changed=current!==id;current=id;const data=await api('messages',{conversation:id});if(current!==id)return;const box=document.getElementById('wa-inbox-messages'),atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<70,oldScroll=box.scrollTop;box.replaceChildren();
+    currentConversation=data.conversation||null;renderInboxControls();
     status('Chat '+data.conversation.phone+' · '+(data.conversation.paused?'Atiende: '+data.conversation.owner_name:'Bot disponible')+' · Sólo texto en esta versión.');
     for(const m of data.messages){const row=element('div');row.className='wa-bubble'+(m.direction==='in'?'':' wa-out');const labels={received:'Recibido',accepted:'Aceptado por Meta',uncertain:'Envío sin confirmar',sending:'Enviando'};let body=m.body||'['+m.kind+']';if(/^skm1:buy:/.test(body))body='Pulsó: Realizar un pedido';else if(/^skm1:tracking:/.test(body))body='Pulsó: Seguimiento pedido';row.append(element('small',(m.direction==='in'?'Cliente':m.staff_name||'Bot')+' · '+new Date(m.created_at).toLocaleString('es-CO')+' · '+(labels[m.status]||m.status)),element('p',body));
       if(!['text','interactive'].includes(m.kind))row.append(element('small','Adjunto '+m.kind+': visualización privada pendiente de la siguiente etapa. No se ha verificado ningún pago.'));
@@ -12919,8 +12931,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const reload=element('button','Actualizar');reload.onclick=refresh;top.append(reload);
     const message=element('p');message.id='wa-inbox-status';message.setAttribute('role','status');root.append(message);
     const sidebar=element('aside');sidebar.className='wa-sidebar';sidebar.append(Object.assign(element('div','Conversaciones'),{className:'wa-side-title'}));const list=element('div');list.id='wa-inbox-list';sidebar.append(list);root.append(sidebar);const compose=element('div');compose.className='wa-compose';const controls=element('div');controls.className='wa-controls';compose.append(controls);
-    const puedeTomar=()=>['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63'].includes(window.usuarioActual?.uid);
-    for(const [label,name] of [['🙋 Tomar conversación','take'],['🤖 Devolver al bot','release'],['🔴 Revisar comprobante','marcar-comprobante'],['✓ Revisión terminada','comprobante-revisado']]){if(name==='take'&&!puedeTomar())continue;const b=element('button',label);b.onclick=()=>action(name);controls.append(b);}
+    inboxControls=controls;renderInboxControls();
     const history=element('div');history.id='wa-inbox-messages';const empty=element('div');empty.className='wa-empty';empty.append(element('span','💬'),element('strong','Cada conversación, a mano'),element('p','Selecciona un chat para ver los mensajes y sus pendientes.'),element('p','🔵 Solicita asesora · 🔴 Revisar comprobante'));history.append(empty);root.append(history);const note=element('p','Área privada · Toma el chat antes de responder. Marca comprobantes para revisión. Terminar la revisión no aprueba pagos.');note.className='wa-note';compose.append(note);const input=element('div');input.className='wa-input';compose.append(input);
     const text=element('textarea');text.maxLength=3000;text.placeholder='Escribe una respuesta…';text.setAttribute('aria-label','Respuesta al cliente');input.append(text);
     const send=element('button','Enviar respuesta');let pending=null;
@@ -12932,7 +12943,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let lastUid='',requestedInbox=location.hash==='#whatsapp-equipo';
     function syncSession(){
       const uid=window.usuarioActual?.uid||'',allowed=['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63','IEB65uKdgldevmgRuenCj7pPwc12'].includes(uid);
-      if(uid!==lastUid||!allowed){if(uid!==lastUid)sessionEpoch++;root.style.display='none';history.replaceChildren();list.replaceChildren();current='';text.value='';pending=null;lastUid=uid;}
+      if(uid!==lastUid||!allowed){if(uid!==lastUid)sessionEpoch++;root.style.display='none';history.replaceChildren();list.replaceChildren();current='';currentConversation=null;text.value='';pending=null;lastUid=uid;}
+      renderInboxControls();
       launcher.style.setProperty('display',allowed?'block':'none','important');
       if(allowed&&requestedInbox){requestedInbox=false;root.style.display='grid';refresh();}
       return allowed;
@@ -12954,6 +12966,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 </body></html>
+
 
 
 
