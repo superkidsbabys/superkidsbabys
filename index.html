@@ -1847,9 +1847,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 <div id="total-display" style="text-align:right; font-size:1.25em; font-weight:900; color:#ff4db8; margin:12px 0 0; padding-top:10px; border-top:2px dashed #fde8f7;">Total: $0</div>                <section id="sk-cotizacion-publica" style="margin:16px 0 2px;padding:14px;border:1.5px solid #f3b7d8;border-radius:14px;background:#fff7fc;">
                     <strong style="display:block;color:#9d174d;">¿Aún estás decidiendo?</strong>
                     <p style="margin:5px 0 10px;color:#6b3352;font-size:.84em;line-height:1.4;">Guarda una cotización sin datos de envío. No reserva prendas ni descuenta inventario.</p>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                        <button type="button" onclick="guardarCotizacionPublica(false)" style="border:1px solid #db2777;background:white;color:#9d174d;padding:11px 8px;border-radius:10px;font-weight:800;cursor:pointer;">🧾 Guardar cotización</button>
-                        <button type="button" onclick="guardarCotizacionPublica(true)" style="border:0;background:#9d174d;color:white;padding:11px 8px;border-radius:10px;font-weight:800;cursor:pointer;">💗 Quiero apartar</button>
+                    <div style="display:block;">
+                        <button type="button" onclick="guardarCotizacionPublica(false)" style="width:100%;border:1px solid #db2777;background:white;color:#9d174d;padding:11px 8px;border-radius:10px;font-weight:800;cursor:pointer;">🧾 Guardar cotización</button>
                     </div>
                     <p id="sk-cotizacion-publica-estado" role="status" style="display:none;margin:10px 0 0;font-size:.82em;line-height:1.4;"></p>
                 </section>
@@ -5870,8 +5869,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260627') { localStorage.rem
                 turnstilePedidoToken = '';
                 if (window.turnstile && turnstilePedidoId !== null) window.turnstile.reset(turnstilePedidoId);
                 const cotizacion = datos.cotizacion;
-                const texto = 'Cotización ' + cotizacion.id + ' guardada por ' + formatMoney(cotizacion.total) + '. No se reservaron prendas ni se descontó inventario.';
-                if (estado) { estado.style.color = '#166534'; estado.textContent = texto + (quiereApartar ? ' Te abrimos WhatsApp para que una asesora confirme el abono antes de apartar.' : ' Guarda este código para consultarla con una asesora.'); }
+                // La cotización queda guardada en Gestión; no se muestra texto debajo de los botones.
+                if (estado) { estado.textContent = ''; estado.style.display = 'none'; }
                 if (quiereApartar) {
                     const asesora = window.obtenerAsesoraSeleccionada ? window.obtenerAsesoraSeleccionada() : 'Sin asesora';
                     const numero = window.obtenerWhatsappAsesora ? window.obtenerWhatsappAsesora(asesora) : '573025451526';
@@ -8590,3 +8589,4 @@ async function iniciarConsultaWA() {
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',iniciarConsultaWA,{once:true});else iniciarConsultaWA();
 </script>
 </body></html>
+

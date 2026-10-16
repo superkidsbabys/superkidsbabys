@@ -467,7 +467,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
     <script src="./pwa.js?v=20261015-sofia-v90" defer></script>
     <script src="./sofia-gestion-v43.js?v=90" defer></script>
-<script src="./gestion-cotizaciones-apartados-v104.js?v=104" defer></script>
+<script src="./gestion-cotizaciones-apartados-v104.js?v=127" defer></script>
     <title>SuperKids &amp; Babys - Panel de Gestión</title>
     <style id="dynamic-theme">:root { --color-banner: #f5d6ed; --color-texto-banner: #1c1717; --color-fondo: #fbeaf8; --color-tarjeta: #f9e2ed; --color-texto: #2a2222; --color-precio: #ff5cd6; --textura-banner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E"); --textura-size: 20px 20px; --tamano-titulo: 32px; --tamano-descripcion: 14px; --tamano-logo: 130px; --color-btn-carrito: #35c700; --color-btn-carrito-texto: #ffffff; --color-etiqueta-desc: #e74c3c; --color-etiqueta-desc-texto: #ffffff; --opacidad-etiqueta-desc: 0.7; }</style>
     <style>
@@ -1636,13 +1636,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             <div id="tab-pedidos" class="seccion-tab">
                 <div class="seccion-admin-sub" style="background: transparent; border: none; padding: 0;">
                     <div class="filtros-pedidos">
-                        <button class="btn-filtro-ped" id="fp-todos" onclick="filtrarVistaPedidos('todos')">Todos</button>
+                        <button class="btn-filtro-ped" id="fp-todos" onclick="filtrarVistaPedidos('todos')">Ingresos</button>
                         <button class="btn-filtro-ped" id="fp-sofia" onclick="filtrarVistaPedidos('sofia')">Pedidos (Sofía bot)</button>
                         <button class="btn-filtro-ped activo" id="fp-nuevo" onclick="filtrarVistaPedidos('nuevo')">Nuevos</button>
                         <button class="btn-filtro-ped" id="fp-enviado" onclick="filtrarVistaPedidos('enviado')">Enviados</button>
                         <button class="btn-filtro-ped" id="fp-entregado" onclick="filtrarVistaPedidos('entregado')">Entregados</button>
                         <button class="btn-filtro-ped" id="fp-pagado" onclick="filtrarVistaPedidos('pagado')" style="background:#eafaf0;color:#1e8449;border-color:#7dd8a0;">Pagados</button>
                         <button class="btn-filtro-ped" id="fp-cancelado" onclick="filtrarVistaPedidos('cancelado')">Anulados</button>
+                    <button class="btn-filtro-ped" id="fp-apartado" onclick="filtrarVistaPedidos('apartado')">Apartados</button>
                     </div>
                     <div class="buscador-global-pedidos">
                         <input id="buscar-pedido-global" type="search" placeholder="Buscar # pedido, nombre, cédula o teléfono..." oninput="buscarPedidoEnTodos(this.value)">
@@ -2343,6 +2344,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             { valor: 'enviado', label: 'Enviado', seccion: 'Enviados' },
             { valor: 'entregado', label: 'Entregado', seccion: 'Entregados' },
             { valor: 'pagado', label: 'Pagado', seccion: 'Pagados' },
+            { valor: 'apartado', label: 'Apartado', seccion: 'Apartados' },
             { valor: 'cancelado', label: 'Anulado', seccion: 'Anulados' }
         ];
         const ESTADOS_PEDIDO_LEGACY = {
@@ -2353,6 +2355,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             'Enviado': 'enviado', 'enviado': 'enviado',
             'Entregado': 'entregado', 'entregado': 'entregado',
             'Pagado': 'pagado', 'pagado': 'pagado',
+            'Apartado': 'apartado', 'apartado': 'apartado',
             'Cancelado': 'cancelado', 'cancelado': 'cancelado',
             'Anulado': 'cancelado', 'anulado': 'cancelado',
             'Anulada': 'cancelado', 'anulada': 'cancelado'
@@ -2425,7 +2428,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (ESTADOS_PEDIDO_LEGACY[estado]) return ESTADOS_PEDIDO_LEGACY[estado];
             // Fallback: convertir a minúsculas con guión bajo
             const lower = estado.toLowerCase().replace(/\s+/g, '_');
-            const validos = ['sofia', 'nuevo', 'enviado', 'entregado', 'pagado', 'cancelado'];
+            const validos = ['sofia', 'nuevo', 'enviado', 'entregado', 'pagado', 'apartado', 'cancelado'];
             return validos.includes(lower) ? lower : 'nuevo';
         }
 
@@ -8658,15 +8661,16 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 cont.classList.remove('modo-transp');
                 const inputBusqueda = document.getElementById('buscar-pedido-global');
                 const termino = String(inputBusqueda ? inputBusqueda.value : '').trim().toLowerCase();
+                const esIngresoActivo = p => !p.facturaAnulada && normalizarEstadoPedido(p.estado || 'nuevo') !== 'cancelado';
                 const filtrados = historialPedidos
-                    .filter(p => !termino || textoBusquedaPedido(p).includes(termino))
+                    .filter(p => esIngresoActivo(p) && (!termino || textoBusquedaPedido(p).includes(termino)))
                     .sort(compararPedidosRecientes);
                 const resumen = document.getElementById('resultado-busqueda-pedidos');
                 if (resumen) resumen.textContent = termino
-                    ? (filtrados.length + ' resultado(s) encontrados en todos los estados')
-                    : (filtrados.length + ' pedidos');
+                    ? (filtrados.length + ' resultado(s) encontrados entre los ingresos activos')
+                    : (filtrados.length + ' ingresos activos');
                 if (filtrados.length === 0) {
-                    cont.innerHTML = `<p style='text-align:center;grid-column:1/-1;color:#888;font-weight:bold;margin-top:20px;'>No se encontró ningún pedido en Nuevos, Enviados, Entregados, Pagados ni Anulados.</p>`;
+                    cont.innerHTML = `<p style='text-align:center;grid-column:1/-1;color:#888;font-weight:bold;margin-top:20px;'>No se encontró ningún ingreso activo. Los anulados se conservan en la pestaña Anulados.</p>`;
                     return;
                 }
                 cont.classList.add('modo-transp');
@@ -12966,6 +12970,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 </body></html>
+
+
+
 
 
 
