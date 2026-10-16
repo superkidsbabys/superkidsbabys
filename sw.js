@@ -1,4 +1,4 @@
-const VERSION = 'superkids-compartido-offline-20261015-sofia-v90';
+const VERSION = 'superkids-compartido-offline-20261016-v132';
 // Mostrar los avisos de Sofía una sola vez y esperar su publicación.
 self.addEventListener('push', event => {
   let payload;try{payload=event.data?.json();}catch{return;}
@@ -32,7 +32,7 @@ try {
 } catch(error) {console.warn('FCM no disponible; modo offline conservado');}
 const CACHE_APP = VERSION + '-app';
 const CACHE_RECURSOS = VERSION + '-recursos';
-const ARCHIVOS_APP = ['./', './index.html', './pedidos.html', './manifest.json', './manifest-admin.json', './pwa.js', './sofia-gestion-v43.js?v=90', './icons/icon-192.png', './icons/icon-512.png'];
+const ARCHIVOS_APP = ['./', './index.html', './pedidos.html', './manifest.json', './manifest-admin.json', './pwa.js?v=20261016-v132', './sofia-gestion-v43.js?v=90', './icons/icon-192.png', './icons/icon-512.png'];
 const LIBRERIAS = [
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js',
@@ -105,3 +105,4 @@ self.addEventListener('fetch', event => {
   if (request.destination === 'image') return event.respondWith(cachePrimero(request));
   if (url.origin === self.location.origin) return event.respondWith(cachePrimero(request));
 });
+
