@@ -467,7 +467,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
     <script src="./pwa.js?v=20261015-sofia-v90" defer></script>
     <script src="./sofia-gestion-v43.js?v=90" defer></script>
-<script src="./gestion-cotizaciones-apartados-v95.js?v=95" defer></script>
+<script src="./gestion-cotizaciones-apartados-v99.js?v=99" defer></script>
     <title>SuperKids &amp; Babys - Panel de Gestión</title>
     <style id="dynamic-theme">:root { --color-banner: #f5d6ed; --color-texto-banner: #1c1717; --color-fondo: #fbeaf8; --color-tarjeta: #f9e2ed; --color-texto: #2a2222; --color-precio: #ff5cd6; --textura-banner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E"); --textura-size: 20px 20px; --tamano-titulo: 32px; --tamano-descripcion: 14px; --tamano-logo: 130px; --color-btn-carrito: #35c700; --color-btn-carrito-texto: #ffffff; --color-etiqueta-desc: #e74c3c; --color-etiqueta-desc-texto: #ffffff; --opacidad-etiqueta-desc: 0.7; }</style>
     <style>
@@ -1930,7 +1930,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             <div id="tab-reporte-ventas" class="seccion-tab">
                 <div class="seccion-admin-sub" style="background:#fbfffc;border:1.5px solid #b9e4c9;border-radius:14px;padding:17px;">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-                        <div><h3 style="margin:0;color:#187548;">Reporte contable de ventas</h3><p style="margin:4px 0 0;color:#667085;font-size:.85em;">Pedidos enviados, pagados y entregados. No incluye envíos ni datos de clientes.</p></div>
+                        <div><h3 style="margin:0;color:#187548;">Reporte contable de ventas</h3><p style="margin:4px 0 0;color:#667085;font-size:.85em;">Pedidos nuevos, enviados, pagados y entregados, ordenados por su fecha de creación. No incluye envíos ni datos de clientes.</p></div>
                         <div id="rv-exportaciones" style="display:flex;gap:7px;flex-wrap:wrap;"><button onclick="exportarReporteVentasCSV()" style="border:0;background:#168653;color:white;border-radius:9px;padding:9px 13px;font-weight:900;cursor:pointer;">Exportar Excel</button><button onclick="imprimirReporteVentas()" style="border:0;background:#8e44ad;color:white;border-radius:9px;padding:9px 13px;font-weight:900;cursor:pointer;">Exportar PDF</button></div>
                     </div>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin-bottom:14px;">
@@ -1939,11 +1939,11 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Tipo de venta<select id="rv-tipo" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todos</option><option>Contraentrega</option><option>Contado</option><option>Recaudo</option><option>Pago Wompi</option></select></label>
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Asesora<select id="rv-asesora" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todas</option><option>Yohana</option><option>Ángela</option><option>Bibiana</option></select></label>
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Buscar referencia<input id="rv-ref" type="search" placeholder="Ej: 2000038" oninput="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"></label>
-                        <label style="font-size:.78em;font-weight:800;color:#475467;">Buscar guía<input id="rv-guia" type="search" placeholder="Número o sin guía" oninput="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"></label>
+                        <label style="font-size:.78em;font-weight:800;color:#475467;">Buscar guía<input id="rv-guia" type="search" placeholder="Número o sin guía" oninput="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"></label><label style="font-size:.78em;font-weight:800;color:#475467;">Transportadora<select id="rv-transportadora" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todas</option><option>Interrapidísimo</option><option>Envía</option><option>23M&amp;M</option><option>Domicilio</option><option value="__sin_transportadora__">Sin transportadora</option></select></label>
                     </div>
                     <div id="rv-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px;margin-bottom:14px;"></div>
                     <div id="rv-detalle-ref" style="display:none;margin-bottom:14px;"></div>
-                    <div id="rv-tabla-general" style="overflow:auto;border:1.5px solid #ccebd7;border-radius:11px;background:white;"><table style="width:100%;border-collapse:collapse;font-size:.82em;min-width:940px;"><thead style="background:#eaf8ef;color:#187548;"><tr><th style="padding:10px;text-align:left;">Fecha</th><th style="text-align:left;">N.º pedido</th><th style="text-align:left;">N.º guía</th><th>Prendas</th><th style="text-align:right;">Venta bruta</th><th style="text-align:right;">Descuentos</th><th style="text-align:right;padding-right:12px;">Venta neta</th></tr></thead><tbody id="rv-tbody"></tbody></table></div>
+                    <div id="rv-tabla-general" style="overflow:auto;border:1.5px solid #ccebd7;border-radius:11px;background:white;"><table style="width:100%;border-collapse:collapse;font-size:.82em;min-width:1120px;"><thead style="background:#eaf8ef;color:#187548;"><tr><th style="padding:10px;text-align:left;">Fecha</th><th style="text-align:left;">N.º pedido</th><th style="text-align:left;">Estado</th><th style="text-align:left;">Transportadora</th><th style="text-align:left;">N.º guía</th><th>Prendas</th><th style="text-align:right;">Venta bruta</th><th style="text-align:right;">Descuentos</th><th style="text-align:right;padding-right:12px;">Venta neta</th></tr></thead><tbody id="rv-tbody"></tbody></table></div>
                     <p id="rv-vacio" style="display:none;text-align:center;color:#98a2b3;font-weight:800;padding:22px;">No hay ventas finalizadas en las fechas elegidas.</p>
                 </div>
             </div>
@@ -10922,11 +10922,24 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             URL.revokeObjectURL(a.href);
         }
 
+        // La fecha contable es la fecha en que se creó el pedido. Nunca se usa
+        // actualizadoEn antes de fecha, porque editar guía, estado o datos del
+        // cliente no debe mover una venta a otro día del reporte.
         function fechaPedidoReporte(ped) {
-            if (ped.timestampPedido) { const d = new Date(Number(ped.timestampPedido)); if (!isNaN(d)) return d; }
-            if (ped.actualizadoEn) { const d = new Date(ped.actualizadoEn); if (!isNaN(d)) return d; }
-            const d = new Date(ped.fecha || '');
-            return isNaN(d) ? null : d;
+            const ts = Number(ped && (ped.timestampPedido || ped.timestamp) || 0);
+            if (ts > 0) { const d = new Date(ts); if (!isNaN(d)) return d; }
+            const fechaISO = String(ped && ped.fechaISO || '').trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(fechaISO)) {
+                const partesISO = fechaISO.split('-').map(Number);
+                return new Date(partesISO[0], partesISO[1] - 1, partesISO[2], 12);
+            }
+            const fechaTexto = String(ped && ped.fecha || '').trim();
+            const partes = fechaTexto.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+            if (partes) return new Date(Number(partes[3]), Number(partes[2]) - 1, Number(partes[1]), 12);
+            if (fechaTexto) { const d = new Date(fechaTexto); if (!isNaN(d)) return d; }
+            // Compatibilidad excepcional con registros antiguos sin fecha propia.
+            if (ped && ped.actualizadoEn) { const d = new Date(ped.actualizadoEn); if (!isNaN(d)) return d; }
+            return null;
         }
 
         function fechaISOReporte(d) {
@@ -10939,11 +10952,12 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             const tipo = (document.getElementById('rv-tipo') || {}).value || '';
             const asesora = (document.getElementById('rv-asesora') || {}).value || '';
             const filtroGuia = String((document.getElementById('rv-guia') || {}).value || '').trim().toLowerCase();
+            const filtroTransportadora = String((document.getElementById('rv-transportadora') || {}).value || '').trim();
             const filtroGuiaNormalizado = filtroGuia.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s-]+/g, '');
             const grupos = {};
             const pedidos = [];
             (historialPedidos || []).forEach(ped => {
-                const estado = String(ped.estado || '').trim().toLowerCase().replace(/\s+/g,'_');
+                const estado = normalizarEstadoPedido(ped.estado || 'nuevo');
                 if (estado !== 'nuevo' && estado !== 'enviado' && estado !== 'pagado' && estado !== 'entregado') return;
                 if (tipo && String(ped.tipoVenta || '') !== tipo) return;
                 if (asesora && String(ped.asesora || '').toLowerCase() !== asesora.toLowerCase()) return;
@@ -10958,13 +10972,15 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                         if (guia) return;
                     } else if (!guiaNormalizada.includes(filtroGuiaNormalizado)) return;
                 }
+                const transportadora = String(ped.transportadora || '').trim();
+                if (filtroTransportadora === '__sin_transportadora__' ? !!transportadora : (filtroTransportadora && transportadora.toLowerCase() !== filtroTransportadora.toLowerCase())) return;
                 const envio = parseInt(String(ped.valorEnvio || '0').replace(/[^0-9]/g,''),10) || 0;
                 const bruto = (ped.items || []).reduce((s,i) => s + ((parseInt(i.precio,10)||0) * (parseInt(i.cant,10)||1)), 0);
                 const totalPedido = parseInt(String(ped.tot || '0').replace(/[^0-9]/g,''),10) || 0;
                 const neto = Math.max(0, totalPedido - envio);
                 const prendas = (ped.items || []).reduce((s,i) => s + (parseInt(i.cant,10)||1), 0);
                 const numeroPedido = ped.numOrden || (ped.num != null && ped.num !== '' ? 'SK' + String(ped.num).padStart(5, '0') : 'Sin número');
-                pedidos.push({ fecha:iso, pedido:numeroPedido, guia:guia, prendas:prendas, bruto:bruto, descuentos:Math.max(0, bruto-neto), neto:neto, tipo:String(ped.tipoVenta || ''), asesora:String(ped.asesora || '') });
+                pedidos.push({ fecha:iso, pedido:numeroPedido, estado:estado, transportadora:transportadora, guia:guia, prendas:prendas, bruto:bruto, descuentos:Math.max(0, bruto-neto), neto:neto, tipo:String(ped.tipoVenta || ''), asesora:String(ped.asesora || '') });
                 if (!grupos[iso]) grupos[iso] = { fecha:iso, ventas:0, prendas:0, bruto:0, descuentos:0, neto:0 };
                 grupos[iso].ventas++; grupos[iso].prendas += prendas; grupos[iso].bruto += bruto; grupos[iso].neto += neto; grupos[iso].descuentos += Math.max(0, bruto-neto);
             });
@@ -10972,7 +10988,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             const dias = Object.values(grupos).sort((a,b) => a.fecha.localeCompare(b.fecha));
             const total = dias.reduce((a,d) => ({ ventas:a.ventas+d.ventas, prendas:a.prendas+d.prendas, bruto:a.bruto+d.bruto, descuentos:a.descuentos+d.descuentos, neto:a.neto+d.neto }), {ventas:0,prendas:0,bruto:0,descuentos:0,neto:0});
             total.promedio = total.ventas ? Math.round(total.neto / total.ventas) : 0;
-            return { pedidos, dias, total, desde, hasta, tipo, asesora, filtroGuia };
+            return { pedidos, dias, total, desde, hasta, tipo, asesora, filtroGuia, filtroTransportadora };
         }
 
         function obtenerDetalleReferenciaReporte() {
@@ -11029,23 +11045,23 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             const exportaciones = document.getElementById('rv-exportaciones');
             if (exportaciones) exportaciones.style.display = buscandoReferencia ? 'none' : 'flex';
             const tbody = document.getElementById('rv-tbody');
-            if (tbody) tbody.innerHTML = data.pedidos.map(p => '<tr style="border-bottom:1px solid #e8f3ec;"><td style="padding:10px;font-weight:800;">'+p.fecha.split('-').reverse().join('/')+'</td><td style="font-weight:900;color:#187548;">'+escapeHtml(p.pedido)+'</td><td style="font-weight:800;color:'+(p.guia ? '#344054' : '#b42318')+';">'+escapeHtml(p.guia || 'Sin guía')+'</td><td style="text-align:center;">'+p.prendas+'</td><td style="text-align:right;">'+formatMoney(p.bruto)+'</td><td style="text-align:right;color:#b06b00;">−'+formatMoney(p.descuentos)+'</td><td style="text-align:right;padding-right:12px;font-weight:900;color:#187548;">'+formatMoney(p.neto)+'</td></tr>').join('');
+            if (tbody) tbody.innerHTML = data.pedidos.map(p => '<tr style="border-bottom:1px solid #e8f3ec;"><td style="padding:10px;font-weight:800;">'+p.fecha.split('-').reverse().join('/')+'</td><td style="font-weight:900;color:#187548;">'+escapeHtml(p.pedido)+'</td><td style="font-weight:800;text-transform:capitalize;">'+escapeHtml(p.estado)+'</td><td style="font-weight:700;">'+escapeHtml(p.transportadora || 'Sin transportadora')+'</td><td style="font-weight:800;color:'+(p.guia ? '#344054' : '#b42318')+';">'+escapeHtml(p.guia || 'Sin guía')+'</td><td style="text-align:center;">'+p.prendas+'</td><td style="text-align:right;">'+formatMoney(p.bruto)+'</td><td style="text-align:right;color:#b06b00;">−'+formatMoney(p.descuentos)+'</td><td style="text-align:right;padding-right:12px;font-weight:900;color:#187548;">'+formatMoney(p.neto)+'</td></tr>').join('');
             const vacio = document.getElementById('rv-vacio'); if (vacio) vacio.style.display = buscandoReferencia || data.pedidos.length ? 'none' : 'block';
         }
 
         function exportarReporteVentasCSV() {
             const d = obtenerDatosReporteVentas();
-            const filas = [['Fecha','Número de pedido','Número de guía','Tipo de venta','Asesora','Prendas','Venta bruta','Descuentos','Venta neta']].concat(d.pedidos.map(x => [x.fecha,x.pedido,x.guia || 'Sin guía',x.tipo,x.asesora,x.prendas,x.bruto,x.descuentos,x.neto]));
-            filas.push(['TOTAL',d.total.ventas+' ventas','','','',d.total.prendas,d.total.bruto,d.total.descuentos,d.total.neto]);
+            const filas = [['Fecha','Número de pedido','Estado','Transportadora','Número de guía','Tipo de venta','Asesora','Prendas','Venta bruta','Descuentos','Venta neta']].concat(d.pedidos.map(x => [x.fecha,x.pedido,x.estado,x.transportadora || 'Sin transportadora',x.guia || 'Sin guía',x.tipo,x.asesora,x.prendas,x.bruto,x.descuentos,x.neto]));
+            filas.push(['TOTAL',d.total.ventas+' ventas','','','','','',d.total.prendas,d.total.bruto,d.total.descuentos,d.total.neto]);
             const csv = '\uFEFF' + filas.map(f => f.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');
             const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='reporte-ventas-'+(d.desde||'inicio')+'-'+(d.hasta||'hoy')+'.csv'; a.click(); URL.revokeObjectURL(a.href);
         }
 
         function imprimirReporteVentas() {
             const d = obtenerDatosReporteVentas();
-            const filas = d.pedidos.map(x => '<tr><td>'+x.fecha.split('-').reverse().join('/')+'</td><td>'+escapeHtml(x.pedido)+'</td><td>'+escapeHtml(x.guia || 'Sin guía')+'</td><td>'+x.prendas+'</td><td>'+formatMoney(x.bruto)+'</td><td>−'+formatMoney(x.descuentos)+'</td><td><strong>'+formatMoney(x.neto)+'</strong></td></tr>').join('');
+            const filas = d.pedidos.map(x => '<tr><td>'+x.fecha.split('-').reverse().join('/')+'</td><td>'+escapeHtml(x.pedido)+'</td><td>'+escapeHtml(x.estado)+'</td><td>'+escapeHtml(x.transportadora || 'Sin transportadora')+'</td><td>'+escapeHtml(x.guia || 'Sin guía')+'</td><td>'+x.prendas+'</td><td>'+formatMoney(x.bruto)+'</td><td>−'+formatMoney(x.descuentos)+'</td><td><strong>'+formatMoney(x.neto)+'</strong></td></tr>').join('');
             const vent = abrirFacturaEnApp();
-            vent.document.write('<!doctype html><html><head><meta charset="UTF-8"><title>Reporte ventas</title><style>body{font-family:Segoe UI,sans-serif;max-width:1100px;margin:auto;padding:25px;color:#26332b}h1{color:#187548}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#187548;color:white;padding:8px}td{padding:8px;border-bottom:1px solid #ddd;text-align:right}td:first-child,td:nth-child(2),td:nth-child(3){text-align:left}.total{background:#eaf8ef;font-weight:900}.btn{margin:18px auto;display:block;padding:11px 24px;border:0;border-radius:9px;background:#8e44ad;color:white;font-weight:900}@media print{.btn{display:none}}</style></head><body><h1>Reporte de ventas</h1><p>Periodo: '+(d.desde||'Inicio')+' a '+(d.hasta||'Hoy')+' · Enviados, pagados y entregados · Sin envíos</p><table><thead><tr><th>Fecha</th><th>N.º pedido</th><th>N.º guía</th><th>Prendas</th><th>Bruta</th><th>Descuentos</th><th>Neta</th></tr></thead><tbody>'+filas+'<tr class="total"><td>TOTAL</td><td>'+d.total.ventas+' ventas</td><td></td><td>'+d.total.prendas+'</td><td>'+formatMoney(d.total.bruto)+'</td><td>−'+formatMoney(d.total.descuentos)+'</td><td>'+formatMoney(d.total.neto)+'</td></tr></tbody></table><button class="btn" onclick="print()">Guardar como PDF</button></body></html>');
+            vent.document.write('<!doctype html><html><head><meta charset="UTF-8"><title>Reporte ventas</title><style>body{font-family:Segoe UI,sans-serif;max-width:1100px;margin:auto;padding:25px;color:#26332b}h1{color:#187548}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#187548;color:white;padding:8px}td{padding:8px;border-bottom:1px solid #ddd;text-align:right}td:first-child,td:nth-child(2),td:nth-child(3){text-align:left}.total{background:#eaf8ef;font-weight:900}.btn{margin:18px auto;display:block;padding:11px 24px;border:0;border-radius:9px;background:#8e44ad;color:white;font-weight:900}@media print{.btn{display:none}}</style></head><body><h1>Reporte de ventas</h1><p>Periodo: '+(d.desde||'Inicio')+' a '+(d.hasta||'Hoy')+' · Pedidos operativos ordenados por fecha de creación · Sin envíos</p><table><thead><tr><th>Fecha</th><th>N.º pedido</th><th>Estado</th><th>Transportadora</th><th>N.º guía</th><th>Prendas</th><th>Bruta</th><th>Descuentos</th><th>Neta</th></tr></thead><tbody>'+filas+'<tr class="total"><td>TOTAL</td><td>'+d.total.ventas+' ventas</td><td></td><td>'+d.total.prendas+'</td><td>'+formatMoney(d.total.bruto)+'</td><td>−'+formatMoney(d.total.descuentos)+'</td><td>'+formatMoney(d.total.neto)+'</td></tr></tbody></table><button class="btn" onclick="print()">Guardar como PDF</button></body></html>');
             vent.document.close();
         }
 
@@ -12860,7 +12876,7 @@ document.addEventListener('DOMContentLoaded', function() {
   let current='',refreshing=false,sessionEpoch=0;const endpoint='https://superkids-pagos-api.superkids-babys.workers.dev/equipo/whatsapp';
   async function api(action,extra={}){
     const actorUid=window.usuarioActual?.uid,epoch=sessionEpoch;
-    if(!['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63'].includes(actorUid))throw Error('Integrante no autorizada');
+    if(!['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63','IEB65uKdgldevmgRuenCj7pPwc12'].includes(actorUid))throw Error('Integrante no autorizada');
     const token=await window.obtenerTokenSesion?.();
     if(actorUid!==window.usuarioActual?.uid||epoch!==sessionEpoch)throw Error('La sesión cambió');if(!token){clearPrivate();throw Error('Inicia sesión con tu usuario del equipo.');}
     const response=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action,...extra}),cache:'no-store'});
@@ -12903,7 +12919,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const reload=element('button','Actualizar');reload.onclick=refresh;top.append(reload);
     const message=element('p');message.id='wa-inbox-status';message.setAttribute('role','status');root.append(message);
     const sidebar=element('aside');sidebar.className='wa-sidebar';sidebar.append(Object.assign(element('div','Conversaciones'),{className:'wa-side-title'}));const list=element('div');list.id='wa-inbox-list';sidebar.append(list);root.append(sidebar);const compose=element('div');compose.className='wa-compose';const controls=element('div');controls.className='wa-controls';compose.append(controls);
-    for(const [label,name] of [['🙋 Tomar conversación','take'],['🤖 Devolver al bot','release'],['🔴 Revisar comprobante','marcar-comprobante'],['✓ Revisión terminada','comprobante-revisado']]){const b=element('button',label);b.onclick=()=>action(name);controls.append(b);}
+    const puedeTomar=()=>['Yohana','Bibiana'].includes(window.usuarioActual?.nombre);
+    for(const [label,name] of [['🙋 Tomar conversación','take'],['🤖 Devolver al bot','release'],['🔴 Revisar comprobante','marcar-comprobante'],['✓ Revisión terminada','comprobante-revisado']]){if(name==='take'&&!puedeTomar())continue;const b=element('button',label);b.onclick=()=>action(name);controls.append(b);}
     const history=element('div');history.id='wa-inbox-messages';const empty=element('div');empty.className='wa-empty';empty.append(element('span','💬'),element('strong','Cada conversación, a mano'),element('p','Selecciona un chat para ver los mensajes y sus pendientes.'),element('p','🔵 Solicita asesora · 🔴 Revisar comprobante'));history.append(empty);root.append(history);const note=element('p','Área privada · Toma el chat antes de responder. Marca comprobantes para revisión. Terminar la revisión no aprueba pagos.');note.className='wa-note';compose.append(note);const input=element('div');input.className='wa-input';compose.append(input);
     const text=element('textarea');text.maxLength=3000;text.placeholder='Escribe una respuesta…';text.setAttribute('aria-label','Respuesta al cliente');input.append(text);
     const send=element('button','Enviar respuesta');let pending=null;
