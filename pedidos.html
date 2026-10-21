@@ -7507,10 +7507,37 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 .filter(Boolean).join(' ').toLowerCase();
         }
 
+        const busquedasDirectasPedidos = new Set();
+        async function recuperarPedidoDirectoDesdeFirebase(valor) {
+            const coincidencia = String(valor || '').trim().toUpperCase().match(/^#?(?:SK)?0*(\d{1,9})$/);
+            if (!coincidencia) return;
+            const numero = Number(coincidencia[1]);
+            if (!Number.isSafeInteger(numero) || numero < 1) return;
+            if ((historialPedidos || []).some(function(p) { return Number(p.num) === numero; })) return;
+            if (busquedasDirectasPedidos.has(numero)) return;
+            busquedasDirectasPedidos.add(numero);
+            try {
+                const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const documento = await getDoc(doc(db, 'pedidos', 'pedido-' + numero));
+                if (!documento.exists()) return;
+                const pedido = Object.assign({ _firebaseId: documento.id }, documento.data());
+                pedido.estado = normalizarEstadoPedido(pedido.estado || 'nuevo');
+                historialPedidos = depurarPedidosDuplicados((historialPedidos || []).concat([pedido]));
+                historialPedidos.sort(compararPedidosRecientes);
+                localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+                renderizarPedidosPanel();
+            } catch (error) {
+                console.log('No se pudo recuperar el pedido directo desde Firebase:', error.message);
+            } finally {
+                busquedasDirectasPedidos.delete(numero);
+            }
+        }
+
         function buscarPedidoEnTodos(valor) {
             const texto = String(valor || '').trim();
             if (texto) filtrarVistaPedidos('todos');
             renderizarPedidosPanel();
+            recuperarPedidoDirectoDesdeFirebase(texto);
         }
 
         function limpiarBusquedaPedidos() {
