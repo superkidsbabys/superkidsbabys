@@ -8508,6 +8508,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             cont.innerHTML = "";
             const esAngela = window.usuarioActual && window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2';
             const esYohana = window.usuarioActual && window.usuarioActual.uid === UID_YOHANA;
+            const puedeAnularFactura = window.usuarioActual && [UID_YOHANA, UID_BIBIANA].includes(window.usuarioActual.uid);
             const pedido59Pendiente = (historialPedidos || []).find(function(p) {
                 const es59 = String(p.num) === '59' || String(p.numOrden || '').replace(/[^0-9]/g,'') === '00059';
                 return es59 && !(p.items || []).some(function(i) { return String(i.cod || i.codigo || '') === '1000104' && normalizarTallaValor(i.talla) === '6T'; });
@@ -8548,7 +8549,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 }).join('');
 
                 const numFact = ped.numOrden || ('SK' + String(ped.numFactura || ped.num).padStart(5, '0'));
-                const btnAnular = esYohana && !ped.facturaAnulada ? `
+                const btnAnular = puedeAnularFactura && !ped.facturaAnulada ? `
                     <div style="margin-top:8px;border-top:1px dashed #f5c6cb;padding-top:8px;">
                         <textarea id="motivo-anular-${ped.num}" placeholder="Motivo de anulación..." rows="2" style="width:100%;font-size:0.78em;padding:6px;border-radius:6px;border:1px solid #f5c6cb;resize:none;box-sizing:border-box;margin-bottom:4px;"></textarea>
                         <button onclick="anularFacturaPedido(${ped.num})" style="width:100%;background:#fcebeb;color:#a32d2d;border:1px solid #f7c1c1;border-radius:8px;padding:7px;font-size:0.8em;font-weight:700;cursor:pointer;">🚫 Anular factura</button>
@@ -9118,8 +9119,8 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
         window.buscarPorReferencia = window.buscarPorReferencia;
 
         async function anularFacturaPedido(numPed) {
-            if (!window.usuarioActual || window.usuarioActual.uid !== UID_YOHANA) {
-                alert('Solo Yohana puede anular pedidos.');
+            if (!window.usuarioActual || ![UID_YOHANA, UID_BIBIANA].includes(window.usuarioActual.uid)) {
+                alert('Solo Yohana o Bibiana pueden anular pedidos.');
                 return;
             }
             const motivo = (document.getElementById('motivo-anular-' + numPed) || {}).value || '';
@@ -12974,6 +12975,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 </body></html>
+
 
 
 
