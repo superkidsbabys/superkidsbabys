@@ -7519,6 +7519,27 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             renderizarPedidosPanel();
         }
 
+        // Desde el reporte, abre el pedido real para ver las prendas, cliente y
+        // demás datos. El reporte no debe ser una pantalla sin salida.
+        window.abrirPedidoDesdeReporte = function(numeroPedido) {
+            const numero = Number(numeroPedido || 0);
+            if (!Number.isSafeInteger(numero) || numero < 1) {
+                alert('No fue posible identificar este pedido.');
+                return;
+            }
+            cambiarTab('pedidos');
+            const input = document.getElementById('buscar-pedido-global');
+            if (input) input.value = 'SK' + String(numero).padStart(5, '0');
+            filtrarVistaPedidos('todos');
+            setTimeout(function() {
+                const fila = document.querySelector('#tbody-todos-pedidos tr:not(.transp-prefactura-row)');
+                if (fila) {
+                    fila.click();
+                    fila.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 80);
+        };
+
         function recogerTodosPedidos(boton) {
             const tbody = document.getElementById('tbody-todos-pedidos');
             if (!tbody) return;
@@ -10988,7 +11009,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                     : Math.max(0, bruto - descuentosRegistrados);
                 const prendas = (ped.items || []).reduce((s,i) => s + (parseInt(i.cant,10)||1), 0);
                 const numeroPedido = ped.numOrden || (ped.num != null && ped.num !== '' ? 'SK' + String(ped.num).padStart(5, '0') : 'Sin número');
-                pedidos.push({ fecha:iso, pedido:numeroPedido, estado:estado, transportadora:transportadora, guia:guia, prendas:prendas, bruto:bruto, descuentos:Math.max(0, bruto-neto), neto:neto, tipo:String(ped.tipoVenta || ''), asesora:String(ped.asesora || '') });
+                pedidos.push({ numero:Number(ped.num || 0), fecha:iso, pedido:numeroPedido, estado:estado, transportadora:transportadora, guia:guia, prendas:prendas, bruto:bruto, descuentos:Math.max(0, bruto-neto), neto:neto, tipo:String(ped.tipoVenta || ''), asesora:String(ped.asesora || '') });
                 if (!grupos[iso]) grupos[iso] = { fecha:iso, ventas:0, prendas:0, bruto:0, descuentos:0, neto:0 };
                 grupos[iso].ventas++; grupos[iso].prendas += prendas; grupos[iso].bruto += bruto; grupos[iso].neto += neto; grupos[iso].descuentos += Math.max(0, bruto-neto);
             });
@@ -11053,7 +11074,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             const exportaciones = document.getElementById('rv-exportaciones');
             if (exportaciones) exportaciones.style.display = buscandoReferencia ? 'none' : 'flex';
             const tbody = document.getElementById('rv-tbody');
-            if (tbody) tbody.innerHTML = data.pedidos.map(p => '<tr style="border-bottom:1px solid #e8f3ec;"><td style="padding:10px;font-weight:800;">'+p.fecha.split('-').reverse().join('/')+'</td><td style="font-weight:900;color:#187548;">'+escapeHtml(p.pedido)+'</td><td style="font-weight:800;text-transform:capitalize;">'+escapeHtml(p.estado)+'</td><td style="font-weight:700;">'+escapeHtml(p.transportadora || 'Sin transportadora')+'</td><td style="font-weight:800;color:'+(p.guia ? '#344054' : '#b42318')+';">'+escapeHtml(p.guia || 'Sin guía')+'</td><td style="text-align:center;">'+p.prendas+'</td><td style="text-align:right;">'+formatMoney(p.bruto)+'</td><td style="text-align:right;color:#b06b00;">−'+formatMoney(p.descuentos)+'</td><td style="text-align:right;padding-right:12px;font-weight:900;color:#187548;">'+formatMoney(p.neto)+'</td></tr>').join('');
+            if (tbody) tbody.innerHTML = data.pedidos.map(p => '<tr style="border-bottom:1px solid #e8f3ec;"><td style="padding:10px;font-weight:800;">'+p.fecha.split('-').reverse().join('/')+'</td><td style="font-weight:900;"><button type="button" onclick="abrirPedidoDesdeReporte('+Number(p.numero || 0)+')" title="Ver prendas y datos del pedido" style="border:0;background:none;padding:0;color:#187548;font:inherit;font-weight:900;text-decoration:underline;cursor:pointer;">'+escapeHtml(p.pedido)+'</button></td><td style="font-weight:800;text-transform:capitalize;">'+escapeHtml(p.estado)+'</td><td style="font-weight:700;">'+escapeHtml(p.transportadora || 'Sin transportadora')+'</td><td style="font-weight:800;color:'+(p.guia ? '#344054' : '#b42318')+';">'+escapeHtml(p.guia || 'Sin guía')+'</td><td style="text-align:center;">'+p.prendas+'</td><td style="text-align:right;">'+formatMoney(p.bruto)+'</td><td style="text-align:right;color:#b06b00;">−'+formatMoney(p.descuentos)+'</td><td style="text-align:right;padding-right:12px;font-weight:900;color:#187548;">'+formatMoney(p.neto)+'</td></tr>').join('');
             const vacio = document.getElementById('rv-vacio'); if (vacio) vacio.style.display = buscandoReferencia || data.pedidos.length ? 'none' : 'block';
         }
 
