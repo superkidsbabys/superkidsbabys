@@ -12962,13 +12962,28 @@ document.addEventListener('DOMContentLoaded', function() {
       img.src=dataUrl;img.style.display='block';
     }catch(error){img.alt='La foto ya no está disponible';img.title=error.message||'La foto ya no está disponible';}
   }
-  function renderMessages(box,keepPosition){
+  function textoBotonLegible(value){
+    const id=String(value||'');
+    if(/^skm1:buy:/.test(id))return 'Pulsó: Realizar un pedido';
+    if(/^skm1:tracking:/.test(id))return 'Pulsó: Seguimiento de pedido';
+    if(/^skf1:confirm:/.test(id))return 'Pulsó: Confirmar pedido';
+    if(/^skc1:add:/.test(id))return 'Pulsó: Agregar prenda';
+    if(/^skc1:view:/.test(id))return 'Pulsó: Ver carrito';
+    if(/^skc1:clear:/.test(id))return 'Pulsó: Vaciar carrito';
+    if(/^skc1:shipping:/.test(id))return 'Pulsó: Elegir envío';
+    if(/^skp1:yes:/.test(id))return 'Pulsó: Sí';
+    if(/^skp1:no:/.test(id))return 'Pulsó: No';
+    if(/^skd1:/.test(id))return 'Pulsó: Confirmar datos';
+    if(/^skq1:/.test(id)){const p=id.split(':')[1]?.split('|')||[];const categoria=String(p[2]||'').toLowerCase(),talla=String(p[3]||'').toUpperCase(),accion=String(p[4]||'').toLowerCase();if(accion==='advisor')return categoria&&talla?'Pulsó: Hablar con una asesora sobre '+categoria+' talla '+talla:'Pulsó: Hablar con una asesora';return 'Pulsó una opción de Sofía';}
+    if(/^sks1:/.test(id))return 'Pulsó una opción del catálogo';
+    return id;
+  }  function renderMessages(box,keepPosition){
     const priorHeight=box.scrollHeight,priorTop=box.scrollTop;box.replaceChildren();
     if(historyHasMore){const older=element('button','↑ Cargar mensajes anteriores');older.className='wa-load-history';older.disabled=loadingOlder;older.onclick=()=>openConversation(current,true).catch(e=>status(e.message));box.append(older);}
     for(const m of inboxMessages){
       const row=element('div');row.className='wa-bubble'+(m.direction==='in'?'':' wa-out');
       const labels={received:'Recibido',accepted:'Aceptado por Meta',uncertain:'Envío sin confirmar',sending:'Enviando'};
-      row.append(element('small',(m.direction==='in'?'Cliente':m.staff_name||'Sofía')+' · '+new Date(m.created_at).toLocaleString('es-CO')+' · '+(labels[m.status]||m.status)),element('p',m.body||'['+m.kind+']'));
+      const body=textoBotonLegible(m.body)||'['+m.kind+']';row.append(element('small',(m.direction==='in'?'Cliente':m.staff_name||'Sofía')+' · '+new Date(m.created_at).toLocaleString('es-CO')+' · '+(labels[m.status]||m.status)),element('p',body));
       if(m.mediaId){const img=element('img');img.className='wa-photo';img.alt='Cargando foto del cliente…';img.onclick=()=>{if(img.src)window.open(img.src,'_blank','noopener');};row.append(img);cargarFotoBandeja(m.mediaId,img);}
       else if(m.imageUrl){const img=element('img');img.className='wa-photo';img.alt='Prenda enviada por Sofía';img.src=m.imageUrl;img.onclick=()=>window.open(m.imageUrl,'_blank','noopener');row.append(img);}
       else if(!['text','interactive'].includes(m.kind))row.append(element('small','Adjunto '+m.kind));
@@ -12984,7 +12999,7 @@ document.addEventListener('DOMContentLoaded', function() {
     currentConversation=data.conversation||null;renderInboxControls();
     if(older){const known=new Set(inboxMessages.map(m=>m.id));inboxMessages=[...data.messages.filter(m=>!known.has(m.id)),...inboxMessages];loadingOlder=false;}else inboxMessages=data.messages||[];
     historyHasMore=Boolean(data.hasMore);historyCursor=data.nextBefore||null;
-    status('Chat '+data.conversation.phone+' · '+(data.conversation.paused?'Atiende: '+data.conversation.owner_name:'Bot disponible')+' · Fotos e historial privado.');
+    const responsable=data.conversation.paused?(data.conversation.owner_name?'Atiende: '+data.conversation.owner_name:'Atiende: Equipo'):'Bot disponible';status('Chat '+data.conversation.phone+' · '+responsable+' · Fotos e historial privado.');
     renderMessages(box,older);
   }  async function refresh(){
     if(refreshing)return;refreshing=true;
