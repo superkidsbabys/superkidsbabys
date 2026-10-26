@@ -12930,6 +12930,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 (function(){
   let current='',refreshing=false,sessionEpoch=0,currentConversation=null,inboxControls=null;const endpoint='https://superkids-pagos-api.superkids-babys.workers.dev/equipo/whatsapp';
+  const inboxMediaCache=new Map();
   const UID_YOHANA_BANDEJA='F2SHGFQYSuMWlkbQKV8yrKAXgaH3',UID_BIBIANA_BANDEJA='MtQpryHLGYab5v3UjhRZw88CAD63',UID_ANGELA_BANDEJA='IEB65uKdgldevmgRuenCj7pPwc12';
   function renderInboxControls(){
     if(!inboxControls)return;
@@ -12954,13 +12955,21 @@ document.addEventListener('DOMContentLoaded', function() {
   function element(tag,text){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;}
   function status(text){document.getElementById('wa-inbox-status').textContent=text;}
   function showConversationList(){current='';currentConversation=null;renderInboxControls();const root=document.getElementById('wa-inbox-root');root?.classList.remove('wa-chat-open');document.getElementById('wa-inbox-messages')?.replaceChildren();document.querySelectorAll('#wa-inbox-list button').forEach(b=>b.classList.remove('wa-selected'));status('Selecciona una conversación para abrir el chat.');}
+  async function cargarFotoBandeja(mediaId,img){
+    try{
+      let dataUrl=inboxMediaCache.get(mediaId);
+      if(!dataUrl){const result=await api('media',{mediaId});dataUrl=String(result.dataUrl||'');if(!/^data:image\/(?:jpeg|png|webp);base64,/i.test(dataUrl))throw Error('Imagen no disponible');inboxMediaCache.set(mediaId,dataUrl);}
+      img.src=dataUrl;img.style.display='block';
+    }catch(error){img.alt='La foto ya no está disponible';img.title=error.message||'La foto ya no está disponible';}
+  }
   async function openConversation(id){
     document.getElementById('wa-inbox-root').classList.add('wa-chat-open');
     const changed=current!==id;current=id;const data=await api('messages',{conversation:id});if(current!==id)return;const box=document.getElementById('wa-inbox-messages'),atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<70,oldScroll=box.scrollTop;box.replaceChildren();
     currentConversation=data.conversation||null;renderInboxControls();
     status('Chat '+data.conversation.phone+' · '+(data.conversation.paused?'Atiende: '+data.conversation.owner_name:'Bot disponible')+' · Sólo texto en esta versión.');
     for(const m of data.messages){const row=element('div');row.className='wa-bubble'+(m.direction==='in'?'':' wa-out');const labels={received:'Recibido',accepted:'Aceptado por Meta',uncertain:'Envío sin confirmar',sending:'Enviando'};let body=m.body||'['+m.kind+']';if(/^skm1:buy:/.test(body))body='Pulsó: Realizar un pedido';else if(/^skm1:tracking:/.test(body))body='Pulsó: Seguimiento pedido';row.append(element('small',(m.direction==='in'?'Cliente':m.staff_name||'Bot')+' · '+new Date(m.created_at).toLocaleString('es-CO')+' · '+(labels[m.status]||m.status)),element('p',body));
-      if(!['text','interactive'].includes(m.kind))row.append(element('small','Adjunto '+m.kind+': visualización privada pendiente de la siguiente etapa. No se ha verificado ningún pago.'));
+      if(m.mediaId){const img=element('img');img.alt='Cargando foto…';img.style.cssText='display:block;max-width:220px;max-height:280px;object-fit:contain;margin-top:8px;border-radius:10px;border:1px solid #c9e7c6;background:#f5f5f5;cursor:zoom-in;';img.onclick=()=>{if(img.src)window.open(img.src,'_blank','noopener');};row.append(img);cargarFotoBandeja(m.mediaId,img);}
+      else if(!['text','interactive'].includes(m.kind))row.append(element('small','Adjunto '+m.kind+': visualización privada pendiente de la siguiente etapa. No se ha verificado ningún pago.'));
       box.append(row);
     }
     box.scrollTop=changed||atBottom?box.scrollHeight:oldScroll;
