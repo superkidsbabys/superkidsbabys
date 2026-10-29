@@ -12924,6 +12924,13 @@ document.addEventListener('DOMContentLoaded', function() {
 #wa-inbox-root .wa-internal-notice.is-visible{display:block}
 #wa-inbox-root .wa-template-row{display:flex;justify-content:flex-end;margin:7px 0 2px}
 #wa-inbox-root .wa-template-send{background:#6d40d8;color:white;border-radius:18px;padding:9px 13px;font-size:12px}
+#wa-inbox-root .wa-client-card{display:none;align-items:center;gap:10px;margin:0;padding:9px 14px;background:#edf8f3;border-bottom:1px solid #bde3d2;color:#145440;font-size:12px}
+#wa-inbox-root .wa-client-card.is-visible{display:flex}
+#wa-inbox-root .wa-client-card strong{font-size:13px}
+#wa-inbox-root .wa-client-card small{display:block;color:#557469;margin-top:2px}
+#wa-inbox-root .wa-client-card button{margin-left:auto;border-radius:15px;padding:6px 9px;font-size:11px;background:white;color:#126f59;border:1px solid #9bd6c2}
+#wa-inbox-root .wa-template-badge{display:inline-block;margin:7px 0 2px;padding:4px 7px;border-radius:10px;background:#f0e7ff;color:#6333a8;font-size:10px;font-weight:800}
+#wa-inbox-root .wa-template-button{display:block;width:100%;margin-top:8px;padding:7px;border:1px solid #b68af2;border-radius:8px;background:#fff;color:#673ab7;font-weight:700;font-size:11px}
 #wa-inbox-root textarea{border-radius:22px;min-height:46px;padding:12px 16px;font-size:13px;background:white}
 #wa-inbox-root .wa-send{border-radius:22px;padding:12px 15px;font-size:12px;min-height:44px}
 #wa-inbox-root .wa-empty{margin:auto;max-width:320px;text-align:center;color:#577066;background:#ffffffb8;padding:26px;border:1px solid #ffffff;border-radius:24px}
@@ -12933,7 +12940,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </style>
 <script>
 (function(){
-  let current='',refreshing=false,sessionEpoch=0,currentConversation=null,inboxControls=null;const endpoint='https://superkids-pagos-api.superkids-babys.workers.dev/equipo/whatsapp';
+  let current='',refreshing=false,sessionEpoch=0,currentConversation=null,currentProfileName='',composeTextArea=null,inboxControls=null;const endpoint='https://superkids-pagos-api.superkids-babys.workers.dev/equipo/whatsapp';
   const inboxMediaCache=new Map(); let inboxMessages=[],historyHasMore=false,historyCursor=null,loadingOlder=false;
   const UID_YOHANA_BANDEJA='F2SHGFQYSuMWlkbQKV8yrKAXgaH3',UID_BIBIANA_BANDEJA='MtQpryHLGYab5v3UjhRZw88CAD63',UID_ANGELA_BANDEJA='IEB65uKdgldevmgRuenCj7pPwc12';
   function renderInboxControls(){
@@ -12959,7 +12966,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function element(tag,text){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;}
   function status(text){document.getElementById('wa-inbox-status').textContent=text;}
   function internalNotice(text){const notice=document.getElementById('wa-inbox-internal-notice');if(!notice)return;notice.textContent='🔒 Aviso interno · '+String(text||'');notice.classList.toggle('is-visible',Boolean(text));}
-  function showConversationList(){current='';currentConversation=null;inboxMessages=[];historyHasMore=false;historyCursor=null;internalNotice('');renderInboxControls();const root=document.getElementById('wa-inbox-root');root?.classList.remove('wa-chat-open');document.getElementById('wa-inbox-messages')?.replaceChildren();document.querySelectorAll('#wa-inbox-list button').forEach(b=>b.classList.remove('wa-selected'));status('Selecciona una conversación para abrir el chat.');}
+  function customerCard(name,phone){const card=document.getElementById('wa-inbox-client-card');if(!card)return;card.replaceChildren();const safeName=String(name||'').trim(),safePhone=String(phone||'');if(!safePhone){card.classList.remove('is-visible');return;}const detail=element('div');if(safeName){detail.append(element('strong','Cliente WhatsApp: '+safeName),element('small','Teléfono: '+safePhone+' · Nombre compartido por la clienta en WhatsApp'));const use=element('button','Usar nombre');use.onclick=()=>{if(composeTextArea&&!composeTextArea.value.trim()){composeTextArea.value='Hola '+safeName+', ';composeTextArea.focus();}};card.append(detail,use);}else{detail.append(element('strong','Cliente WhatsApp: nombre pendiente'),element('small','Teléfono: '+safePhone+' · Meta compartirá su nombre cuando responda un nuevo mensaje.'));card.append(detail);}card.classList.add('is-visible');}
+  function showConversationList(){current='';currentConversation=null;currentProfileName='';inboxMessages=[];historyHasMore=false;historyCursor=null;internalNotice('');customerCard('','');renderInboxControls();const root=document.getElementById('wa-inbox-root');root?.classList.remove('wa-chat-open');document.getElementById('wa-inbox-messages')?.replaceChildren();document.querySelectorAll('#wa-inbox-list button').forEach(b=>b.classList.remove('wa-selected'));status('Selecciona una conversación para abrir el chat.');}
   async function cargarFotoBandeja(mediaId,img){
     try{
       let dataUrl=inboxMediaCache.get(mediaId);
@@ -12989,19 +12997,20 @@ document.addEventListener('DOMContentLoaded', function() {
       const row=element('div');row.className='wa-bubble'+(m.direction==='in'?'':' wa-out');
       const labels={received:'Recibido',accepted:'Aceptado por Meta',uncertain:'Envío sin confirmar',sending:'Enviando'};
       const body=textoBotonLegible(m.body)||'['+m.kind+']';row.append(element('small',(m.direction==='in'?'Cliente':m.staff_name||'Sofía')+' · '+new Date(m.created_at).toLocaleString('es-CO')+' · '+(labels[m.status]||m.status)),element('p',body));
+      if(m.templateName){row.append(element('span','Plantilla: '+m.templateName));row.lastChild.className='wa-template-badge';const button=element('button',m.templateButton||'Continuar conversación');button.className='wa-template-button';button.disabled=true;row.append(button);}
       if(m.mediaId){const img=element('img');img.className='wa-photo';img.alt='Cargando foto del cliente…';img.onclick=()=>{if(img.src)window.open(img.src,'_blank','noopener');};row.append(img);cargarFotoBandeja(m.mediaId,img);}
       else if(m.imageUrl){const img=element('img');img.className='wa-photo';img.alt='Prenda enviada por Sofía';img.src=m.imageUrl;img.onclick=()=>window.open(m.imageUrl,'_blank','noopener');row.append(img);}
-      else if(!['text','interactive'].includes(m.kind))row.append(element('small','Adjunto '+m.kind));
+      else if(!['text','interactive','template'].includes(m.kind))row.append(element('small','Adjunto '+m.kind));
       box.append(row);
     }
     if(keepPosition)box.scrollTop=box.scrollHeight-priorHeight+priorTop;else box.scrollTop=box.scrollHeight;
   }
   async function openConversation(id,older=false){
     document.getElementById('wa-inbox-root').classList.add('wa-chat-open');
-    const changed=current!==id;if(changed){current=id;inboxMessages=[];historyHasMore=false;historyCursor=null;internalNotice('');}const box=document.getElementById('wa-inbox-messages');
+    const changed=current!==id;if(changed){current=id;currentProfileName='';inboxMessages=[];historyHasMore=false;historyCursor=null;internalNotice('');customerCard('','');}const box=document.getElementById('wa-inbox-messages');
     if(older){if(loadingOlder||!historyHasMore||!historyCursor)return;loadingOlder=true;}
     let data;try{data=await api('messages',{conversation:id,...(older?{before:historyCursor}:{})});}catch(error){if(older)loadingOlder=false;throw error;}if(current!==id)return;
-    currentConversation=data.conversation||null;renderInboxControls();
+    currentConversation=data.conversation||null;currentProfileName=String(data.profileName||'').trim();customerCard(currentProfileName,currentConversation?.phone||'');renderInboxControls();
     if(older){const known=new Set(inboxMessages.map(m=>m.id));inboxMessages=[...data.messages.filter(m=>!known.has(m.id)),...inboxMessages];loadingOlder=false;}else inboxMessages=data.messages||[];
     historyHasMore=Boolean(data.hasMore);historyCursor=data.nextBefore||null;
     const responsable=data.conversation.paused?(data.conversation.owner_name?'Atiende: '+data.conversation.owner_name:'Atiende: Equipo'):'Bot disponible';status('Chat '+data.conversation.phone+' · '+responsable+' · Fotos e historial privado.');
@@ -13028,10 +13037,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const reload=element('button','Actualizar');reload.onclick=refresh;top.append(reload);
     const message=element('p');message.id='wa-inbox-status';message.setAttribute('role','status');root.append(message);
     const privateNotice=element('div');privateNotice.id='wa-inbox-internal-notice';privateNotice.className='wa-internal-notice';privateNotice.setAttribute('role','status');root.append(privateNotice);
+    const clientCard=element('div');clientCard.id='wa-inbox-client-card';clientCard.className='wa-client-card';root.append(clientCard);
     const sidebar=element('aside');sidebar.className='wa-sidebar';sidebar.append(Object.assign(element('div','Conversaciones'),{className:'wa-side-title'}));const list=element('div');list.id='wa-inbox-list';sidebar.append(list);root.append(sidebar);const compose=element('div');compose.className='wa-compose';const controls=element('div');controls.className='wa-controls';compose.append(controls);
     inboxControls=controls;renderInboxControls();
     const history=element('div');history.id='wa-inbox-messages';const empty=element('div');empty.className='wa-empty';empty.append(element('span','💬'),element('strong','Cada conversación, a mano'),element('p','Selecciona un chat para ver los mensajes y sus pendientes.'),element('p','🔵 Solicita asesora · 🔴 Revisar comprobante'));history.append(empty);root.append(history);const note=element('p','Área privada · Toma el chat antes de responder o darle una orden a Sofía. La orden no se muestra al cliente: Sofía responde con su flujo normal.');note.className='wa-note';compose.append(note);const input=element('div');input.className='wa-input';compose.append(input);
-    const text=element('textarea');text.maxLength=3000;text.placeholder='Escribe una respuesta…';text.setAttribute('aria-label','Respuesta al cliente');input.append(text);
+    const text=element('textarea');composeTextArea=text;text.maxLength=3000;text.placeholder='Escribe una respuesta…';text.setAttribute('aria-label','Respuesta al cliente');input.append(text);
     const command=element('div');command.className='wa-sofia-order';const commandText=element('input');commandText.maxLength=3000;commandText.placeholder='Orden privada para Sofía: “envía prendas de niño 9 meses”';commandText.setAttribute('aria-label','Orden privada para Sofía');const commandSend=element('button','Pedir a Sofía');command.append(commandText,commandSend);compose.append(command);
     commandSend.onclick=async()=>{if(!current||!commandText.value.trim())return;const order={conversation:current,text:commandText.value.trim(),requestId:crypto.randomUUID()};commandSend.disabled=true;try{const result=await api('sofia-command',order);commandText.value='';await refresh();internalNotice(result.notice||'Sofía procesó la orden privada.');}catch(e){internalNotice(e.message);status(e.message);}finally{commandSend.disabled=false;}};
     const send=element('button','Enviar respuesta');let pending=null,confirmacionEnvioUid='';
@@ -13040,7 +13050,7 @@ document.addEventListener('DOMContentLoaded', function() {
       send.disabled=true;try{await api('send',pending);text.value='';pending=null;await refresh();status('Respuesta aceptada por Meta; no confirma entrega al cliente.');}catch(e){status(e.message);}finally{send.disabled=false;}
     };text.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();if(!send.disabled)send.click();}});send.className='wa-send';input.append(send);
     const templateRow=element('div');templateRow.className='wa-template-row';const templateSend=element('button','📩 Reabrir chat con plantilla');templateSend.className='wa-template-send';templateSend.title='Solo para conversaciones cuya ventana de 24 horas venció';templateRow.append(templateSend);compose.append(templateRow);
-    templateSend.onclick=async()=>{if(!current)return;const name=window.prompt('Escribe el primer nombre de la clienta para la plantilla:', 'amiga');if(name===null)return;if(!confirm('¿Enviar la plantilla “retomar_conversacion”? Se usa solo para reabrir un chat vencido y puede tener cobro de Marketing.'))return;templateSend.disabled=true;try{const result=await api('send-template',{conversation:current,name,requestId:crypto.randomUUID()});await refresh();internalNotice(result.status==='accepted'?'Plantilla enviada a la clienta. Cuando pulse “Continuar conversacion”, Sofía podrá responder.':(result.error||'Revisa el estado de la plantilla.'));}catch(e){internalNotice(e.message);status(e.message);}finally{templateSend.disabled=false;}};
+    templateSend.onclick=async()=>{if(!current)return;const name=window.prompt('Escribe el primer nombre de la clienta para la plantilla:', currentProfileName||'amiga');if(name===null)return;if(!confirm('¿Enviar la plantilla “retomar_conversacion”? Se usa solo para reabrir un chat vencido y puede tener cobro de Marketing.'))return;templateSend.disabled=true;try{const result=await api('send-template',{conversation:current,name,requestId:crypto.randomUUID()});await refresh();internalNotice(result.status==='accepted'?'Plantilla enviada a la clienta. Cuando pulse “Continuar conversacion”, Sofía podrá responder.':(result.error||'Revisa el estado de la plantilla.'));}catch(e){internalNotice(e.message);status(e.message);}finally{templateSend.disabled=false;}};
     root.append(compose);document.body.append(root);
     const launcher=element('button','💬 WhatsApp del equipo');launcher.id='wa-inbox-launcher';launcher.style.cssText='position:fixed;left:16px;bottom:84px;z-index:9000;padding:12px;border-radius:12px;background:#128c7e;color:white;display:none';
     let lastUid='',requestedInbox=location.hash==='#whatsapp-equipo';
