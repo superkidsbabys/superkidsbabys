@@ -12931,6 +12931,8 @@ document.addEventListener('DOMContentLoaded', function() {
 #wa-inbox-root .wa-client-card button{margin-left:auto;border-radius:15px;padding:6px 9px;font-size:11px;background:white;color:#126f59;border:1px solid #9bd6c2}
 #wa-inbox-root .wa-template-badge{display:inline-block;margin:7px 0 2px;padding:4px 7px;border-radius:10px;background:#f0e7ff;color:#6333a8;font-size:10px;font-weight:800}
 #wa-inbox-root .wa-template-button{display:block;width:100%;margin-top:8px;padding:7px;border:1px solid #b68af2;border-radius:8px;background:#fff;color:#673ab7;font-weight:700;font-size:11px}
+#wa-inbox-root .wa-client-choice{border-left:4px solid #18a86b;background:#f2fff7}
+#wa-inbox-root .wa-choice-badge{display:inline-block;margin:7px 0 1px;padding:4px 8px;border-radius:10px;background:#d8f7e5;color:#087443;font-size:10px;font-weight:900}
 #wa-inbox-root textarea{border-radius:22px;min-height:46px;padding:12px 16px;font-size:13px;background:white}
 #wa-inbox-root .wa-send{border-radius:22px;padding:12px 15px;font-size:12px;min-height:44px}
 #wa-inbox-root .wa-empty{margin:auto;max-width:320px;text-align:center;color:#577066;background:#ffffffb8;padding:26px;border:1px solid #ffffff;border-radius:24px}
@@ -12977,6 +12979,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   function textoBotonLegible(value){
     const id=String(value||'');
+    const selected=/^__sk_button_title:([^\n]+)(?:\n|$)/.exec(id);
+    if(selected)return '✓ Opción elegida: '+selected[1].trim();
     if(/^skm1:buy:/.test(id))return 'Pulsó: Realizar un pedido';
     if(/^skm1:tracking:/.test(id))return 'Pulsó: Seguimiento de pedido';
     if(/^skf1:confirm:/.test(id))return 'Pulsó: Confirmar pedido';
@@ -12996,7 +13000,10 @@ document.addEventListener('DOMContentLoaded', function() {
     for(const m of inboxMessages){
       const row=element('div');row.className='wa-bubble'+(m.direction==='in'?'':' wa-out');
       const labels={received:'Recibido',accepted:'Aceptado por Meta',uncertain:'Envío sin confirmar',sending:'Enviando'};
+      const esOpcionCliente=m.direction==='in'&&/^__sk_button_title:[^\n]+/.test(String(m.body||''));
+      if(esOpcionCliente)row.classList.add('wa-client-choice');
       const body=textoBotonLegible(m.body)||'['+m.kind+']';row.append(element('small',(m.direction==='in'?'Cliente':m.staff_name||'Sofía')+' · '+new Date(m.created_at).toLocaleString('es-CO')+' · '+(labels[m.status]||m.status)),element('p',body));
+      if(esOpcionCliente){const badge=element('span','Selección hecha en WhatsApp');badge.className='wa-choice-badge';row.append(badge);}
       if(m.templateName){row.append(element('span','Plantilla: '+m.templateName));row.lastChild.className='wa-template-badge';const button=element('button',m.templateButton||'Continuar conversación');button.className='wa-template-button';button.disabled=true;row.append(button);}
       if(m.mediaId){const img=element('img');img.className='wa-photo';img.alt='Cargando foto del cliente…';img.onclick=()=>{if(img.src)window.open(img.src,'_blank','noopener');};row.append(img);cargarFotoBandeja(m.mediaId,img);}
       else if(m.imageUrl){const img=element('img');img.className='wa-photo';img.alt='Prenda enviada por Sofía';img.src=m.imageUrl;img.onclick=()=>window.open(m.imageUrl,'_blank','noopener');row.append(img);}
