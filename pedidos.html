@@ -41,6 +41,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     'F2SHGFQYSuMWlkbQKV8yrKAXgaH3': { nombre: 'Yohana',  rol: 'admin',   whatsapp: '573025451526' },
     'MtQpryHLGYab5v3UjhRZw88CAD63':  { nombre: 'Bibiana', rol: 'asesora', whatsapp: '15512627086', editarPrecio: true },
     'IEB65uKdgldevmgRuenCj7pPwc12':  { nombre: 'Ángela',  rol: 'asesora', whatsapp: '573176459474' },
+    'yI067cx29zbmiBOd9wyKcwp0HpF2':  { nombre: 'Camila',  rol: 'asesora', whatsapp: '573124021441' },
   };
 
   let usuarioActual = null;
@@ -428,6 +429,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     'Yohana': '573025451526',
     'Bibiana': '15512627086',
     'Ángela': '573176459474',
+    'Camila': '573124021441',
     'Sin asesora': '573025451526'
   });
   window.obtenerAsesoraSeleccionada = function() {
@@ -1938,7 +1940,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Desde<input id="rv-desde" type="date" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;"></label>
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Hasta<input id="rv-hasta" type="date" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;"></label>
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Tipo de venta<select id="rv-tipo" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todos</option><option>Contraentrega</option><option>Contado</option><option>Recaudo</option><option>Pago Wompi</option></select></label>
-                        <label style="font-size:.78em;font-weight:800;color:#475467;">Asesora<select id="rv-asesora" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todas</option><option>Yohana</option><option>Ángela</option><option>Bibiana</option></select></label>
+                        <label style="font-size:.78em;font-weight:800;color:#475467;">Asesora<select id="rv-asesora" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todas</option><option>Yohana</option><option>Ángela</option><option>Bibiana</option><option>Camila</option></select></label>
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Buscar referencia<input id="rv-ref" type="search" placeholder="Ej: 2000038" oninput="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"></label>
                         <label style="font-size:.78em;font-weight:800;color:#475467;">Buscar guía<input id="rv-guia" type="search" placeholder="Número o sin guía" oninput="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"></label><label style="font-size:.78em;font-weight:800;color:#475467;">Transportadora<select id="rv-transportadora" onchange="renderizarReporteVentas()" style="display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px;border:1.5px solid #a8d9bb;border-radius:9px;background:white;"><option value="">Todas</option><option>Interrapidísimo</option><option>Envía</option><option>23M&amp;M</option><option>Domicilio</option><option value="__sin_transportadora__">Sin transportadora</option></select></label>
                     </div>
@@ -2041,7 +2043,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <input type="email" id="cart-correo" placeholder="✉️ Correo electrónico" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 10px; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                 <select id="cart-asesora" aria-label="Asesora que atendió al cliente" style="width:100%;padding:13px 16px;border:2px solid rgb(240,214,245);border-radius:12px;font-size:.95em;margin-bottom:10px;outline:none;box-sizing:border-box;background:white;color:#555;font-family:inherit;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'">
                     <option value="Sin asesora">👩‍💼 ¿Qué asesora te atendió?</option>
-                    <option value="Yohana">Yohana</option><option value="Bibiana">Bibiana</option><option value="Ángela">Ángela</option>
+                    <option value="Yohana">Yohana</option><option value="Bibiana">Bibiana</option><option value="Ángela">Ángela</option><option value="Camila">Camila</option>
                 </select>
                 <textarea id="cart-observaciones" placeholder="📝 Observaciones (opcional)" rows="2" style="width: 100%; padding: 13px 16px; border: 2px solid rgb(240, 214, 245); border-radius: 12px; font-size: 0.95em; margin-bottom: 16px; outline: none; box-sizing: border-box; resize: none; font-family: inherit;" onfocus="this.style.borderColor='#ff4db8'" onblur="this.style.borderColor='#f0d6f5'"></textarea>
 
@@ -2365,6 +2367,19 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         const UID_YOHANA  = 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3';
         const UID_BIBIANA = 'MtQpryHLGYab5v3UjhRZw88CAD63';
         const UID_ANGELA  = 'IEB65uKdgldevmgRuenCj7pPwc12';
+        // Camila conserva la cuenta que antes utilizaba Gina. Sus permisos
+        // aquí son únicamente operativos de despacho, no de anulación.
+        const UID_CAMILA  = 'yI067cx29zbmiBOd9wyKcwp0HpF2';
+
+        function puedeGestionarDespacho() {
+            const uid = window.usuarioActual && window.usuarioActual.uid;
+            return [UID_YOHANA, UID_ANGELA, UID_CAMILA].includes(uid);
+        }
+
+        function puedeAdjuntarSoportesPedido() {
+            const uid = window.usuarioActual && window.usuarioActual.uid;
+            return [UID_YOHANA, UID_BIBIANA, UID_ANGELA, UID_CAMILA].includes(uid);
+        }
 
         function mostrarBuscadorRef() {
             const u = window.usuarioActual;
@@ -6951,7 +6966,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         function htmlSelectorAsesoraPedido(ped) {
             const actual = String(ped.asesora || 'Sin asesora');
             if (!(window.usuarioActual && window.usuarioActual.rol === 'admin')) return '<div style="text-align:right;margin-top:7px;font-size:.78em;font-weight:800;color:#7e22ce;">Asesora: ' + escapeHtml(actual) + '</div>';
-            const opciones = ['Yohana','Ángela','Bibiana','Ángela','Sin asesora'].map(function(nombre) {
+            const opciones = ['Yohana','Ángela','Bibiana','Camila','Sin asesora'].map(function(nombre) {
                 return '<option value="' + escapeHtmlAttr(nombre) + '"' + (nombre === actual ? ' selected' : '') + '>' + escapeHtml(nombre) + '</option>';
             }).join('');
             return '<div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:7px;"><span style="font-size:.76em;font-weight:800;color:#7e22ce;">Asesora:</span><select onchange="cambiarAsesoraPedido(' + Number(ped.num) + ',this.value)" style="padding:6px 8px;border:1.5px solid #d8b4fe;border-radius:8px;background:white;color:#7e22ce;font-weight:900;">' + opciones + '</select></div>';
@@ -7632,6 +7647,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if(nuevoEstado==='sofia'&&estadoAnterior!=='sofia')return alert('Sólo Sofía registra pedidos en esta sección.');
             nuevoEstado = normalizarEstadoPedido(nuevoEstado);
             const esAngelaDespachos = window.usuarioActual && window.usuarioActual.uid === UID_ANGELA;
+            const esCamilaDespachos = window.usuarioActual && window.usuarioActual.uid === UID_CAMILA;
             const estadosPermitidosAngela = ['nuevo', 'enviado', 'entregado', 'pagado', 'cancelado'];
             if (esAngelaDespachos && nuevoEstado !== estadoAnterior && !estadosPermitidosAngela.includes(nuevoEstado)) {
                 renderizarPedidosPanel();
@@ -7641,6 +7657,16 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if (esAngelaDespachos && estadoAnterior === 'cancelado' && nuevoEstado !== 'cancelado') {
                 renderizarPedidosPanel();
                 alert('Un pedido anulado no puede cambiarse nuevamente desde el usuario de Ángela.');
+                return;
+            }
+            if (esCamilaDespachos && nuevoEstado !== estadoAnterior && !['enviado', 'entregado'].includes(nuevoEstado)) {
+                renderizarPedidosPanel();
+                alert('Camila solo puede pasar pedidos a Enviado o Entregado. No puede anularlos ni cambiar otros estados.');
+                return;
+            }
+            if (esCamilaDespachos && estadoAnterior === 'cancelado' && nuevoEstado !== 'cancelado') {
+                renderizarPedidosPanel();
+                alert('Un pedido anulado no puede cambiarse nuevamente desde el usuario de Camila.');
                 return;
             }
             if (nuevoEstado === 'cancelado' && estadoAnterior !== 'cancelado') {
@@ -7793,6 +7819,10 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         async function subirComprobantePedido(numPed, inputEl) {
+            if (!puedeAdjuntarSoportesPedido()) {
+                inputEl.value = '';
+                return alert('Tu usuario no puede subir comprobantes.');
+            }
             const files = Array.from((inputEl.files || [])).filter(function(file){ return String(file.type || '').startsWith('image/'); }).slice(0, 2);
             if (!files.length) return;
             const pedIndex = historialPedidos.findIndex(p => p.num === numPed);
@@ -7824,6 +7854,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         async function eliminarComprobantePedido(numPed, indice) {
+            if (!puedeAdjuntarSoportesPedido()) return alert('Tu usuario no puede modificar comprobantes.');
             const pedido = historialPedidos.find(function(p){ return Number(p.num)===Number(numPed); });
             if (!pedido) return;
             const lista = obtenerComprobantesPedido(pedido);
@@ -7871,9 +7902,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         async function subirGuiaPedido(numPed, inputEl) {
             const uid = window.usuarioActual && window.usuarioActual.uid;
-            if (![UID_YOHANA, UID_ANGELA].includes(uid)) {
+            if (!puedeGestionarDespacho()) {
                 inputEl.value = '';
-                return alert('Solo Yohana o Ángela pueden modificar la guía de envío.');
+                return alert('Solo Yohana, Ángela o Camila pueden subir la guía de envío.');
             }
             const file = inputEl.files && inputEl.files[0];
             if (!file) return;
@@ -8572,8 +8603,11 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                 recalcularTotalPedidoConEnvio(ped);
                 const estadoActual = normalizarEstadoPedido(ped.estado);
                 const esAngelaEstados = window.usuarioActual && window.usuarioActual.uid === UID_ANGELA;
+                const esCamilaEstados = window.usuarioActual && window.usuarioActual.uid === UID_CAMILA;
                 const estadosVisibles = esAngelaEstados
                     ? ESTADOS_PEDIDO.filter(function(e) { return e.valor === estadoActual || ['enviado','entregado','cancelado'].includes(e.valor); })
+                    : esCamilaEstados
+                    ? ESTADOS_PEDIDO.filter(function(e) { return e.valor === estadoActual || ['enviado','entregado'].includes(e.valor); })
                     : ESTADOS_PEDIDO;
                 const opcionesEstado = estadosVisibles.map(e => `<option value="${e.valor}" ${estadoActual === e.valor ? 'selected' : ''}>${estadoActual === 'sofia' && e.valor === 'nuevo' ? 'Aprobar → Nuevos' : e.label}</option>`).join('');
                 let htmlItems = agruparItemsPorProductoParaVista(ped.items).map((g) => {
@@ -8605,7 +8639,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
 
                 // Botón para adjuntar el comprobante de pago — en ENTREGADOS y PAGADOS
                 const comprobantesPedido = obtenerComprobantesPedido(ped);
-                const htmlComprobante = (estadoActual === 'entregado' || estadoActual === 'pagado') ? (
+                const htmlComprobante = (puedeAdjuntarSoportesPedido() && (estadoActual === 'entregado' || estadoActual === 'pagado')) ? (
                     '<div class="tp-comprobante-box">' +
                       '<input type="file" accept="image/*" multiple id="comprobante-input-' + ped.num + '" style="display:none" onchange="subirComprobantePedido(' + ped.num + ', this)">' +
                       '<button type="button" class="tp-btn-comprobante' + (comprobantesPedido.length ? ' tiene-comprobante' : '') + '" id="btn-comprobante-' + ped.num + '" onclick="document.getElementById(\'comprobante-input-' + ped.num + '\').click()">' +
