@@ -6840,6 +6840,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 persistirPedidoEnFirebase(historialPedidos[idx]);
             }
             renderizarPedidosPanel();
+            // Para recaudo 23M&M la tarifa depende de la ciudad del pedido.
+            // Se completa después de mostrar el cambio para no bloquear la pantalla.
+            autocompletarEnvioRecaudo23Mym(historialPedidos[idx]);
         };
         // ── FIN TIPO DE VENTA ──
 
@@ -6859,6 +6862,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 } catch(e) { console.log('Error sync transportadora Firebase:', e); }
             })();
             renderizarPedidosPanel();
+            // También se calcula cuando la transportadora se elige después
+            // de seleccionar el tipo de venta.
+            autocompletarEnvioRecaudo23Mym(historialPedidos[idx]);
         };
 
         function puedeEditarPrendasPedido() {
@@ -6890,6 +6896,21 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         function esInterPedido(ped) {
             return String(ped.transportadora || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z]/g,'') === 'interrapidisimo';
         }
+        function textoTarifaNormalizado(valor) {
+            return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+        function es23MymPedido(ped) {
+            const carrier = textoTarifaNormalizado(ped && ped.transportadora);
+            return carrier === '23mm' || carrier === '23mym' || carrier === 'mym';
+        }
+        function esRecaudo23Mym(ped) {
+            return String((ped && ped.tipoVenta) || '').trim().toLowerCase() === 'recaudo' && es23MymPedido(ped);
+        }
+        function porcentajeRecaudoPedido(ped) {
+            if (esInterPedido(ped) && String(ped.tipoVenta || '').trim().toLowerCase() === 'recaudo') return 7;
+            if (esRecaudo23Mym(ped)) return 3;
+            return 0;
+        }
         function esPagoCasaContado(ped) {
             return esInterPedido(ped) && ped.tipoVenta === 'Recaudo' && ped.modalidadInter === 'contado';
         }
@@ -6900,7 +6921,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 const rate=ped.modoPago==='anticipado'?0:carrier==='interrapidisimo'?0.07:['mm','mym'].includes(carrier)?0.03:null;
                 if(rate!==null)return Math.round(Math.max(0,Number(subtotal)||0)*rate);
             }
-            return limpio(ped.tipoVenta) === 'recaudo' && limpio(ped.transportadora) === 'interrapidisimo' ? Math.round(Math.max(0, Number(subtotal) || 0) * 7 / 100) : 0;
+            const porcentaje = porcentajeRecaudoPedido(ped);
+            return porcentaje ? Math.round(Math.max(0, Number(subtotal) || 0) * porcentaje / 100) : 0;
         }
         function actualizarImportesEntrega(ped) {
             const envio = parseInt(String(ped.valorEnvio || '0').replace(/[^0-9]/g,''),10) || 0;
@@ -8718,8 +8740,12 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                           var envio = parseInt((ped.valorEnvio||'0').toString().replace(/[^0-9]/g,''))||0;
                           var comision = Number(ped.comisionRecaudo) || 0;
                           var subtotal = Math.max(0,(ped.tot||0) - envio - comision);
-                          if (esInterPedido(ped) && ped.tipoVenta === 'Recaudo') {
-                              return '<div style="font-size:13px;font-weight:900;margin-bottom:5px;">'+(esPagoCasaContado(ped)?'Pago en casa contado':'Pago en casa contraentrega')+'</div><div style="font-size:12px;line-height:1.5;font-weight:600;">Valor prendas: '+formatMoney(subtotal)+'<br>Envío completo: '+formatMoney(envio)+'<br>Comisión recaudo Interrapidísimo (7 %): '+formatMoney(comision)+'<br><strong>Total envío + comisión: '+formatMoney(envio+comision)+'</strong></div><div style="margin-top:8px;padding-top:8px;border-top:1px solid #e9d5ff;font-size:17px;font-weight:900;">Total a recaudar: '+formatMoney(esPagoCasaContado(ped)?subtotal:ped.tot)+'</div>';
+                          if ((esInterPedido(ped) || es23MymPedido(ped)) && ped.tipoVenta === 'Recaudo') {
+                              var transportadoraRecaudo = es23MymPedido(ped) ? '23M&M' : 'Interrapidísimo';
+                              var porcentajeRecaudo = porcentajeRecaudoPedido(ped);
+                              var modalidadRecaudo = esInterPedido(ped) ? (esPagoCasaContado(ped)?'Pago en casa contado':'Pago en casa contraentrega') : 'Recaudo 23M&M';
+                              var tarifaAuto = esRecaudo23Mym(ped) ? '<br><span style="color:#168653;">⚡ Envío autocompletado para '+escapeHtml(ped.tarifaEnvioAutoCiudad || ped.ciudad || 'la ciudad del cliente')+'</span>' : '';
+                              return '<div style="font-size:13px;font-weight:900;margin-bottom:5px;">'+modalidadRecaudo+'</div><div style="font-size:12px;line-height:1.5;font-weight:600;">Valor prendas: '+formatMoney(subtotal)+'<br>Envío completo: '+formatMoney(envio)+'<br>Comisión recaudo '+transportadoraRecaudo+' ('+porcentajeRecaudo+' %): '+formatMoney(comision)+'<br><strong>Total envío + comisión: '+formatMoney(envio+comision)+'</strong>'+tarifaAuto+'</div><div style="margin-top:8px;padding-top:8px;border-top:1px solid #e9d5ff;font-size:17px;font-weight:900;">Total a recaudar: '+formatMoney(esPagoCasaContado(ped)?subtotal:ped.tot)+'</div>';
                           }
                           if (envio > 0) {
                               return 'Prendas: ' + formatMoney(subtotal) + ' &nbsp;+&nbsp; Envío: ' + formatMoney(envio) + ' &nbsp;=&nbsp; <strong>Total: ' + formatMoney(ped.tot) + '</strong>';
@@ -8727,6 +8753,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                               return 'Total prendas: ' + formatMoney(ped.tot) + ' &nbsp;·&nbsp; <span style="color:#aaa;font-size:0.88em;">+ envío a calcular</span>';
                           }
                       })() + '</div>' +
+                      (esRecaudo23Mym(ped) ? '<button type="button" onclick="autocompletarEnvioRecaudo23Mym('+Number(ped.num)+')" style="width:100%;margin-top:8px;padding:7px;border:1.5px solid #2aa876;border-radius:8px;background:#effcf6;color:#147a4b;font-family:Nunito,sans-serif;font-size:.78em;font-weight:900;cursor:pointer;">⚡ Actualizar envío y comisión 23M&M</button>' : '') +
                       (puedeEditarPrendasPedido() ? '<div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:7px;"><span style="font-size:.76em;font-weight:800;color:#7e22ce;">Descuento especial:</span><select onchange="cambiarDescuentoPedido(' + ped.num + ',this.value)" style="padding:6px 8px;border:1.5px solid #d8b4fe;border-radius:8px;background:white;color:#7e22ce;font-weight:900;"><option value="0"'+(!(ped.descuentoPorcentaje>0)&&ped.descuentoTipo!=='mayorista_3000'?' selected':'')+'>Sin descuento</option><option value="mayorista_3000"'+(ped.descuentoTipo==='mayorista_3000'?' selected':'')+'>Mayorista: −$3.000 por prenda</option><option value="5"'+(Number(ped.descuentoPorcentaje)===5?' selected':'')+'>5%</option><option value="10"'+(Number(ped.descuentoPorcentaje)===10?' selected':'')+'>10%</option><option value="15"'+(Number(ped.descuentoPorcentaje)===15?' selected':'')+'>15%</option></select></div>' : '') +
                       htmlSelectorAsesoraPedido(ped) +
                       htmlGuiaEnvio +
@@ -11186,6 +11213,68 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
         const TARIFAS_ENVIO_API = 'https://superkids-pagos-api.superkids-babys.workers.dev/tarifas-envio';
         const TARIFAS_ENVIO_CLAVE_LOCAL = 'superkidsTarifasAdminSecret';
         let tarifasEnvioGestionCache = {};
+        let tarifasEnvioAutocompletarCache = null;
+        let tarifasEnvioAutocompletarCargando = null;
+
+        async function cargarTarifasParaAutocompletar() {
+            if (tarifasEnvioAutocompletarCache) return tarifasEnvioAutocompletarCache;
+            if (tarifasEnvioAutocompletarCargando) return tarifasEnvioAutocompletarCargando;
+            tarifasEnvioAutocompletarCargando = fetch(TARIFAS_ENVIO_API, { cache: 'no-store' })
+                .then(function(respuesta) {
+                    return respuesta.json().then(function(datos) {
+                        if (!respuesta.ok) throw new Error(datos.error || 'No fue posible consultar las tarifas');
+                        tarifasEnvioAutocompletarCache = datos.tarifas || {};
+                        return tarifasEnvioAutocompletarCache;
+                    });
+                })
+                .finally(function() { tarifasEnvioAutocompletarCargando = null; });
+            return tarifasEnvioAutocompletarCargando;
+        }
+
+        function buscarTarifaRecaudo23Mym(pedido, tarifas) {
+            const ciudadPedido = textoTarifaNormalizado(pedido && pedido.ciudad);
+            if (!ciudadPedido) return null;
+            return Object.entries(tarifas || {}).map(function(entrada) {
+                const clave = entrada[0], tarifa = entrada[1] || {};
+                return Object.assign({ _clave: clave }, tarifa);
+            }).find(function(tarifa) {
+                const ciudadTarifa = textoTarifaNormalizado(tarifa.ciudad || tarifa._clave);
+                return ciudadTarifa === ciudadPedido && es23MymPedido({ transportadora: tarifa.transportadora }) && tarifa.contraentrega === true;
+            }) || null;
+        }
+
+        async function autocompletarEnvioRecaudo23Mym(pedido, avisar) {
+            if (!pedido || !esRecaudo23Mym(pedido)) return false;
+            if (!String(pedido.ciudad || '').trim()) {
+                if (avisar) alert('Primero registra la ciudad del cliente para calcular el envío de 23M&M.');
+                return false;
+            }
+            try {
+                const tarifa = buscarTarifaRecaudo23Mym(pedido, await cargarTarifasParaAutocompletar());
+                if (!tarifa || !Number.isFinite(Number(tarifa.valor)) || Number(tarifa.valor) < 0) {
+                    if (avisar) alert('No encontré una tarifa de recaudo 23M&M confirmada para ' + pedido.ciudad + '. Revísala en Tarifas de envío.');
+                    return false;
+                }
+                pedido.valorEnvio = String(Math.round(Number(tarifa.valor)));
+                pedido.tarifaEnvioAutoCiudad = tarifa.ciudad || pedido.ciudad;
+                pedido.tarifaEnvioAutoTransportadora = '23M&M';
+                pedido.actualizadoEn = new Date().toISOString();
+                recalcularTotalPedidoConEnvio(pedido);
+                localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+                if (typeof persistirPedidoEnFirebase === 'function') await persistirPedidoEnFirebase(pedido);
+                renderizarPedidosPanel();
+                if (avisar) mostrarToast('✅ Envío 23M&M y comisión del 3 % actualizados', '#168653');
+                return true;
+            } catch (error) {
+                console.warn('No se pudo autocompletar la tarifa 23M&M:', error);
+                if (avisar) alert('No se pudo consultar la tarifa de envío. Intenta nuevamente.');
+                return false;
+            }
+        }
+        window.autocompletarEnvioRecaudo23Mym = function(numPed) {
+            const pedido = (historialPedidos || []).find(function(p) { return String(p.num) === String(numPed); });
+            return autocompletarEnvioRecaudo23Mym(pedido, true);
+        };
 
         function escaparTarifaHtml(valor) {
             return String(valor == null ? '' : valor)
