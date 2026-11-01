@@ -8606,6 +8606,15 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
 
         function renderizarPedidosPanel() {
             const cont = document.getElementById('contenedor-historial-pedidos'); if (!cont) return;
+            // Corrige también pedidos creados antes de que se cargara la matriz
+            // local de 23M&M. Se agenda fuera de este render para no bloquearlo.
+            if (!window._correccion23MymProgramada) {
+                window._correccion23MymProgramada = true;
+                setTimeout(function() {
+                    window._correccion23MymProgramada = false;
+                    if (typeof corregirTarifas23MymExistentes === 'function') corregirTarifas23MymExistentes();
+                }, 0);
+            }
             cont.innerHTML = "";
             const esAngela = window.usuarioActual && window.usuarioActual.uid === 'yI067cx29zbmiBOd9wyKcwp0HpF2';
             const esYohana = window.usuarioActual && window.usuarioActual.uid === UID_YOHANA;
@@ -8620,6 +8629,18 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
 
             // ── Helper: renderizar una tarjeta de pedido individual ──
             function _htmlTarjetaPedido(ped) {
+                // Un pedido antiguo podía conservar la etiqueta de ciudad pero
+                // tener el envío en $0. Corrígelo antes del cálculo visual para
+                // que "Total a recaudar" siempre incluya el envío y el 3 %.
+                if (aplicarTarifaExcel23MymEnPedido(ped)) {
+                    setTimeout(function() {
+                        if (typeof persistirPedidoEnFirebase === 'function') {
+                            persistirPedidoEnFirebase(ped).catch(function(error) {
+                                console.warn('No se pudo guardar la tarifa 23M&M corregida:', error);
+                            });
+                        }
+                    }, 0);
+                }
                 // Recalcular desde las prendas: algunos pedidos antiguos guardaron el total
                 // antes de aplicar la promocion de 4 mamelucos por $85.000.
                 recalcularTotalPedidoConEnvio(ped);
@@ -11246,6 +11267,22 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             } : null;
         }
 
+        function aplicarTarifaExcel23MymEnPedido(pedido) {
+            if (!pedido || !esRecaudo23Mym(pedido)) return false;
+            const tarifa = buscarTarifaExcel23Mym(pedido);
+            if (!tarifa || !Number.isFinite(Number(tarifa.valor))) return false;
+            const valorNuevo = Math.round(Number(tarifa.valor));
+            const valorActual = parseInt(String(pedido.valorEnvio || '0').replace(/[^0-9]/g, ''), 10) || 0;
+            if (valorActual === valorNuevo) return false;
+            pedido.valorEnvio = String(valorNuevo);
+            pedido.tarifaEnvioAutoCiudad = tarifa.ciudad || pedido.ciudad;
+            pedido.tarifaEnvioAutoTransportadora = '23M&M';
+            pedido.tarifaEnvioAutoFuente = tarifa.fuente || 'Matriz 23M&M';
+            pedido.actualizadoEn = new Date().toISOString();
+            try { localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos)); } catch (e) {}
+            return true;
+        }
+
         async function cargarTarifasParaAutocompletar() {
             if (tarifasEnvioAutocompletarCache) return tarifasEnvioAutocompletarCache;
             if (tarifasEnvioAutocompletarCargando) return tarifasEnvioAutocompletarCargando;
@@ -11309,6 +11346,47 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             const pedido = (historialPedidos || []).find(function(p) { return String(p.num) === String(numPed); });
             return autocompletarEnvioRecaudo23Mym(pedido, true);
         };
+
+        let correccionTarifas23MymEnCurso = false;
+        async function corregirTarifas23MymExistentes() {
+            if (correccionTarifas23MymEnCurso) return false;
+            const pendientes = (historialPedidos || []).filter(function(pedido) {
+                const tarifa = buscarTarifaExcel23Mym(pedido);
+                const envioActual = parseInt(String(pedido.valorEnvio || '0').replace(/[^0-9]/g, ''), 10) || 0;
+                return esRecaudo23Mym(pedido) && tarifa && envioActual !== Number(tarifa.valor);
+            });
+            if (!pendientes.length) return false;
+
+            correccionTarifas23MymEnCurso = true;
+            try {
+                pendientes.forEach(function(pedido) {
+                    const tarifa = buscarTarifaExcel23Mym(pedido);
+                    pedido.valorEnvio = String(Math.round(Number(tarifa.valor)));
+                    pedido.tarifaEnvioAutoCiudad = tarifa.ciudad || pedido.ciudad;
+                    pedido.tarifaEnvioAutoTransportadora = '23M&M';
+                    pedido.tarifaEnvioAutoFuente = tarifa.fuente || 'Matriz 23M&M';
+                    pedido.actualizadoEn = new Date().toISOString();
+                    recalcularTotalPedidoConEnvio(pedido);
+                });
+                localStorage.setItem('pedidosV36', JSON.stringify(historialPedidos));
+                if (typeof persistirPedidoEnFirebase === 'function') {
+                    await Promise.all(pendientes.map(function(pedido) {
+                        return persistirPedidoEnFirebase(pedido);
+                    }));
+                }
+                renderizarPedidosPanel();
+                mostrarToast('✅ ' + pendientes.length + ' pedido(s) 23M&M se actualizaron con la tarifa de la ciudad.', '#168653');
+                return true;
+            } catch (error) {
+                console.warn('No se pudieron corregir tarifas 23M&M existentes:', error);
+                // El dato permanece guardado localmente; se volverá a intentar
+                // cuando el panel se cargue de nuevo si Firebase no respondió.
+                renderizarPedidosPanel();
+                return false;
+            } finally {
+                correccionTarifas23MymEnCurso = false;
+            }
+        }
 
         function escaparTarifaHtml(valor) {
             return String(valor == null ? '' : valor)
