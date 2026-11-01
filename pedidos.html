@@ -8765,7 +8765,7 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
                               var transportadoraRecaudo = es23MymPedido(ped) ? '23M&M' : 'Interrapidísimo';
                               var porcentajeRecaudo = porcentajeRecaudoPedido(ped);
                               var modalidadRecaudo = esInterPedido(ped) ? (esPagoCasaContado(ped)?'Pago en casa contado':'Pago en casa contraentrega') : 'Recaudo 23M&M';
-                              var tarifaAuto = esRecaudo23Mym(ped) ? '<br><span style="color:#168653;">⚡ Envío autocompletado para '+escapeHtml(ped.tarifaEnvioAutoCiudad || ped.ciudad || 'la ciudad del cliente')+'</span>' : '';
+                              var tarifaAuto = esRecaudo23Mym(ped) && envio > 0 && ped.tarifaEnvioAutoCiudad ? '<br><span style="color:#168653;">⚡ Envío autocompletado para '+escapeHtml(ped.tarifaEnvioAutoCiudad || ped.ciudad || 'la ciudad del cliente')+'</span>' : '';
                               return '<div style="font-size:13px;font-weight:900;margin-bottom:5px;">'+modalidadRecaudo+'</div><div style="font-size:12px;line-height:1.5;font-weight:600;">Valor prendas: '+formatMoney(subtotal)+'<br>Envío completo: '+formatMoney(envio)+'<br>Comisión recaudo '+transportadoraRecaudo+' ('+porcentajeRecaudo+' %): '+formatMoney(comision)+'<br><strong>Total envío + comisión: '+formatMoney(envio+comision)+'</strong>'+tarifaAuto+'</div><div style="margin-top:8px;padding-top:8px;border-top:1px solid #e9d5ff;font-size:17px;font-weight:900;">Total a recaudar: '+formatMoney(esPagoCasaContado(ped)?subtotal:ped.tot)+'</div>';
                           }
                           if (envio > 0) {
@@ -11257,8 +11257,31 @@ td img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px soli
             retiro:18817, rionegro:18817, soledad:18817
         });
 
+        function normalizarCiudadTarifa23Mym(valor) {
+            // La asesora puede registrar "Bogotá, D.C.", "Medellín, Antioquia"
+            // o el municipio solo. Se usa siempre el municipio de la matriz.
+            const textoOriginal = String(valor || '').trim();
+            if (!textoOriginal) return '';
+            const municipioAntesDeDetalle = textoOriginal.split(/[,;(]/)[0].trim();
+            let ciudad = textoTarifaNormalizado(municipioAntesDeDetalle);
+            const alias = {
+                bogotadc: 'bogota', bogotadistritocapital: 'bogota',
+                santiagodecali: 'cali', cartagenadeindias: 'cartagena',
+                sanjosedecucuta: 'cucuta', santamartadtch: 'santamarta'
+            };
+            if (alias[ciudad]) return alias[ciudad];
+            if (TARIFAS_23MYM_EXCEL[ciudad] != null) return ciudad;
+
+            // También contempla textos sin coma, como "Medellín Antioquia".
+            const ciudadCompleta = textoTarifaNormalizado(textoOriginal);
+            if (alias[ciudadCompleta]) return alias[ciudadCompleta];
+            const claves = Object.keys(TARIFAS_23MYM_EXCEL).sort(function(a, b) { return b.length - a.length; });
+            const encontrada = claves.find(function(clave) { return ciudadCompleta.indexOf(clave) === 0; });
+            return encontrada || '';
+        }
+
         function buscarTarifaExcel23Mym(pedido) {
-            const ciudad = textoTarifaNormalizado(pedido && pedido.ciudad);
+            const ciudad = normalizarCiudadTarifa23Mym(pedido && pedido.ciudad);
             const valor = TARIFAS_23MYM_EXCEL[ciudad];
             return Number.isFinite(valor) ? {
                 ciudad: String((pedido && pedido.ciudad) || '').trim(),
