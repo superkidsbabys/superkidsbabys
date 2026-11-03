@@ -13235,6 +13235,15 @@ document.addEventListener('DOMContentLoaded', function() {
       img.src=dataUrl;img.style.display='block';
     }catch(error){img.alt='La foto ya no está disponible';img.title=error.message||'La foto ya no está disponible';}
   }
+  async function cargarVideoBandeja(messageId,video,note){
+    try{
+      const result=await api('video-token',{conversation:current,messageId});
+      const url=String(result.url||'');
+      if(!/^https:\/\/superkids-pagos-api\.superkids-babys\.workers\.dev\/equipo\/whatsapp-media\?token=[a-f0-9-]{36}$/i.test(url))throw Error('Video no disponible');
+      video.src=url;video.load();
+      if(note)note.textContent='Video privado · pulsa ▶ para reproducir';
+    }catch(error){video.remove();if(note)note.textContent='El video ya no está disponible: '+(error.message||'intenta actualizar');}
+  }
   function textoBotonLegible(value){
     const id=String(value||'');
     const selected=/^__sk_button_title:([^\n]+)(?:\n|$)/.exec(id);
@@ -13264,6 +13273,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if(esOpcionCliente){const badge=element('span','Selección hecha en WhatsApp');badge.className='wa-choice-badge';row.append(badge);}
       if(m.templateName){row.append(element('span','Plantilla: '+m.templateName));row.lastChild.className='wa-template-badge';const button=element('button',m.templateButton||'Continuar conversación');button.className='wa-template-button';button.disabled=true;row.append(button);}
       if(m.mediaId){const img=element('img');img.className='wa-photo';img.alt='Cargando foto del cliente…';img.onclick=()=>{if(img.src)window.open(img.src,'_blank','noopener');};row.append(img);cargarFotoBandeja(m.mediaId,img);}
+      else if(m.videoId){const video=element('video');video.controls=true;video.playsInline=true;video.preload='metadata';video.setAttribute('aria-label','Video enviado por el cliente');video.style.cssText='display:block;width:min(300px,100%);max-height:360px;margin-top:8px;border-radius:10px;border:1px solid #c9e7c6;background:#111';const note=element('small','Preparando video privado…');note.style.cssText='display:block;margin-top:6px;color:#557469;font-size:10px';row.append(video,note);cargarVideoBandeja(m.id,video,note);}
       else if(m.imageUrl){const img=element('img');img.className='wa-photo';img.alt='Prenda enviada por Sofía';img.src=m.imageUrl;img.onclick=()=>window.open(m.imageUrl,'_blank','noopener');row.append(img);}
       else if(!['text','interactive','template'].includes(m.kind))row.append(element('small','Adjunto '+m.kind));
       box.append(row);
