@@ -4453,6 +4453,12 @@
     <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-10/8e52faa8-4525-4a2b-bc0f-a6cb4d436dd0/full.jpg</image:loc></image:image>
   </url>
   <url>
+    <loc>https://superkidsbabys.com/producto/muselinas/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/333f7799-c46d-4efc-8ea6-167f605b92c3/full.jpg</image:loc></image:image>
+  </url>
+  <url>
     <loc>https://superkidsbabys.com/categoria/mamelucos-enterizos-25-000/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
