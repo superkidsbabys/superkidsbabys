@@ -13167,8 +13167,22 @@ document.addEventListener('DOMContentLoaded', function() {
 #wa-inbox-root .wa-top button{padding:7px 11px;font-size:12px;background:#ffffff20;color:#fff;border:1px solid #ffffff30;border-radius:18px}
 #wa-inbox-root #wa-inbox-status{padding:8px 18px;color:#526b62;background:#f5faf7;font-size:12px}
 #wa-inbox-root .wa-side-title{padding:16px 18px;font-size:13px;background:#f8fbfa;border-bottom:1px solid #e7efea}
+#wa-inbox-root .wa-inbox-filters{display:flex;flex-wrap:wrap;gap:6px;padding:9px 10px;border-bottom:1px solid #e7efea;background:#fff}
+#wa-inbox-root .wa-inbox-filters button{padding:5px 8px;border:1px solid #cde2d8;border-radius:14px;background:#f7fbf9;color:#29604d;font-size:11px;font-weight:800}
+#wa-inbox-root .wa-inbox-filters button.is-active{background:#0f766e;color:#fff;border-color:#0f766e}
+#wa-inbox-root .wa-inbox-filters .wa-filter-count{display:inline-flex;align-items:center;justify-content:center;min-width:15px;height:15px;margin-left:3px;padding:0 4px;border-radius:10px;background:#e2445c;color:#fff;font-size:9px}
 #wa-inbox-root #wa-inbox-list button{padding:13px 16px;line-height:1.6;color:#173e32;font-size:13px;transition:background .15s}
 #wa-inbox-root #wa-inbox-list button.wa-selected{background:#e0f3e9;box-shadow:inset 3px 0 #128c7e}
+#wa-inbox-root #wa-inbox-list button.wa-chat-sofia{border-left:4px solid #14a37f;background:#fbfffd}
+#wa-inbox-root #wa-inbox-list button.wa-chat-advisor{border-left:4px solid #8b5cf6;background:#fdfbff}
+#wa-inbox-root #wa-inbox-list button.wa-chat-sofia.wa-selected{background:#dff8ef}
+#wa-inbox-root #wa-inbox-list button.wa-chat-advisor.wa-selected{background:#f0eaff}
+#wa-inbox-root .wa-owner-chip{display:inline-flex;align-items:center;gap:4px;margin:5px 0 0;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:900}
+#wa-inbox-root .wa-owner-sofia{background:#d8f5e9;color:#087a59}
+#wa-inbox-root .wa-owner-advisor{background:#eee5ff;color:#6937be}
+#wa-inbox-root .wa-unread-dot{display:inline-block;width:10px;height:10px;margin-left:7px;border-radius:50%;background:#20c67a;box-shadow:0 0 0 3px #d8f5e9;vertical-align:middle;animation:wa-unread-pulse 2s ease-in-out infinite}
+@keyframes wa-unread-pulse{50%{transform:scale(.72);opacity:.6}}
+@media(prefers-reduced-motion:reduce){#wa-inbox-root .wa-unread-dot{animation:none}}
 #wa-inbox-root .wa-avatar{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;margin-right:8px;border-radius:50%;background:#e8f0ed;color:#286450;font-weight:800;font-size:12px;vertical-align:middle}
 #wa-inbox-root #wa-inbox-messages{background-color:#f4f0e8;background-image:radial-gradient(#b7c7bc45 1px,transparent 1px);background-size:20px 20px;padding:22px;gap:12px}
 #wa-inbox-root .wa-bubble{max-width:78%;border:1px solid #e3e8e1;padding:9px 13px;border-radius:4px 16px 16px;box-shadow:0 2px 4px #12382d08;line-height:1.55}
@@ -13200,7 +13214,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </style>
 <script>
 (function(){
-  let current='',refreshing=false,sessionEpoch=0,currentConversation=null,currentProfileName='',composeTextArea=null,inboxControls=null;const endpoint='https://superkids-pagos-api.superkids-babys.workers.dev/equipo/whatsapp';
+  let current='',refreshing=false,sessionEpoch=0,currentConversation=null,currentProfileName='',composeTextArea=null,inboxControls=null,inboxFilter='all';const endpoint='https://superkids-pagos-api.superkids-babys.workers.dev/equipo/whatsapp';
   const inboxMediaCache=new Map(); let inboxMessages=[],historyHasMore=false,historyCursor=null,loadingOlder=false;
   const UID_YOHANA_BANDEJA='F2SHGFQYSuMWlkbQKV8yrKAXgaH3',UID_BIBIANA_BANDEJA='MtQpryHLGYab5v3UjhRZw88CAD63',UID_ANGELA_BANDEJA='IEB65uKdgldevmgRuenCj7pPwc12';
   function renderInboxControls(){
@@ -13228,6 +13242,21 @@ document.addEventListener('DOMContentLoaded', function() {
   function internalNotice(text){const notice=document.getElementById('wa-inbox-internal-notice');if(!notice)return;notice.textContent='🔒 Aviso interno · '+String(text||'');notice.classList.toggle('is-visible',Boolean(text));}
   function customerCard(name,phone){const card=document.getElementById('wa-inbox-client-card');if(!card)return;card.replaceChildren();const safeName=String(name||'').trim(),safePhone=String(phone||'');if(!safePhone){card.classList.remove('is-visible');return;}const detail=element('div');if(safeName){detail.append(element('strong','Cliente WhatsApp: '+safeName),element('small','Teléfono: '+safePhone+' · Nombre compartido por la clienta en WhatsApp'));const use=element('button','Usar nombre');use.onclick=()=>{if(composeTextArea&&!composeTextArea.value.trim()){composeTextArea.value='Hola '+safeName+', ';composeTextArea.focus();}};card.append(detail,use);}else{detail.append(element('strong','Cliente WhatsApp: nombre pendiente'),element('small','Teléfono: '+safePhone+' · Meta compartirá su nombre cuando responda un nuevo mensaje.'));card.append(detail);}card.classList.add('is-visible');}
   function showConversationList(){current='';currentConversation=null;currentProfileName='';inboxMessages=[];historyHasMore=false;historyCursor=null;internalNotice('');customerCard('','');renderInboxControls();const root=document.getElementById('wa-inbox-root');root?.classList.remove('wa-chat-open');document.getElementById('wa-inbox-messages')?.replaceChildren();document.querySelectorAll('#wa-inbox-list button').forEach(b=>b.classList.remove('wa-selected'));status('Selecciona una conversación para abrir el chat.');}
+  function isAdvisorChat(conversation){return Number(conversation?.paused)===1||Boolean(String(conversation?.owner_name||'').trim());}
+  function renderInboxFilters(conversations){
+    const root=document.getElementById('wa-inbox-filters');if(!root)return;
+    const unread=conversations.filter(c=>Number(c.unread)===1).length;
+    const options=[['all','Todas'],['sofia','Sofía'],['advisor','Asesora'],['unread','No leídas']];root.replaceChildren();
+    for(const [value,label] of options){const button=element('button',label);button.classList.toggle('is-active',inboxFilter===value);if(value==='unread'&&unread){const count=element('span',String(unread));count.className='wa-filter-count';button.append(count);}button.onclick=()=>{inboxFilter=value;renderInboxFilters(conversations);renderConversationList(conversations);};root.append(button);}
+  }
+  function renderConversationList(conversations){
+    const list=document.getElementById('wa-inbox-list');if(!list)return;list.replaceChildren();
+    const visible=conversations.filter(c=>inboxFilter==='all'||(inboxFilter==='sofia'&&!isAdvisorChat(c))||(inboxFilter==='advisor'&&isAdvisorChat(c))||(inboxFilter==='unread'&&Number(c.unread)===1));
+    for(const c of visible){const advisor=isAdvisorChat(c),button=element('button');button.className=(current===c.id?'wa-selected ':'')+(advisor?'wa-chat-advisor':'wa-chat-sofia');const avatar=element('span','WA');avatar.className='wa-avatar';const name=element('strong',c.phone);if(Number(c.unread)===1){const dot=element('span');dot.className='wa-unread-dot';dot.title='Mensaje nuevo sin leer';dot.setAttribute('aria-label','Mensaje nuevo sin leer');name.append(dot);}const chip=element('span',advisor?'👩‍💼 Asesora: '+(c.owner_name||'Equipo'):'🤖 Sofía');chip.className='wa-owner-chip '+(advisor?'wa-owner-advisor':'wa-owner-sofia');button.append(avatar,name,element('br'),chip);
+      for(const [pending,label,color] of [[c.advisor_pending,'Solicita asesora','blue'],[c.receipt_pending,'Revisar comprobante','red']]){if(!pending)continue;const badge=element('span',label);badge.className='wa-alert wa-alert-'+color;const dot=element('span');dot.className='wa-alert-dot';dot.setAttribute('aria-hidden','true');badge.prepend(dot);button.append(element('br'),badge);}
+      button.onclick=()=>{document.querySelectorAll('#wa-inbox-list button').forEach(b=>b.classList.remove('wa-selected'));button.classList.add('wa-selected');openConversation(c.id).then(()=>refresh()).catch(e=>status(e.message));};list.append(button);}
+    if(!visible.length){const empty=element('p','No hay conversaciones en este filtro.');empty.style.cssText='padding:18px;color:#678075;text-align:center;font-size:12px';list.append(empty);}
+  }
   async function cargarFotoBandeja(mediaId,img){
     try{
       let dataUrl=inboxMediaCache.get(mediaId);
@@ -13292,12 +13321,8 @@ document.addEventListener('DOMContentLoaded', function() {
     renderMessages(box,older);
   }  async function refresh(){
     if(refreshing)return;refreshing=true;
-    try{const data=await api('list'),list=document.getElementById('wa-inbox-list');list.replaceChildren();
-      for(const c of data.conversations){const button=element('button');const avatar=element('span','WA');avatar.className='wa-avatar';button.append(avatar,element('strong',c.phone),element('br'),element('span',c.paused?'Atiende: '+(c.owner_name||'Equipo'):'🤖 Sofía · bot disponible'));button.className=current===c.id?'wa-selected':'';
-        for(const [pending,label,color] of [[c.advisor_pending,'Solicita asesora','blue'],[c.receipt_pending,'Revisar comprobante','red']]){
-          if(!pending)continue;const badge=element('span',label);badge.className='wa-alert wa-alert-'+color;
-          const dot=element('span');dot.className='wa-alert-dot';dot.setAttribute('aria-hidden','true');badge.prepend(dot);button.append(element('br'),badge);
-        }button.onclick=()=>{document.querySelectorAll('#wa-inbox-list button').forEach(b=>b.classList.remove('wa-selected'));button.classList.add('wa-selected');openConversation(c.id).catch(e=>status(e.message));};list.append(button);}
+    try{const data=await api('list');
+      renderInboxFilters(data.conversations||[]);renderConversationList(data.conversations||[]);
       if(!data.conversations.length)status('Sin conversaciones registradas. Se mostrarán mensajes nuevos tras activar la bandeja.');
       if(current)await openConversation(current);
       if(data.attentionUnavailable)status('No se pudieron consultar las solicitudes de asesora. Los chats siguen disponibles; vuelve a actualizar.');
@@ -13313,7 +13338,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const message=element('p');message.id='wa-inbox-status';message.setAttribute('role','status');root.append(message);
     const privateNotice=element('div');privateNotice.id='wa-inbox-internal-notice';privateNotice.className='wa-internal-notice';privateNotice.setAttribute('role','status');root.append(privateNotice);
     const clientCard=element('div');clientCard.id='wa-inbox-client-card';clientCard.className='wa-client-card';root.append(clientCard);
-    const sidebar=element('aside');sidebar.className='wa-sidebar';sidebar.append(Object.assign(element('div','Conversaciones'),{className:'wa-side-title'}));const list=element('div');list.id='wa-inbox-list';sidebar.append(list);root.append(sidebar);const compose=element('div');compose.className='wa-compose';const controls=element('div');controls.className='wa-controls';compose.append(controls);
+    const sidebar=element('aside');sidebar.className='wa-sidebar';sidebar.append(Object.assign(element('div','Conversaciones'),{className:'wa-side-title'}));const filters=element('div');filters.id='wa-inbox-filters';filters.className='wa-inbox-filters';sidebar.append(filters);const list=element('div');list.id='wa-inbox-list';sidebar.append(list);root.append(sidebar);const compose=element('div');compose.className='wa-compose';const controls=element('div');controls.className='wa-controls';compose.append(controls);
     inboxControls=controls;renderInboxControls();
     const history=element('div');history.id='wa-inbox-messages';const empty=element('div');empty.className='wa-empty';empty.append(element('span','💬'),element('strong','Cada conversación, a mano'),element('p','Selecciona un chat para ver los mensajes y sus pendientes.'),element('p','🔵 Solicita asesora · 🔴 Revisar comprobante'));history.append(empty);root.append(history);const note=element('p','Área privada · Toma el chat antes de responder o darle una orden a Sofía. La orden no se muestra al cliente: Sofía responde con su flujo normal.');note.className='wa-note';compose.append(note);const input=element('div');input.className='wa-input';compose.append(input);
     const text=element('textarea');composeTextArea=text;text.maxLength=3000;text.placeholder='Escribe una respuesta…';text.setAttribute('aria-label','Respuesta al cliente');input.append(text);
