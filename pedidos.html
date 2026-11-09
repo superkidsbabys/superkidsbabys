@@ -468,7 +468,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
     <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png?v=20260927-logo">
     <script src="./pwa.js?v=20261016-v138" defer></script>
-    <script src="./sofia-gestion-v43.js?v=90" defer></script>
+    <script src="./sofia-gestion-v43.js?v=207" defer></script>
 <script src="./gestion-cotizaciones-apartados-v104.js?v=133" defer></script>
     <title>SuperKids &amp; Babys - Panel de Gestión</title>
     <style id="dynamic-theme">:root { --color-banner: #f5d6ed; --color-texto-banner: #1c1717; --color-fondo: #fbeaf8; --color-tarjeta: #f9e2ed; --color-texto: #2a2222; --color-precio: #ff5cd6; --textura-banner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9z' fill='rgba(255,255,255,0.2)'/%3E%3C/svg%3E"); --textura-size: 20px 20px; --tamano-titulo: 32px; --tamano-descripcion: 14px; --tamano-logo: 130px; --color-btn-carrito: #35c700; --color-btn-carrito-texto: #ffffff; --color-etiqueta-desc: #e74c3c; --color-etiqueta-desc-texto: #ffffff; --opacidad-etiqueta-desc: 0.7; }</style>
@@ -13238,20 +13238,20 @@ document.addEventListener('DOMContentLoaded', function() {
 (function(){
   let current='',refreshing=false,sessionEpoch=0,currentConversation=null,currentProfileName='',composeTextArea=null,inboxControls=null,inboxFilter='all';const endpoint='https://superkids-pagos-api.superkids-babys.workers.dev/equipo/whatsapp';
   const inboxMediaCache=new Map(); let inboxMessages=[],historyHasMore=false,historyCursor=null,loadingOlder=false;
-  const UID_YOHANA_BANDEJA='F2SHGFQYSuMWlkbQKV8yrKAXgaH3',UID_BIBIANA_BANDEJA='MtQpryHLGYab5v3UjhRZw88CAD63',UID_ANGELA_BANDEJA='IEB65uKdgldevmgRuenCj7pPwc12';
+  const UID_YOHANA_BANDEJA='F2SHGFQYSuMWlkbQKV8yrKAXgaH3',UID_BIBIANA_BANDEJA='MtQpryHLGYab5v3UjhRZw88CAD63',UID_ANGELA_BANDEJA='IEB65uKdgldevmgRuenCj7pPwc12',UID_CAMILA_BANDEJA='yI067cx29zbmiBOd9wyKcwp0HpF2';
   function renderInboxControls(){
     if(!inboxControls)return;
     inboxControls.replaceChildren();
-    const uid=window.usuarioActual?.uid||'',puedeTomar=[UID_YOHANA_BANDEJA,UID_BIBIANA_BANDEJA,UID_ANGELA_BANDEJA].includes(uid),esAngela=uid===UID_ANGELA_BANDEJA;
+    const uid=window.usuarioActual?.uid||'',puedeTomar=[UID_YOHANA_BANDEJA,UID_BIBIANA_BANDEJA,UID_ANGELA_BANDEJA,UID_CAMILA_BANDEJA].includes(uid),esAsesora=[UID_ANGELA_BANDEJA,UID_CAMILA_BANDEJA].includes(uid);
     const chatAjenoActivo=Boolean(currentConversation?.paused&&currentConversation?.owner_uid&&currentConversation.owner_uid!==uid);
     for(const [label,name] of [['🙋 Tomar conversación','take'],['🤖 Devolver al bot','release'],['🔴 Revisar comprobante','marcar-comprobante'],['✓ Revisión terminada','comprobante-revisado']]){
-      if(name==='take'&&(!puedeTomar||(esAngela&&chatAjenoActivo)))continue;
+      if(name==='take'&&(!puedeTomar||(esAsesora&&chatAjenoActivo)))continue;
       const b=element('button',label);b.onclick=()=>action(name);inboxControls.append(b);
     }
   }
   async function api(action,extra={}){
     const actorUid=window.usuarioActual?.uid,epoch=sessionEpoch;
-    if(!['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63','IEB65uKdgldevmgRuenCj7pPwc12'].includes(actorUid))throw Error('Integrante no autorizada');
+    if(![UID_YOHANA_BANDEJA,UID_BIBIANA_BANDEJA,UID_ANGELA_BANDEJA,UID_CAMILA_BANDEJA].includes(actorUid))throw Error('Integrante no autorizada');
     const token=await window.obtenerTokenSesion?.();
     if(actorUid!==window.usuarioActual?.uid||epoch!==sessionEpoch)throw Error('La sesión cambió');if(!token){clearPrivate();throw Error('Inicia sesión con tu usuario del equipo.');}
     const response=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action,...extra}),cache:'no-store'});
@@ -13377,7 +13377,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const launcher=element('button','💬 WhatsApp del equipo');launcher.id='wa-inbox-launcher';launcher.style.cssText='position:fixed;left:16px;bottom:84px;z-index:9000;padding:12px;border-radius:12px;background:#128c7e;color:white;display:none';
     let lastUid='',requestedInbox=location.hash==='#whatsapp-equipo';
     function syncSession(){
-      const uid=window.usuarioActual?.uid||'',allowed=['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63','IEB65uKdgldevmgRuenCj7pPwc12'].includes(uid);
+      const uid=window.usuarioActual?.uid||'',allowed=[UID_YOHANA_BANDEJA,UID_BIBIANA_BANDEJA,UID_ANGELA_BANDEJA,UID_CAMILA_BANDEJA].includes(uid);
       if(uid!==lastUid||!allowed){if(uid!==lastUid)sessionEpoch++;root.style.display='none';history.replaceChildren();list.replaceChildren();current='';currentConversation=null;text.value='';commandText.value='';pending=null;confirmacionEnvioUid='';lastUid=uid;}
       renderInboxControls();
       launcher.style.setProperty('display',allowed?'block':'none','important');
