@@ -8,7 +8,7 @@
     window.location.hash='whatsapp-equipo';
   };
   const API='https://superkids-pagos-api.superkids-babys.workers.dev/sofia/equipo';
-  const ALLOWED=new Set(['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63','IEB65uKdgldevmgRuenCj7pPwc12']);
+  const ALLOWED=new Set(['F2SHGFQYSuMWlkbQKV8yrKAXgaH3','MtQpryHLGYab5v3UjhRZw88CAD63','IEB65uKdgldevmgRuenCj7pPwc12','yI067cx29zbmiBOd9wyKcwp0HpF2']);
   const DEVICE_KEY='superkids-sofia-device-v44';
   let deviceToken='',unsubscribe=null,sessionVersion=0,refreshVersion=0;
   try {deviceToken=localStorage.getItem(DEVICE_KEY)||'';}catch{}
