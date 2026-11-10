@@ -364,6 +364,26 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
     } catch(e) { console.warn("Firebase error:", e.message); throw e; }
   };
 
+  // V208: modificar solo la etiqueta con una lectura actual, sin reescribir stock.
+  window.fbPrepararRetiroColeccion = async function() {
+    if (window.usuarioActual?.uid !== 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3') throw new Error('Solo Yohana puede retirar estas etiquetas.');
+    const snapshot = await getDocs(collection(db, 'productos'));
+    return snapshot.docs.map(d => ({ id: d.id, etiqueta: String(d.data().etiquetaPersonalizada || '') }))
+      .filter(p => /nueva coleccion|nueva collection/.test(p.etiqueta.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()));
+  };
+  window.fbRetirarEtiquetaColeccion = async function(id, etiquetaEsperada) {
+    const { runTransaction } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    return runTransaction(db, async transaction => {
+      if (window.usuarioActual?.uid !== 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3') throw new Error('La sesión cambió. Entra como Yohana.');
+      const ref = doc(db, 'productos', id), actual = await transaction.get(ref);
+      if (!actual.exists() || actual.data().etiquetaPersonalizada !== etiquetaEsperada) return false;
+      if (!/nueva coleccion|nueva collection/.test(String(etiquetaEsperada).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase())) return false;
+      if (window.usuarioActual?.uid !== 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3') throw new Error('La sesión cambió.');
+      transaction.update(ref, { etiquetaPersonalizada: '', actualizadoEn: new Date().toISOString() });
+      return true;
+    });
+  };
+
   // Sincronizar TODOS los productos con Firebase
   window.fbSincronizarTodo = async function(productos) {
     console.log("Sincronizando " + productos.length + " productos con Firebase...");
@@ -1382,7 +1402,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 <button class="btn-tab" onclick="cambiarTab('reporte-ventas')">Reporte ventas</button>
                 <button class="btn-tab" onclick="window.fbLogout && window.fbLogout()" style="background-color: #e74c3c; color: white;">Cerrar sesión</button>
             </div>
-            <div id="control-nueva-coleccion-rapido" style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:10px 14px;margin:10px 0 14px;box-shadow:0 4px 12px rgba(154,52,18,0.08);">
+            <div id="control-nueva-coleccion-rapido" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:10px 14px;margin:10px 0 14px;box-shadow:0 4px 12px rgba(154,52,18,0.08);">
                 <div>
                     <strong style="display:block;color:#9a3412;font-size:0.9em;">Nueva Coleccion</strong>
                     <span id="estado-nueva-coleccion-rapido" style="display:block;color:#9a3412;font-size:0.78em;font-weight:700;">Carrito bloqueado: se ven, pero no se compran.</span>
@@ -1391,6 +1411,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     <input type="checkbox" id="edit-nueva-coleccion-carrito-rapido" onchange="actualizarNuevaColeccionCarrito(this)" style="width:18px;height:18px;accent-color:#f59e0b;">
                     Activar carrito
                 </label>
+                <button id="retirar-etiquetas-coleccion-v208" type="button" onclick="retirarEtiquetasNuevaColeccion()" style="display:none;padding:9px 12px;border:1px solid #b45309;border-radius:9px;background:white;color:#9a3412;font-weight:800;cursor:pointer;">Quitar etiqueta Nueva colección anterior</button>
             </div>
 
             <!-- TAB DISEÑO -->
@@ -3312,6 +3333,8 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
 
         function actualizarEstadoNuevaColeccionCarrito() {
             const activo = sincronizarControlesNuevaColeccion();
+            const retirar = document.getElementById('retirar-etiquetas-coleccion-v208');
+            if (retirar) retirar.style.display = window.usuarioActual?.uid === 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3' ? 'inline-block' : 'none';
             const mensaje = activo
                 ? 'Carrito activo: las prendas de Nueva Coleccion ya se pueden comprar.'
                 : 'Carrito bloqueado: las prendas se ven, pero el boton queda en Proximamente.';
@@ -3331,6 +3354,50 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             await persistirConfigTiendaSilencioso();
             renderizarCatalogo();
         }
+
+        let retirandoColeccionV208 = false;
+        function actualizarAccesoRetiroColeccionV208() {
+            const btn = document.getElementById('retirar-etiquetas-coleccion-v208');
+            if (btn) btn.style.display = window.usuarioActual?.uid === 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3' ? 'inline-block' : 'none';
+        }
+        window.addEventListener('superkids-session-change', actualizarAccesoRetiroColeccionV208);
+        actualizarAccesoRetiroColeccionV208();
+        window.retirarEtiquetasNuevaColeccion = async function() {
+            if (retirandoColeccionV208) return;
+            if (window.usuarioActual?.uid !== 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3') return alert('Solo Yohana puede retirar estas etiquetas.');
+            const btn = document.getElementById('retirar-etiquetas-coleccion-v208'), texto = btn?.textContent;
+            retirandoColeccionV208 = true;
+            if (btn) { btn.disabled = true; btn.textContent = 'Revisando etiquetas…'; }
+            const retiradas = [], errores = []; let omitidas = 0, aviso = '';
+            try {
+                const plan = await window.fbPrepararRetiroColeccion();
+                if (!plan.length) return alert('No hay prendas con la etiqueta Nueva colección.');
+                if (!confirm('Se quitará la etiqueta Nueva colección de ' + plan.length + ' prendas de toda la tienda (niña, niño y demás categorías). Hazlo ANTES de subir la colección siguiente. Las prendas seguirán disponibles con sus mismos precios, tallas y stock. ¿Continuar?')) return;
+                for (const p of plan) {
+                    if (window.usuarioActual?.uid !== 'F2SHGFQYSuMWlkbQKV8yrKAXgaH3') { aviso = 'Se detuvo porque cambió la sesión.'; break; }
+                    try {
+                        if (await window.fbRetirarEtiquetaColeccion(p.id, p.etiqueta)) {
+                            retiradas.push(p);
+                            const local = productosDB.find(x => (x._firebaseId || x.id) === p.id);
+                            if (local && local.etiquetaPersonalizada === p.etiqueta) local.etiquetaPersonalizada = '';
+                        } else omitidas++;
+                    } catch (e) { errores.push(p.id); console.warn('Retirar etiqueta', p.id, e.message); }
+                    if (btn) btn.textContent = 'Procesadas ' + (retiradas.length + omitidas + errores.length) + ' / ' + plan.length;
+                }
+                if (retiradas.length) {
+                    try { localStorage.setItem('productosV36', JSON.stringify(productosDB)); } catch {}
+                    marcarCambio(); renderizarFiltroTallas(); renderizarCatalogo();
+                    try {
+                        if (window.registrarActividadEquipo) await window.registrarActividadEquipo('retirar_etiqueta_coleccion', 'catalogo', 'nueva-coleccion', { cantidad: retiradas.length, referencias: retiradas.slice(0, 50).map(p => p.id), fallos: errores.length });
+                    } catch { aviso += ' No se pudo registrar la actividad.'; }
+                    try {
+                        if (!window.sincronizarCatalogoPublico || await window.sincronizarCatalogoPublico() === null) aviso += ' Falta reconstruir el catálogo público.';
+                    } catch { aviso += ' Falta reconstruir el catálogo público.'; }
+                }
+                alert('Etiquetas retiradas: ' + retiradas.length + '.\n' + (omitidas ? 'Omitidas por cambios recientes: ' + omitidas + '.\n' : '') + (errores.length ? 'No se pudieron guardar ' + errores.length + ' prendas; puedes reintentar.\n' : '') + aviso + '\nAntes de subir la siguiente colección, comprueba el resultado.');
+            } catch (e) { alert('No se pudo completar: ' + (e.message || e)); }
+            finally { retirandoColeccionV208 = false; if (btn) { btn.disabled = false; btn.textContent = texto; } }
+        };
 
         async function guardarDatosTienda() {
             if (window.datosQuemados) return alert("Estás en la versión pública.");
