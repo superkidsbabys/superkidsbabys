@@ -2613,7 +2613,7 @@
     <loc>https://superkidsbabys.com/producto/cobija-de-apego-rosado-rayas-fucsias/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/9789142d-1426-4dcb-b015-3d94bcf46db4/full.jpg</image:loc></image:image>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/091058bc-b360-4b09-a4b2-d54b74abfa5d/full.jpg</image:loc></image:image>
     <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/46c63fcf-b13b-4cf1-b897-446bfc2300be/full.jpg</image:loc></image:image>
   </url>
   <url>
@@ -2642,14 +2642,13 @@
     <loc>https://superkidsbabys.com/producto/cobija-apego-blanco-verde/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/1ccbc15b-e004-4f12-81ab-d81bca9b6a63/full.jpg</image:loc></image:image>
-    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/812e8533-ce73-4fbe-93a2-091c5d5321d7/full.jpg</image:loc></image:image>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/39a435e4-adbd-4f02-bfef-476b447c9043/full.jpg</image:loc></image:image>
   </url>
   <url>
     <loc>https://superkidsbabys.com/producto/cobija-apego-azul-claro-estrellas/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/612c5d1a-727e-4886-9a97-6629fa5a5283/full.jpg</image:loc></image:image>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/eaa93bd1-d294-4a22-a68b-9def4dae1e5e/full.jpg</image:loc></image:image>
     <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/07150f66-a758-4de1-806a-82f8b6004767/full.jpg</image:loc></image:image>
   </url>
   <url>
@@ -2663,7 +2662,7 @@
     <loc>https://superkidsbabys.com/producto/cobija-azul-cielo-osito-azul-rayas/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/21b8a5a3-3d41-44e4-88b2-3935f24ea030/full.jpg</image:loc></image:image>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/bc5de70a-024c-4a2c-889e-792633abc3ae/full.jpg</image:loc></image:image>
     <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/976bfd6e-cc95-49d4-949a-330bdddc348c/full.jpg</image:loc></image:image>
   </url>
   <url>
@@ -4457,6 +4456,31 @@
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/333f7799-c46d-4efc-8ea6-167f605b92c3/full.jpg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://superkidsbabys.com/producto/vestido-floreado-vinotinto/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/017e83bb-1e3d-476d-b16c-3b63fdffbc75/full.jpg</image:loc></image:image>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/db8b5253-86b4-4b45-9c2a-0d6ff1b113dd/full.jpg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://superkidsbabys.com/producto/vestido-amarillo-negro-abejita/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/cab9f050-4f86-4411-bfe4-75b11ba83450/full.jpg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://superkidsbabys.com/producto/muselina-set-x-4/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/e263db2a-f2bb-4107-a3de-68add251cd45/full.jpg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://superkidsbabys.com/producto/muselinas-set-x-3/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/92ca07f4-16a2-44dc-b309-4dfbc2897883/full.jpg</image:loc></image:image>
   </url>
   <url>
     <loc>https://superkidsbabys.com/categoria/mamelucos-enterizos-25-000/</loc>
