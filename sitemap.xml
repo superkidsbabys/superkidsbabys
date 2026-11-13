@@ -4483,6 +4483,12 @@
     <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/92ca07f4-16a2-44dc-b309-4dfbc2897883/full.jpg</image:loc></image:image>
   </url>
   <url>
+    <loc>https://superkidsbabys.com/producto/chaqueta-rosada-alcolchda/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/c7573171-427f-4ee2-b84d-b8c6c9be5410/full.jpg</image:loc></image:image>
+  </url>
+  <url>
     <loc>https://superkidsbabys.com/categoria/mamelucos-enterizos-25-000/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
