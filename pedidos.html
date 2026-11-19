@@ -6293,9 +6293,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             return !!(window.usuarioActual && window.usuarioActual.uid === UID_YOHANA);
         }
 
+        function puedeConsultarReporteConteos() {
+            return !!(window.usuarioActual && [UID_YOHANA, UID_CAMILA].includes(window.usuarioActual.uid));
+        }
+
         window.actualizarAccesoReporteConteo = function() {
             const boton = document.getElementById('btn-reporte-conteo-rapido');
-            if (boton) boton.style.display = esYohanaParaReporteConteo() ? 'inline-block' : 'none';
+            if (boton) boton.style.display = puedeConsultarReporteConteos() ? 'inline-block' : 'none';
             const botonRespaldoPedidos = document.getElementById('btn-respaldo-pedidos-excel');
             if (botonRespaldoPedidos) botonRespaldoPedidos.style.display = esYohanaParaReporteConteo() ? 'inline-block' : 'none';
         };
@@ -6432,13 +6436,16 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         window.exportarReporteConteoRapido = async function() {
-            if (!esYohanaParaReporteConteo()) return alert('Este reporte es exclusivo de Yohana.');
+            if (!puedeConsultarReporteConteos()) return alert('Este reporte está disponible para Yohana y Camila.');
+            const uidReporte = window.usuarioActual.uid;
+            const nombreReporte = window.usuarioActual.nombre || (uidReporte === UID_CAMILA ? 'Camila' : 'Yohana');
             const ventana = window.open('', '_blank', 'width=1100,height=760');
             if (!ventana) return alert('Permite las ventanas emergentes para abrir el reporte.');
             ventana.document.write('<p style="font-family:Arial;padding:24px">Cargando reporte de conteos…</p>');
             try {
                 const { collection, getDocs, query, orderBy } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const snap = await getDocs(query(collection(db, 'conteos_rapidos'), orderBy('fecha', 'desc')));
+                if (!puedeConsultarReporteConteos() || window.usuarioActual.uid !== uidReporte) throw new Error('La sesión cambió. Abre nuevamente el reporte.');
                 const esc = function(v) { const d = document.createElement('div'); d.textContent = String(v == null ? '' : v); return d.innerHTML; };
                 const filas = snap.docs.map(function(docu) {
                     const r = docu.data();
@@ -6450,7 +6457,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                     return '<tr><td>' + esc(fecha) + '</td><td><b>' + esc(r.codigo || 'S/N') + '</b><br><span>' + esc(r.nombre || '') + '</span></td><td><span class="estado ' + (r.estado === 'modificado' ? 'mod' : 'igual') + '">' + (r.estado === 'modificado' ? 'Modificado' : 'Sin cambios') + '</span></td><td><ul>' + detalle + '</ul>' + extras + '</td><td>' + esc(r.usuario || '') + '</td></tr>';
                 }).join('') || '<tr><td colspan="5" style="text-align:center;padding:28px">Aún no hay revisiones registradas desde Conteo rápido.</td></tr>';
                 ventana.document.open();
-                ventana.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Reporte de conteos rápidos</title><style>body{font-family:Arial,sans-serif;color:#25324a;margin:28px}h1{color:#168d55;margin-bottom:4px}.sub{color:#667085;margin-bottom:22px}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#168d55;color:#fff;text-align:left;padding:10px}td{border:1px solid #dbe7df;padding:9px;vertical-align:top}tr:nth-child(even){background:#f7fcf8}ul{margin:0;padding-left:18px}.estado{display:inline-block;padding:4px 8px;border-radius:12px;font-weight:bold}.mod{background:#fff1d6;color:#9a5d00}.igual{background:#e1f5e8;color:#16703e}@media print{body{margin:12px}.no-print{display:none}}</style></head><body><button class="no-print" onclick="window.print()" style="float:right;padding:9px 13px;border:0;border-radius:7px;background:#168d55;color:white;font-weight:bold;cursor:pointer">Imprimir / Guardar PDF</button><h1>Reporte de conteos rápidos</h1><div class="sub">Revisiones por código · Generado por Yohana el ' + esc(new Date().toLocaleString('es-CO')) + '</div><table><thead><tr><th>Fecha</th><th>Código / prenda</th><th>Resultado</th><th>Detalle de tallas</th><th>Revisado por</th></tr></thead><tbody>' + filas + '</tbody></table></body></html>');
+                ventana.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Reporte de conteos rápidos</title><style>body{font-family:Arial,sans-serif;color:#25324a;margin:28px}h1{color:#168d55;margin-bottom:4px}.sub{color:#667085;margin-bottom:22px}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#168d55;color:#fff;text-align:left;padding:10px}td{border:1px solid #dbe7df;padding:9px;vertical-align:top}tr:nth-child(even){background:#f7fcf8}ul{margin:0;padding-left:18px}.estado{display:inline-block;padding:4px 8px;border-radius:12px;font-weight:bold}.mod{background:#fff1d6;color:#9a5d00}.igual{background:#e1f5e8;color:#16703e}@media print{body{margin:12px}.no-print{display:none}}</style></head><body><button class="no-print" onclick="window.print()" style="float:right;padding:9px 13px;border:0;border-radius:7px;background:#168d55;color:white;font-weight:bold;cursor:pointer">Imprimir / Guardar PDF</button><h1>Reporte de conteos rápidos</h1><div class="sub">Revisiones por código · Generado por ' + esc(nombreReporte) + ' el ' + esc(new Date().toLocaleString('es-CO')) + '</div><table><thead><tr><th>Fecha</th><th>Código / prenda</th><th>Resultado</th><th>Detalle de tallas</th><th>Revisado por</th></tr></thead><tbody>' + filas + '</tbody></table></body></html>');
                 ventana.document.close();
             } catch(e) {
                 ventana.close();
