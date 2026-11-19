@@ -6468,12 +6468,20 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         // Conteo físico: busca una referencia y abre su editor de tallas sin
         // obligar a Ángela a navegar por el catálogo ni crearla de nuevo.
         function usuarioPuedeConsultarConteoRapido() {
-            return usuarioPuedeEditarStockRestringido() || !!(window.usuarioActual && window.usuarioActual.uid === UID_ANGELA);
+            return usuarioPuedeRealizarConteoRapido();
+        }
+
+        function usuarioPuedeRealizarConteoRapido() {
+            return usuarioPuedeEditarStockRestringido() || window.usuarioActual?.uid === UID_CAMILA;
+        }
+
+        function usuarioPuedeGuardarStockDesdeConteo() {
+            return usuarioPuedeEditarStockRestringido() || (window.usuarioActual?.uid === UID_CAMILA && window._conteoRapidoActivo === true);
         }
 
         window.abrirConteoRapido = async function() {
             if (!usuarioPuedeConsultarConteoRapido()) return alert('No tienes permiso para consultar este inventario.');
-            const soloLectura = !!(window.usuarioActual && window.usuarioActual.uid === UID_ANGELA);
+            const soloLectura = !usuarioPuedeRealizarConteoRapido();
             let modal = document.getElementById('modal-conteo-rapido');
             if (!modal) {
                 modal = document.createElement('div'); modal.id = 'modal-conteo-rapido';
@@ -6512,7 +6520,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 clearTimeout(window._scannerConteoTimer);
                 buscarConteoRapido();
                 const salida = document.getElementById('conteo-rapido-resultado');
-                if (salida && salida.dataset.id && usuarioPuedeEditarStockRestringido()) editarConteoRapido();
+                if (salida && salida.dataset.id && usuarioPuedeRealizarConteoRapido()) editarConteoRapido();
                 return;
             }
             if (event.key && event.key.length === 1) {
@@ -6540,7 +6548,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 if (estado) estado.textContent = salida && salida.dataset.id ? '✓ Referencia leída' : '● Lector listo';
                 // Algunos lectores no envían Enter. Si el código llegó con la
                 // velocidad de un escáner y existe, abrirlo automáticamente.
-                if (pareceScanner && caja.value === valorLeido && salida && salida.dataset.id && usuarioPuedeEditarStockRestringido()) editarConteoRapido();
+                if (pareceScanner && caja.value === valorLeido && salida && salida.dataset.id && usuarioPuedeRealizarConteoRapido()) editarConteoRapido();
             }, 180);
         };
         if (!window._capturaScannerConteoInstalada) {
@@ -6570,7 +6578,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             if(!p){salida.innerHTML='<b style="color:#b54708">No encontramos esa referencia.</b><br><span style="font-size:.82em">Revisa el código e inténtalo de nuevo.</span>';return;}
             const foto=(p.imagenes||[])[0]||'';
             const tallas=(p.tallasObj||[]).map(t=>'<span style="display:inline-block;margin:3px;padding:4px 8px;border-radius:14px;background:#f0fdf4;border:1px solid #86efac;color:#166534;font-weight:800;font-size:.8em">'+t.nombre+' · '+(Number(t.stock)||0)+'</span>').join('');
-            const accion = usuarioPuedeEditarStockRestringido()
+            const accion = usuarioPuedeRealizarConteoRapido()
                 ? '<button onclick="editarConteoRapido()" style="width:100%;margin-top:12px;padding:11px;border:0;border-radius:9px;background:#168d55;color:#fff;font-weight:900;cursor:pointer">✏️ Contar y ajustar tallas</button>'
                 : '<div style="margin-top:12px;padding:9px;border-radius:9px;background:#eff6ff;color:#1d4ed8;font-size:.82em;font-weight:900">👁️ Solo consulta · No puedes cambiar estas cantidades</div>';
             salida.innerHTML='<div style="display:flex;gap:12px;align-items:center;text-align:left"><img src="'+foto+'" onerror="this.style.display=\'none\'" style="width:76px;height:76px;object-fit:cover;border-radius:10px;background:#f4f4f4"><div style="min-width:0"><b style="color:#25324a">'+(p.nombre||'Sin nombre')+'</b><div style="font-size:.82em;color:#667085;margin:3px 0">Ref. '+(p.codigo||'')+'</div><div>'+tallas+'</div></div></div>'+accion;
@@ -6578,13 +6586,13 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             salida.dataset.id=p.id;
         };
         window.editarConteoRapido = function(){
-            if (!usuarioPuedeEditarStockRestringido()) return alert('Tu acceso es solo de consulta. No puedes modificar las cantidades.');
+            if (!usuarioPuedeRealizarConteoRapido()) return alert('No tienes permiso para registrar cantidades.');
             const salida=document.getElementById('conteo-rapido-resultado'); const id=salida&&salida.dataset.id;
             if(!id)return; window._conteoRapidoActivo=true; cerrarConteoRapido(); abrirEditarStockÁngela(id);
         };
 
         function abrirEditarStockÁngela(idProducto) {
-            if (!usuarioPuedeEditarStockRestringido()) return alert('No tienes permiso para editar el stock.');
+            if (!usuarioPuedeGuardarStockDesdeConteo()) return alert('No tienes permiso para editar el stock.');
             const producto = (productosDB || []).find(p => p.id === idProducto);
             if (!producto) return alert('No se encontró la prenda.');
             let modal = document.getElementById('modal-editar-stock-anterior');
@@ -6609,6 +6617,9 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
             document.getElementById('edit-stock-anterior-codigo-orianteriorl').value = producto.codigo || '';
             document.getElementById('edit-stock-anterior-codigo').value = producto.codigo || '';
             document.getElementById('edit-stock-anterior-nombre').value = producto.nombre || '';
+            const esConteoCamila = window.usuarioActual?.uid === UID_CAMILA;
+            document.getElementById('edit-stock-anterior-codigo').readOnly = esConteoCamila;
+            document.getElementById('edit-stock-anterior-nombre').readOnly = esConteoCamila;
             const foto = document.getElementById('edit-stock-anterior-foto');
             if (foto) { foto.src = (producto.imagenes || [])[0] || ''; foto.style.display = foto.src ? 'block' : 'none'; }
             const cont = document.getElementById('edit-stock-anterior-tallas');
@@ -6644,11 +6655,14 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
         }
 
         async function guardarEdicionStockÁngela() {
-            if (!usuarioPuedeEditarStockRestringido()) return alert('No tienes permiso para guardar estos cambios.');
+            if (!usuarioPuedeGuardarStockDesdeConteo()) return alert('No tienes permiso para guardar estos cambios.');
             const id = document.getElementById('edit-stock-anterior-id').value;
+            const originalConteo = productosDB.find(p => p.id === id);
+            const esConteoCamila = window.usuarioActual?.uid === UID_CAMILA;
+            if (esConteoCamila && !originalConteo) return alert('No se encontró la prenda.');
             const codigoOrianteriorl = document.getElementById('edit-stock-anterior-codigo-orianteriorl').value.trim();
-            const codigo = document.getElementById('edit-stock-anterior-codigo').value.trim();
-            const nombre = document.getElementById('edit-stock-anterior-nombre').value.trim();
+            const codigo = esConteoCamila ? originalConteo.codigo : document.getElementById('edit-stock-anterior-codigo').value.trim();
+            const nombre = esConteoCamila ? originalConteo.nombre : document.getElementById('edit-stock-anterior-nombre').value.trim();
             const msg = document.getElementById('edit-stock-anterior-msg');
             if (!codigo || !nombre) { msg.style.display='block'; msg.style.color='#e74c3c'; msg.textContent='Completa código y nombre.'; return; }
             if (referenciaProductoExiste(codigo, id)) { msg.style.display='block'; msg.style.color='#e74c3c'; msg.textContent='Ese código ya pertenece a otra prenda publicada.'; return; }
@@ -6679,7 +6693,7 @@ try { if (localStorage.getItem('htmlVersion') !== '20260623') { localStorage.rem
                 btn.disabled = true; msg.style.display='block'; msg.style.color='#56836a'; msg.textContent='Guardando en catálogo...';
                 const { doc, setDoc, collection, getDocs, query, where, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 await setDoc(doc(db, 'productos', actualizado.id), actualizado, { merge: true });
-                if (codigoOrianteriorl) {
+                if (codigoOrianteriorl && !esConteoCamila) {
                     const snap = await getDocs(query(collection(db, 'inventario_mercancia'), where('ref', '==', codigoOrianteriorl)));
                     await Promise.all(snap.docs.map(d => updateDoc(doc(db, 'inventario_mercancia', d.id), { ref: codigo, desc: nombre })));
                 }
