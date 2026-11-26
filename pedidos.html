@@ -13529,6 +13529,126 @@ document.addEventListener('DOMContentLoaded', function() {
 })();
 </script>
 <script src="./navidad-v212.js?v=212-3d" defer></script>
+<script id="precios-categoria-v217">
+(function(){
+  'use strict';
+  const ADMIN='F2SHGFQYSuMWlkbQKV8yrKAXgaH3', API='https://superkids-pagos-api.superkids-babys.workers.dev';
+  function aumentar(p) {
+    const suma=n=>{n=Number(n);if(!Number.isSafeInteger(n)||n<=0||!Number.isSafeInteger(n+2000))throw Error('Hay una prenda sin precio válido. Revisa sus precios antes de continuar.');return n+2000;};
+    const cambios={precio:suma(p.precio)};
+    if(Array.isArray(p.tallasObj))cambios.tallasObj=p.tallasObj.map(t=>Number(t.precio)>0?{...t,precio:suma(t.precio)}:{...t});
+    if(p.ventaSeparada&&Array.isArray(p.opcionesVenta))cambios.opcionesVenta=p.opcionesVenta.map(o=>({...o,precio:suma(o.precio)}));
+    return cambios;
+  }
+  function firma(p){return JSON.stringify([p.precio,(p.tallasObj||[]).filter(t=>Number(t.precio)>0).map(t=>[t.nombre,t.precio]),p.ventaSeparada?(p.opcionesVenta||[]).map(o=>[o.nombre,o.precio]):[]]);}
+  function coincide(p,grupo,categoria){const sub=p.subcategoria||p.subCategoria||p.sub_cat||p.subcat||p.categoria||'Otros';return (grupo==='Todos'||p.genero===grupo)&&[p.categoria,sub].some(c=>String(c||'').trim()===categoria);}
+  if(typeof module!=='undefined'&&module.exports){module.exports={aumentar,firma,coincide,ejecutar};return;}
+  const money=n=>'$'+Number(n).toLocaleString('es-CO');
+  const esAdmin=()=>window.usuarioActual?.uid===ADMIN;
+  function el(tag,text){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;}
+  async function publicar(token){
+    const r=await fetch(API+'/catalogo-publico',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}'});
+    const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'El catálogo público no confirmó la actualización.');
+  }
+  async function ejecutar(db,sdk,plan,operacion){
+    const marker=sdk.doc(db,'config_tienda','ajuste_precios_'+operacion);
+    return sdk.runTransaction(db,async tx=>{
+      const previo=await tx.get(marker);if(previo.exists())return previo.data();
+      const docs=[];
+      for(const item of plan){
+        const ref=sdk.doc(db,'productos',item.docId),snap=await tx.get(ref);
+        if(!snap.exists())throw Error('Una prenda ya no existe. Cierra y vuelve a revisar la categoría.');
+        const p=snap.data();
+        if(!coincide(p,item.grupo,item.categoria)||firma(p)!==item.firma)throw Error('Una prenda cambió de categoría o precio. Cierra y revisa nuevamente antes de aplicar.');
+        docs.push({ref,p,cambios:aumentar(p)});
+      }
+      const resumen={operacion,categoria:plan[0].categoria,grupo:plan[0].grupo,cantidad:docs.length,incremento:2000,fecha:new Date().toISOString(),uid:ADMIN,
+        precios:docs.map((d,i)=>({id:plan[i].docId,antes:d.p.precio,despues:d.cambios.precio}))};
+      for(const d of docs)tx.update(d.ref,{...d.cambios,actualizadoEn:resumen.fecha});
+      tx.set(marker,resumen);
+      return resumen;
+    });
+  }
+  let abierto=false;
+  async function abrir(){
+    if(!esAdmin()||abierto)return;abierto=true;
+    const overlay=el('div');overlay.style.cssText='position:fixed;inset:0;background:#241526bb;z-index:2147483100;display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box';
+    const box=el('section');box.setAttribute('role','dialog');box.setAttribute('aria-label','Aumentar precios por categoría');box.style.cssText='background:white;color:#342435;padding:22px;border-radius:22px;max-width:620px;width:100%;max-height:90dvh;overflow:auto;font:15px Nunito,Segoe UI,sans-serif';overlay.append(box);document.body.append(overlay);
+    const title=el('h2','Sumar $2.000 por categoría'),status=el('p','Consultando las prendas actuales…'),controls=el('div'),list=el('div');
+    const cerrar=el('button','Cerrar');cerrar.type='button';let busy=false,committed=false,plan=[],operation=crypto.randomUUID();
+    cerrar.onclick=()=>{if(busy)return;overlay.remove();abierto=false;};
+    box.append(title,el('p','Elige un grupo y una categoría. Revisa los nuevos precios antes de confirmar.'),status,controls,list,cerrar);
+    const aplicar=el('button','Confirmar aumento de $2.000'),retry=el('button','Publicar los precios guardados');
+    aplicar.type=retry.type='button';aplicar.style.cssText=retry.style.cssText='display:block;margin:16px 0;padding:13px 18px;background:#b52e76;color:white;border:0;border-radius:14px;font:inherit;font-weight:800';
+    try{
+      const sdk=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const authSDK=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+      const auth=authSDK.getAuth(),db=window.db;
+      if(!db||auth.currentUser?.uid!==ADMIN)throw Error('Inicia sesión como Yohana.');
+      const snap=await sdk.getDocsFromServer(sdk.collection(db,'productos'));
+      const productos=snap.docs.map(d=>({...d.data(),docId:d.id}));
+      const group=el('select'),cat=el('select');group.setAttribute('aria-label','Grupo de prendas');cat.setAttribute('aria-label','Categoría');
+      ['Niñas','Niños','Junior Niñas','Junior Niños','Accesorios','Unisex','Todos'].forEach(g=>{const o=el('option',g==='Todos'?'Todos los grupos':g);o.value=g;group.append(o);});
+      if(typeof generoActual!=='undefined'&&[...group.options].some(o=>o.value===generoActual))group.value=generoActual;
+      for(const s of [group,cat])s.style.cssText='display:block;width:100%;padding:12px;margin:8px 0;border:1px solid #d6b0ca;border-radius:12px;background:white;font:inherit';
+      controls.append(el('label','Grupo'),group,el('label','Categoría'),cat);
+      function categorias(){
+        const names=new Set();productos.filter(p=>group.value==='Todos'||p.genero===group.value).forEach(p=>{[p.categoria,p.subcategoria||p.subCategoria||p.sub_cat||p.subcat].forEach(c=>{if(String(c||'').trim())names.add(String(c).trim());});});
+        cat.replaceChildren();const elegir=el('option','Selecciona una categoría');elegir.value='';cat.append(elegir);[...names].sort((a,b)=>a.localeCompare(b,'es')).forEach(c=>{const o=el('option',c);o.value=c;cat.append(o);});preview();
+      }
+      function preview(){
+        list.replaceChildren();plan=[];
+        try{
+          const selected=productos.filter(p=>coincide(p,group.value,cat.value));
+          status.textContent=selected.length+(selected.length===1?' prenda. ':' prendas. ')+'Los nuevos precios se publican para todas las asesoras y clientas. Incluye precios especiales por talla u opción; los precios tachados y los pedidos existentes se conservan.';
+          const table=el('table');table.style.cssText='width:100%;font-size:13px;border-collapse:collapse';
+          table.append(el('caption','Referencia · Prenda · Precio actual → Nuevo precio'));
+          for(const p of selected){
+            const next=aumentar(p),row=el('tr');row.append(el('td',String(p.codigo||p.docId)+' · '+String(p.nombre||'')),el('td',money(p.precio)+' → '+money(next.precio)));table.append(row);
+            plan.push({docId:p.docId,grupo:group.value,categoria:cat.value,firma:firma(p)});
+          }
+          list.append(table);
+          if(plan.length>400)throw Error('Esta selección supera 400 prendas. Selecciona un grupo más específico.');
+          aplicar.disabled=!plan.length;
+        }catch(e){plan=[];aplicar.disabled=true;status.textContent=e.message;}
+      }
+      group.onchange=categorias;cat.onchange=preview;categorias();box.insertBefore(aplicar,cerrar);
+      async function publicarAhora(){
+        busy=true;cerrar.disabled=retry.disabled=true;
+        try{
+          await publicar(await auth.currentUser.getIdToken());
+          status.textContent='✅ Precios guardados y publicados para todas las asesoras y clientas. Recarga el catálogo para verlos. No vuelvas a aplicar este mismo aumento.';
+          retry.remove();
+        }catch(e){status.textContent='Los precios ya quedaron guardados. Falta publicarlos: '+e.message;box.insertBefore(retry,cerrar);}
+        finally{busy=false;cerrar.disabled=retry.disabled=false;}
+      }
+      retry.onclick=publicarAhora;
+      aplicar.onclick=async()=>{
+        if(busy||committed||!esAdmin()||!plan.length)return;
+        if(!confirm('Sumar $2.000 a '+plan.length+' prendas de '+cat.value+' ('+group.options[group.selectedIndex].text+'). ¿Aplicar estos precios de venta?'))return;
+        busy=true;aplicar.disabled=cerrar.disabled=group.disabled=cat.disabled=true;status.textContent='Guardando los nuevos precios…';
+        try{
+          await ejecutar(db,sdk,plan,operation);committed=true;aplicar.remove();busy=false;
+          await publicarAhora();
+        }catch(e){
+          status.textContent='No se confirmó el ajuste: '+e.message+'. Puedes reintentar en esta ventana; el mismo ajuste no se aplica dos veces.';
+          aplicar.disabled=false;
+        }finally{busy=false;cerrar.disabled=false;}
+      };
+    }catch(e){status.textContent=e.message;}
+  }
+  function montar(){
+    const host=document.getElementById('lista-categorias-admin');if(!host)return;
+    const existing=document.getElementById('btn-precios-categoria-v217');
+    if(!esAdmin()){existing?.remove();return;}
+    if(existing)return;
+    const b=el('button','💲 +$2.000 por categoría');b.id='btn-precios-categoria-v217';b.type='button';b.style.cssText='padding:12px 18px;border:0;border-radius:14px;background:#b52e76;color:white;font:inherit;font-weight:800;cursor:pointer;margin:8px 0;width:100%';b.onclick=abrir;host.prepend(b);
+  }
+  new MutationObserver(montar).observe(document.body,{childList:true,subtree:true});
+  montar();window.addEventListener('superkids-session-change',montar);
+})();
+
+</script>
 </body></html>
 
 
