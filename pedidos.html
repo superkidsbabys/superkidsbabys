@@ -13528,7 +13528,7 @@ document.addEventListener('DOMContentLoaded', function() {
   addShortcuts();setInterval(addShortcuts,1000);window.addEventListener('superkids-session-change',addShortcuts);window.addEventListener('focus',addShortcuts);
 })();
 </script>
-<script src="./navidad-v212.js?v=212-3d" defer></script>
+
 <script id="precios-categoria-v217">
 (function(){
   'use strict';
@@ -13646,6 +13646,61 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   new MutationObserver(montar).observe(document.body,{childList:true,subtree:true});
   montar();window.addEventListener('superkids-session-change',montar);
+})();
+
+</script>
+<script id="navidad-nieve-v218">
+(function(){
+  'use strict';
+  if(window.superkidsNieveV218)return;
+  window.superkidsNieveV218=true;
+  const css=document.createElement('style');css.id='sk-nieve-estilo-v218';
+  css.textContent=`
+    body.sk-nieve-v218{position:relative;isolation:isolate;background-color:#fffaf2!important;background-image:none!important}
+    .sk-nieve-v218 .sk-logo-navidad{display:none!important}
+    #sk-nieve-fondo-v218{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;user-select:none;display:none}
+    .sk-nieve-v218 #sk-nieve-fondo-v218{display:block}
+    #sk-nieve-fondo-v218 i{position:absolute;top:-12vh;left:var(--x);width:var(--size);height:var(--size);border-radius:50%;background:#fff;box-shadow:0 0 4px 1px #bdd4e185;opacity:var(--alpha);animation:sk-nieve-caer-v218 var(--dur) linear var(--delay) infinite;will-change:transform}
+    @keyframes sk-nieve-caer-v218{from{transform:translate3d(0,0,0)}to{transform:translate3d(var(--drift),124vh,0)}}
+    .sk-nieve-v218 #contenedor-productos .producto{border:1.4px solid var(--sk-color)!important;background:#fff!important;box-shadow:0 5px 18px #976e4c14}
+    .sk-nieve-v218 #contenedor-productos .producto .btn-agregar:not(:disabled){background:var(--sk-color)!important;color:white!important}
+    .sk-nieve-v218 .selector-genero .btn-genero.activo{background:var(--sk-light)!important;color:#26313d!important}
+    .sk-nieve-v218 #btn-flotante-carrito{border-color:var(--sk-color)!important;color:var(--sk-dark)!important;background:white!important}
+    #sk-navidad-heading-v211{display:none;text-align:center;margin:22px auto 12px;padding:0 26px;color:var(--sk-color);font-family:Georgia,serif;font-size:clamp(22px,3vw,36px);font-style:italic;line-height:1.35}
+    .sk-nieve-v218 #sk-navidad-heading-v211{display:block}
+    #sk-navidad-heading-v211::after{content:'✧  ♥  ✧';display:block;font:18px Georgia,serif;color:var(--sk-color);margin-top:7px}
+    @media(max-width:700px){#sk-nieve-fondo-v218 i:nth-child(n+15){display:none}#sk-navidad-heading-v211{margin:14px auto 10px;font-size:22px}}
+    @media(prefers-reduced-motion:reduce){#sk-nieve-fondo-v218{display:none!important}}
+    @media print{#sk-nieve-fondo-v218,#sk-navidad-heading-v211{display:none!important}}
+  `;
+  document.head.append(css);
+  function init(){
+    const fondo=document.createElement('div');fondo.id='sk-nieve-fondo-v218';fondo.setAttribute('aria-hidden','true');
+    for(let n=0;n<28;n++){
+      const snow=document.createElement('i');
+      snow.style.cssText=`--x:${(n*37+9)%100}%;--size:${3+n%5}px;--alpha:${.3+(n%5)*.1};--dur:${16+n%13}s;--delay:-${(n*7)%29}s;--drift:${(n%2?1:-1)*(12+n%28)}px`;
+      fondo.append(snow);
+    }
+    document.body.prepend(fondo);
+    function update(){
+      const nav=document.querySelector('.selector-genero'),header=document.querySelector('.header-tienda');
+      const visible=!!(nav&&header&&nav.getClientRects().length&&header.getClientRects().length);
+      document.body.classList.toggle('sk-nieve-v218',visible);
+      if(!visible)return;
+      const pink=['btn-gen-ninas','btn-gen-junior-ninas'].includes(nav.querySelector('.btn-genero.activo')?.id||'btn-gen-ninas');
+      const root=document.documentElement;
+      root.style.setProperty('--sk-color',pink?'#d6337b':'#2875ae');root.style.setProperty('--sk-light',pink?'#f9a4c7':'#87c5ea');root.style.setProperty('--sk-dark',pink?'#ae2863':'#1f5985');
+      if(!document.getElementById('sk-navidad-heading-v211')){const h=document.createElement('div');h.id='sk-navidad-heading-v211';h.textContent='Una Navidad llena de ternura';nav.after(h);}
+    }
+    update();
+    const nav=document.querySelector('.selector-genero');
+    if(nav)new MutationObserver(update).observe(nav,{subtree:true,attributes:true,attributeFilter:['class','style']});
+    const header=document.querySelector('.header-tienda');
+    if(header)new MutationObserver(update).observe(header,{attributes:true,attributeFilter:['class','style']});
+    window.addEventListener('resize',update);window.addEventListener('superkids-session-change',update);
+    document.addEventListener('visibilitychange',()=>{fondo.querySelectorAll('i').forEach(i=>i.style.animationPlayState=document.hidden?'paused':'running');});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
 
 </script>
