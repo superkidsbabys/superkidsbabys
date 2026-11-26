@@ -13708,6 +13708,145 @@ document.addEventListener('DOMContentLoaded', function() {
 })();
 
 </script>
+<script id="cotejo-inventario-v220">
+(function(){
+ 'use strict';
+ const ADMIN='F2SHGFQYSuMWlkbQKV8yrKAXgaH3';
+ const ref=v=>String(v??'').trim().toUpperCase();
+ const clean=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+ function size(v){return ref(clean(v).replace(/\bmes(?:es)?\b/g,'M').replace(/\banos?\b/g,'T').replace(/\s+/g,''));}
+ function qty(v){if(v===null||v===undefined||v==='')return null;const n=Number(v);return Number.isSafeInteger(n)&&n>=0?n:null;}
+ function fecha(v){
+  if(v?.seconds)return fecha(Number(v.seconds)*1000);
+  if(typeof v==='number'){const d=new Date(v);return Number.isFinite(d.getTime())?d.toISOString().slice(0,10):'';}
+  const s=String(v||'');if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+  const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);return m?m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'):'';
+ }
+ function analizar(data,desde=''){
+  const rows=new Map(),byId=new Map(),byRef=new Map(),duplicates=new Set(),issues=[];
+  const nuevo=p=>/nueva coleccion|nueva collection/.test(clean(p.etiquetaPersonalizada));
+  for(const p of data.productos){
+   const r=ref(p.codigo);if(!r){issues.push('Prenda sin referencia: '+(p.nombre||p.id));continue;}
+   for(const id of [p.id,p._firebaseId,p._docId])if(id)byId.set(String(id),r);
+   if(byRef.has(r)){duplicates.add(r);issues.push('Referencia duplicada en productos: '+r);}else byRef.set(r,p);
+  }
+  function row(r,t){
+   if(!r||!t)return null;const key=JSON.stringify([r,t]);
+   if(!rows.has(key)){const p=byRef.get(r);rows.set(key,{key,ref:r,nombre:p?.nombre||'',talla:t,categoria:p?.categoria||'',genero:p?.genero||'',nueva:!!(p&&nuevo(p)),entradas:0,tieneEntrada:false,vendidas:0,pendientes:0,sinConfirmar:0,salidas:0,sistema:p&&!duplicates.has(r)?0:null,detalles:[],alertas:new Set(duplicates.has(r)?['Referencia duplicada: revisar productos']:p?[]:['Referencia ausente del catálogo'])});}
+   return rows.get(key);
+  }
+  for(const p of data.productos){const r=ref(p.codigo);for(const t of p.tallasObj||[]){const a=row(r,size(t.nombre));if(!a){issues.push('Talla sin identificar en '+r);continue;}const n=qty(t.stock);if(n===null){a.sistema=null;a.alertas.add('Stock inválido');}else if(a.sistema!==null)a.sistema+=n;}}
+  function actualRef(item){const id=item.id_prod||item.idProducto||item.productoId||item.id;return byId.get(String(id||''))||ref(item.cod??item.codigo??item.ref??item.referencia);}
+  function movement(record,type){
+   const r=byId.get(String(record.productoId||''))||ref(record.ref),d=fecha(record.fecha)||fecha(record.timestamp);
+   if(desde&&d&&d<desde)return;
+   if(desde&&!d){issues.push('Movimiento sin fecha verificable de '+r);}
+   if(!Array.isArray(record.tallas)){issues.push('Movimiento sin tallas en '+r);return;}
+   for(const t of record.tallas){const a=row(r,size(t.talla??t.nombre)),n=qty(t.cantidad??t.cant);if(!a||n===null){issues.push('Movimiento sin referencia, talla o cantidad válida en '+r);continue;}
+    if(type==='entrada'){a.entradas+=n;a.tieneEntrada=true;}else{a.salidas+=n;if(/venta|pedido/.test(clean(record.motivo)))a.alertas.add('Salida manual relacionada con venta: revisar posible duplicación');}
+    if(desde&&!d)a.alertas.add('Movimiento sin fecha: incluido para revisión');
+    a.detalles.push({tipo:type,fecha:d,documento:record._docId||'',cantidad:n,nota:record.motivo||record.tipo||''});
+   }
+  }
+  data.entradas.forEach(e=>movement(e,'entrada'));data.salidas.forEach(s=>movement(s,'salida'));
+  const orders=new Map();
+  for(const p of data.pedidos){
+   const raw=ref(p.numOrden).replace(/[#\s]/g,''),numeric=raw.match(/^(?:SK)?0*(\d+)$/);
+   const key=Number(p.num)>0?'N:'+Number(p.num):numeric?'N:'+Number(numeric[1]):String(p.numOrden||p._docId||'');if(!key){issues.push('Pedido sin identificador');continue;}
+   const prev=orders.get(key),fixed=String(p._docId||'')==='pedido-'+p.num,prevFixed=prev&&String(prev._docId||'')==='pedido-'+prev.num;
+   if(!prev||(fixed&&!prevFixed)||(!prevFixed&&Number(p.timestampPedido||p.timestamp||0)>Number(prev.timestampPedido||prev.timestamp||0)))orders.set(key,p);
+  }
+  for(const [key,p]of orders){
+   if(p.esPruebaWompi||p.tipoVenta==='Wompi Sandbox')continue;
+   const estado=clean(p.estado).replace(/\s+/g,'_'),cancelado=/cancel|anulad/.test(estado)||p.facturaAnulada===true;
+   // Las devoluciones completas se excluyen de ventas netas. Una cancelación
+   // aún no devuelta se señala para revisar; no se cuenta como venta.
+   if(p.stockDevuelto===true)continue;
+   const d=fecha(p.timestampPedido)||fecha(p.timestamp)||fecha(p.fecha);
+   if(desde&&d&&d<desde)continue;
+   for(const item of p.items||[]){
+    const r=actualRef(item),a=row(r,size(item.talla)),n=qty(item.cant??item.cantidad);
+    if(!a||n===null){issues.push('Pedido '+key+': referencia, talla o cantidad sin identificar');continue;}
+    let tipo='venta descontada';
+    if(cancelado){if(p.stockDescontado===true){a.sinConfirmar+=n;a.alertas.add('Pedido cancelado sin devolución de stock confirmada');}else continue;tipo='cancelación por revisar';}
+    else if(p.stockDescontado===true)a.vendidas+=n;
+    else if(p.stockDescontado===false||estado==='sofia'){a.pendientes+=n;tipo='pedido pendiente de descontar';}
+    else{a.sinConfirmar+=n;a.alertas.add('Pedido antiguo sin confirmación de descuento de stock');tipo='pedido sin confirmar stock';}
+    if(desde&&!d)a.alertas.add('Pedido sin fecha: incluido para revisión');
+    a.detalles.push({tipo,fecha:d,documento:key,cantidad:n,nota:estado});
+   }
+  }
+  return {rows:[...rows.values()].sort((a,b)=>a.ref.localeCompare(b.ref,undefined,{numeric:true})||a.talla.localeCompare(b.talla,undefined,{numeric:true})),issues:[...new Set(issues)]};
+ }
+ if(typeof module!=='undefined'&&module.exports){module.exports={analizar,size,fecha};return;}
+ const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
+ const isAdmin=()=>window.usuarioActual?.uid===ADMIN;
+ let abierto=false;
+ async function abrir(){
+  if(!isAdmin()||abierto)return;abierto=true;
+  const overlay=node('div');overlay.style.cssText='position:fixed;inset:0;background:#201b27b0;z-index:2147483100;display:flex;align-items:center;justify-content:center;padding:10px';
+  const panel=node('section');panel.setAttribute('role','dialog');panel.setAttribute('aria-label','Cotejo de inventario');panel.style.cssText='background:white;border-radius:20px;width:1450px;max-width:100%;max-height:94dvh;overflow:auto;padding:20px;box-sizing:border-box;font:14px Nunito,Segoe UI,sans-serif;color:#28333b';overlay.append(panel);document.body.append(overlay);
+  const status=node('p','Leyendo inventario, entradas, pedidos y salidas del servidor…'),close=node('button','Cerrar');close.type='button';close.onclick=()=>{overlay.remove();abierto=false;};
+  panel.append(node('h2','Cotejo de inventario'),node('p','Compara prendas antiguas y nueva colección por referencia y talla. Este reporte no modifica existencias ni precios.'),close,status);
+  try{
+   const sdk=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');const db=window.db;if(!db)throw Error('Espera a que Firebase termine de iniciar.');
+   const names=['productos','inventario_mercancia','pedidos','inventario_salidas'];
+   const results=await Promise.allSettled(names.map(n=>sdk.getDocsFromServer(sdk.collection(db,n))));
+   const failed=results.map((r,i)=>r.status==='rejected'?names[i]+': '+r.reason.message:'').filter(Boolean);if(failed.length)throw Error('No se pudo completar la consulta: '+failed.join(' · '));
+   const lists=results.map(r=>r.value.docs.map(d=>({...d.data(),_docId:d.id})));
+   const data={productos:lists[0],entradas:lists[1],pedidos:lists[2],salidas:lists[3]},consultado=new Date().toLocaleString('es-CO');
+   const inputs=new Map();let report,visible=[];
+   const bar=node('div');bar.style.cssText='display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:14px 0';
+   function control(label,input){const l=node('label',label);l.append(node('br'),input);bar.append(l);return input;}
+   const since=control('Pedidos y movimientos desde (vacío = todo el historial)',node('input'));since.type='date';
+   const scope=control('Prendas',node('select'));for(const [v,label]of [['todas','Todo el inventario'],['nuevas','Última colección (etiqueta vigente)'],['anteriores','Anteriores / sin etiqueta']]){const o=node('option',label);o.value=v;scope.append(o);}
+   const search=control('Buscar referencia o nombre',node('input'));search.type='search';
+   const filter=control('Mostrar',node('select'));for(const [v,label]of [['todas','Todas'],['diferencias','Con diferencia física'],['sinentrada','Sin entrada registrada'],['revisar','Datos por revisar']]){const o=node('option',label);o.value=v;filter.append(o);}
+   const summary=node('p'),warnings=node('details');warnings.append(node('summary','Observaciones de los registros'));
+   const scroll=node('div');scroll.style.cssText='overflow:auto;max-height:53vh';const table=node('table');table.style.cssText='width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px';scroll.append(table);
+   const explanation=node('p','Vendidas = unidades de pedidos con descuento de stock confirmado, netas de devoluciones completas. Los pedidos antiguos sin esa confirmación se muestran aparte; no se supone que sean cero ventas. Entradas no registradas aparecen como “Sin registro”. El stock es el actual; las ventas corresponden al periodo elegido.');
+   panel.append(bar,summary,explanation,warnings,scroll);
+   function val(a){const raw=inputs.get(a.key);return raw===undefined||raw===''?null:Number(raw);}
+   function diff(a){const n=val(a);return n===null||a.sistema===null?null:n-a.sistema;}
+   function render(){
+    const q=clean(search.value);visible=report.rows.filter(a=>(scope.value==='todas'||(scope.value==='nuevas'?a.nueva:!a.nueva))&&(!q||clean(a.ref+' '+a.nombre).includes(q))&&(filter.value==='todas'||filter.value==='sinentrada'&&!a.tieneEntrada||filter.value==='revisar'&&a.alertas.size>0||filter.value==='diferencias'&&diff(a)!==null&&diff(a)!==0));
+    summary.textContent=visible.length+' filas · '+visible.filter(a=>diff(a)!==null&&diff(a)!==0).length+' diferencias contadas · Consultado: '+consultado;
+    table.replaceChildren();const head=node('thead'),hr=node('tr');for(const t of ['Referencia','Prenda','Talla','Entradas','Vendidas confirmadas','Pendientes','Pedidos sin confirmar stock','Otras salidas','Stock sistema','Conteo físico','Físico − sistema','Detalle'])hr.append(node('th',t));head.append(hr);table.append(head);const body=node('tbody');table.append(body);
+    for(const a of visible){
+     const tr=node('tr');for(const value of [a.ref,a.nombre,a.talla,a.tieneEntrada?a.entradas:'Sin registro',a.vendidas,a.pendientes,a.sinConfirmar,a.salidas,a.sistema??'Sin producto'])tr.append(node('td',String(value)));
+     const cell=node('td'),input=node('input');input.type='number';input.min='0';input.step='1';input.placeholder='Sin contar';input.value=inputs.get(a.key)??'';input.style.cssText='width:90px;padding:8px';input.setAttribute('aria-label','Conteo físico '+a.ref+' '+a.talla);cell.append(input);tr.append(cell);
+     const dc=node('td');function difference(){const d=diff(a);dc.textContent=d===null?'Sin cotejar':d>0?'+'+d:String(d);dc.style.color=d===null?'#666':d===0?'#087751':'#b42318';}difference();tr.append(dc);
+     input.onchange=()=>{if(input.value!==''&&qty(input.value)===null){input.value=inputs.get(a.key)??'';return;}inputs.set(a.key,input.value);difference();summary.textContent=visible.length+' filas · '+visible.filter(x=>diff(x)!==null&&diff(x)!==0).length+' diferencias contadas · Consultado: '+consultado;};
+     const more=node('details');more.append(node('summary',a.alertas.size?'⚠ Revisar':'Ver movimientos'));for(const message of a.alertas)more.append(node('p',message));
+     for(const m of a.detalles)more.append(node('p',(m.fecha||'Sin fecha')+' · '+m.tipo+' · '+m.documento+' · '+m.cantidad+' unidades'+(m.nota?' · '+m.nota:'')));
+     const td=node('td');td.append(more);tr.append(td);body.append(tr);
+    }
+    table.querySelectorAll('th,td').forEach(e=>e.style.cssText+=';padding:9px;border-bottom:1px solid #e1e8e5;text-align:left;vertical-align:top');head.style.cssText='position:sticky;top:0;background:#e5f4ef';
+   }
+   function recalculate(){report=analizar(data,since.value);warnings.replaceChildren(node('summary',report.issues.length+' observaciones generales'));report.issues.forEach(w=>warnings.append(node('p',w)));render();}
+   since.onchange=recalculate;scope.onchange=filter.onchange=search.oninput=render;recalculate();
+   const tools=node('div');tools.style.cssText='display:flex;gap:9px;flex-wrap:wrap;margin-top:16px';
+   const save=node('button','Guardar conteo en este equipo'),load=node('button','Recuperar conteo guardado'),csv=node('button','Exportar cotejo CSV');
+   for(const b of [save,load,csv]){b.type='button';b.style.cssText='padding:11px;border:0;border-radius:10px;background:#167969;color:white;font:inherit';tools.append(b);}panel.append(tools);
+   save.onclick=()=>{try{localStorage.setItem('sk-cotejo-fisico-v220',JSON.stringify({fecha:new Date().toISOString(),conteos:[...inputs]}));status.textContent='Conteo guardado en este navegador. Exporta CSV para conservar una copia o llevarlo a otro equipo.';}catch(e){status.textContent='No se pudo guardar en este equipo. Exporta el cotejo CSV.';}};
+   load.onclick=()=>{try{const saved=JSON.parse(localStorage.getItem('sk-cotejo-fisico-v220')||'null');if(!saved)return alert('No hay conteo guardado en este navegador.');if(!confirm('Recuperar el conteo del '+new Date(saved.fecha).toLocaleString('es-CO')+' y compararlo con el stock consultado ahora. ¿Continuar?'))return;inputs.clear();for(const [k,v]of saved.conteos||[])if(v===''||qty(v)!==null)inputs.set(k,v);status.textContent='Conteo físico recuperado del '+new Date(saved.fecha).toLocaleString('es-CO')+'. Revisa si hubo ventas después de ese conteo.';render();}catch(e){status.textContent='No se pudo recuperar el conteo: '+e.message;}};
+   csv.onclick=()=>{
+    const fields=['Consultado','Desde','Referencia','Prenda','Talla','Entradas','Vendidas confirmadas','Pedidos pendientes','Pedidos sin confirmar stock','Salidas manuales','Stock sistema','Conteo físico','Diferencia','Observaciones'];
+    const quote=v=>{let s=String(v??'');if(/^[=+@-]/.test(s)&&!/^[-+]?\d+(\.\d+)?$/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';};
+    const records=visible.map(a=>[consultado,since.value||'Todo el historial',a.ref,a.nombre,a.talla,a.tieneEntrada?a.entradas:'Sin registro',a.vendidas,a.pendientes,a.sinConfirmar,a.salidas,a.sistema??'',val(a)??'',diff(a)??'',[...a.alertas].join(' · ')]);
+    const blob=new Blob(['\ufeff'+[fields,...records].map(r=>r.map(quote).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=node('a');link.href=url;link.download='cotejo-inventario-'+new Date().toISOString().slice(0,10)+'.csv';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+   };
+   status.textContent='Registros cargados del servidor. Entrada, venta y saldo actual se muestran por separado: sin un saldo inicial completo no se puede reconstruir una existencia histórica exacta.';
+  }catch(e){status.textContent=e.message;}
+ }
+ function mount(){
+  const host=document.getElementById('stock-resumen');if(!host)return;const old=document.getElementById('btn-cotejo-inventario-v220');if(!isAdmin()){old?.remove();return;}if(old)return;
+  const b=node('button','🔎 Cotejo de inventario');b.id='btn-cotejo-inventario-v220';b.type='button';b.style.cssText='padding:12px 18px;background:#167969;color:white;border:0;border-radius:12px;font:inherit;font-weight:800;margin:10px 0;cursor:pointer';b.onclick=abrir;host.before(b);
+ }
+ new MutationObserver(mount).observe(document.body,{childList:true,subtree:true});mount();window.addEventListener('superkids-session-change',mount);
+})();
+
+</script>
 </body></html>
 
 
