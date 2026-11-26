@@ -8700,20 +8700,21 @@ async function iniciarConsultaWA() {
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',iniciarConsultaWA,{once:true});else iniciarConsultaWA();
 </script>
 
-<script id="precios-categoria-v217">
+<script id="precios-categoria-v219">
 (function(){
   'use strict';
   const ADMIN='F2SHGFQYSuMWlkbQKV8yrKAXgaH3', API='https://superkids-pagos-api.superkids-babys.workers.dev';
-  function aumentar(p) {
-    const suma=n=>{n=Number(n);if(!Number.isSafeInteger(n)||n<=0||!Number.isSafeInteger(n+2000))throw Error('Hay una prenda sin precio válido. Revisa sus precios antes de continuar.');return n+2000;};
+  function ajustarPrecioProducto(p,delta) {
+    if(![2000,-2000].includes(delta))throw Error('El ajuste permitido es sumar o restar $2.000.');
+    const suma=n=>{n=Number(n);const nuevo=n+delta;if(!Number.isSafeInteger(n)||n<=0||!Number.isSafeInteger(nuevo)||nuevo<=0)throw Error('Hay un precio inválido o quedaría en cero o negativo. Revisa esta prenda antes de continuar.');return nuevo;};
     const cambios={precio:suma(p.precio)};
     if(Array.isArray(p.tallasObj))cambios.tallasObj=p.tallasObj.map(t=>Number(t.precio)>0?{...t,precio:suma(t.precio)}:{...t});
     if(p.ventaSeparada&&Array.isArray(p.opcionesVenta))cambios.opcionesVenta=p.opcionesVenta.map(o=>({...o,precio:suma(o.precio)}));
     return cambios;
   }
   function firma(p){return JSON.stringify([p.precio,(p.tallasObj||[]).filter(t=>Number(t.precio)>0).map(t=>[t.nombre,t.precio]),p.ventaSeparada?(p.opcionesVenta||[]).map(o=>[o.nombre,o.precio]):[]]);}
-  function coincide(p,grupo,categoria){const sub=p.subcategoria||p.subCategoria||p.sub_cat||p.subcat||p.categoria||'Otros';return (grupo==='Todos'||p.genero===grupo)&&[p.categoria,sub].some(c=>String(c||'').trim()===categoria);}
-  if(typeof module!=='undefined'&&module.exports){module.exports={aumentar,firma,coincide,ejecutar};return;}
+  function coincide(p,grupo,categoria){if(!categoria)return false;const sub=p.subcategoria||p.subCategoria||p.sub_cat||p.subcat||p.categoria||'Otros';return (grupo==='Todos'||p.genero===grupo)&&[p.categoria,sub].some(c=>String(c||'').trim()===categoria);}
+  if(typeof module!=='undefined'&&module.exports){module.exports={ajustarPrecioProducto,firma,coincide,ejecutar};return;}
   const money=n=>'$'+Number(n).toLocaleString('es-CO');
   const esAdmin=()=>window.usuarioActual?.uid===ADMIN;
   function el(tag,text){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;}
@@ -8721,19 +8722,20 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     const r=await fetch(API+'/catalogo-publico',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}'});
     const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'El catálogo público no confirmó la actualización.');
   }
-  async function ejecutar(db,sdk,plan,operacion){
+  async function ejecutar(db,sdk,plan,operacion,delta){
+    if(![2000,-2000].includes(delta)||!plan.length||plan.length>400)throw Error('Selección o ajuste inválidos.');
     const marker=sdk.doc(db,'config_tienda','ajuste_precios_'+operacion);
     return sdk.runTransaction(db,async tx=>{
-      const previo=await tx.get(marker);if(previo.exists())return previo.data();
+      const previo=await tx.get(marker);if(previo.exists()){if(previo.data().incremento!==delta)throw Error('La operación registrada corresponde a otro ajuste.');return previo.data();}
       const docs=[];
       for(const item of plan){
         const ref=sdk.doc(db,'productos',item.docId),snap=await tx.get(ref);
         if(!snap.exists())throw Error('Una prenda ya no existe. Cierra y vuelve a revisar la categoría.');
         const p=snap.data();
         if(!coincide(p,item.grupo,item.categoria)||firma(p)!==item.firma)throw Error('Una prenda cambió de categoría o precio. Cierra y revisa nuevamente antes de aplicar.');
-        docs.push({ref,p,cambios:aumentar(p)});
+        docs.push({ref,p,cambios:ajustarPrecioProducto(p,delta)});
       }
-      const resumen={operacion,categoria:plan[0].categoria,grupo:plan[0].grupo,cantidad:docs.length,incremento:2000,fecha:new Date().toISOString(),uid:ADMIN,
+      const resumen={operacion,categoria:plan[0].categoria,grupo:plan[0].grupo,cantidad:docs.length,incremento:delta,fecha:new Date().toISOString(),uid:ADMIN,
         precios:docs.map((d,i)=>({id:plan[i].docId,antes:d.p.precio,despues:d.cambios.precio}))};
       for(const d of docs)tx.update(d.ref,{...d.cambios,actualizadoEn:resumen.fecha});
       tx.set(marker,resumen);
@@ -8741,15 +8743,16 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     });
   }
   let abierto=false;
-  async function abrir(){
+  async function abrir(delta){
     if(!esAdmin()||abierto)return;abierto=true;
+    const accion=delta<0?'Restar':'Sumar',tipo=delta<0?'descuento':'aumento';
     const overlay=el('div');overlay.style.cssText='position:fixed;inset:0;background:#241526bb;z-index:2147483100;display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box';
-    const box=el('section');box.setAttribute('role','dialog');box.setAttribute('aria-label','Aumentar precios por categoría');box.style.cssText='background:white;color:#342435;padding:22px;border-radius:22px;max-width:620px;width:100%;max-height:90dvh;overflow:auto;font:15px Nunito,Segoe UI,sans-serif';overlay.append(box);document.body.append(overlay);
-    const title=el('h2','Sumar $2.000 por categoría'),status=el('p','Consultando las prendas actuales…'),controls=el('div'),list=el('div');
+    const box=el('section');box.setAttribute('role','dialog');box.setAttribute('aria-label',accion+' precios por categoría');box.style.cssText='background:white;color:#342435;padding:22px;border-radius:22px;max-width:620px;width:100%;max-height:90dvh;overflow:auto;font:15px Nunito,Segoe UI,sans-serif';overlay.append(box);document.body.append(overlay);
+    const title=el('h2',accion+' $2.000 por categoría'),status=el('p','Consultando las prendas actuales…'),controls=el('div'),list=el('div');
     const cerrar=el('button','Cerrar');cerrar.type='button';let busy=false,committed=false,plan=[],operation=crypto.randomUUID();
     cerrar.onclick=()=>{if(busy)return;overlay.remove();abierto=false;};
     box.append(title,el('p','Elige un grupo y una categoría. Revisa los nuevos precios antes de confirmar.'),status,controls,list,cerrar);
-    const aplicar=el('button','Confirmar aumento de $2.000'),retry=el('button','Publicar los precios guardados');
+    const aplicar=el('button','Confirmar '+tipo+' de $2.000'),retry=el('button','Publicar los precios guardados');
     aplicar.type=retry.type='button';aplicar.style.cssText=retry.style.cssText='display:block;margin:16px 0;padding:13px 18px;background:#b52e76;color:white;border:0;border-radius:14px;font:inherit;font-weight:800';
     try{
       const sdk=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
@@ -8775,7 +8778,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
           const table=el('table');table.style.cssText='width:100%;font-size:13px;border-collapse:collapse';
           table.append(el('caption','Referencia · Prenda · Precio actual → Nuevo precio'));
           for(const p of selected){
-            const next=aumentar(p),row=el('tr');row.append(el('td',String(p.codigo||p.docId)+' · '+String(p.nombre||'')),el('td',money(p.precio)+' → '+money(next.precio)));table.append(row);
+            const next=ajustarPrecioProducto(p,delta),row=el('tr');row.append(el('td',String(p.codigo||p.docId)+' · '+String(p.nombre||'')),el('td',money(p.precio)+' → '+money(next.precio)));table.append(row);
             plan.push({docId:p.docId,grupo:group.value,categoria:cat.value,firma:firma(p)});
           }
           list.append(table);
@@ -8788,7 +8791,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
         busy=true;cerrar.disabled=retry.disabled=true;
         try{
           await publicar(await auth.currentUser.getIdToken());
-          status.textContent='✅ Precios guardados y publicados para todas las asesoras y clientas. Recarga el catálogo para verlos. No vuelvas a aplicar este mismo aumento.';
+          status.textContent='✅ Precios guardados y publicados para todas las asesoras y clientas. Recarga el catálogo para verlos. No vuelvas a aplicar este mismo ajuste.';
           retry.remove();
         }catch(e){status.textContent='Los precios ya quedaron guardados. Falta publicarlos: '+e.message;box.insertBefore(retry,cerrar);}
         finally{busy=false;cerrar.disabled=retry.disabled=false;}
@@ -8796,10 +8799,10 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
       retry.onclick=publicarAhora;
       aplicar.onclick=async()=>{
         if(busy||committed||!esAdmin()||!plan.length)return;
-        if(!confirm('Sumar $2.000 a '+plan.length+' prendas de '+cat.value+' ('+group.options[group.selectedIndex].text+'). ¿Aplicar estos precios de venta?'))return;
+        if(!confirm(accion+' $2.000 a '+plan.length+' prendas de '+cat.value+' ('+group.options[group.selectedIndex].text+'). ¿Aplicar estos precios de venta?'))return;
         busy=true;aplicar.disabled=cerrar.disabled=group.disabled=cat.disabled=true;status.textContent='Guardando los nuevos precios…';
         try{
-          await ejecutar(db,sdk,plan,operation);committed=true;aplicar.remove();busy=false;
+          await ejecutar(db,sdk,plan,operation,delta);committed=true;aplicar.remove();busy=false;
           await publicarAhora();
         }catch(e){
           status.textContent='No se confirmó el ajuste: '+e.message+'. Puedes reintentar en esta ventana; el mismo ajuste no se aplica dos veces.';
@@ -8810,10 +8813,11 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   }
   function montar(){
     const host=document.getElementById('lista-categorias-admin');if(!host)return;
-    const existing=document.getElementById('btn-precios-categoria-v217');
+    const existing=document.getElementById('precios-categoria-controles-v219');
     if(!esAdmin()){existing?.remove();return;}
     if(existing)return;
-    const b=el('button','💲 +$2.000 por categoría');b.id='btn-precios-categoria-v217';b.type='button';b.style.cssText='padding:12px 18px;border:0;border-radius:14px;background:#b52e76;color:white;font:inherit;font-weight:800;cursor:pointer;margin:8px 0;width:100%';b.onclick=abrir;host.prepend(b);
+    const botones=el('div');botones.id='precios-categoria-controles-v219';botones.style.cssText='display:flex;gap:8px;flex-wrap:wrap;width:100%;margin:8px 0';
+    for(const delta of [2000,-2000]){const b=el('button',delta<0?'➖ Restar $2.000 por categoría':'➕ Sumar $2.000 por categoría');b.type='button';b.style.cssText='padding:12px 18px;border:0;border-radius:14px;background:'+(delta<0?'#167969':'#b52e76')+';color:white;font:inherit;font-weight:800;cursor:pointer;flex:1;min-width:220px';b.onclick=()=>abrir(delta);botones.append(b);}host.prepend(botones);
   }
   new MutationObserver(montar).observe(document.body,{childList:true,subtree:true});
   montar();window.addEventListener('superkids-session-change',montar);
