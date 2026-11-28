@@ -644,7 +644,7 @@
     <loc>https://superkidsbabys.com/producto/vestido-flores-salmon/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/3a4d52b4-622e-414e-a86a-657f396338fe/full.jpg</image:loc></image:image>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/75d9466a-7104-4147-a6c5-252c135e6a76/full.jpg</image:loc></image:image>
     <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/688ff4e5-df91-416e-a2b7-d7430b33d8f5/full.jpg</image:loc></image:image>
   </url>
   <url>
@@ -702,7 +702,7 @@
     <loc>https://superkidsbabys.com/producto/vestido-rosado-chaleco/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/22f9a3bc-6e04-4da1-b109-e5b25b9ecf1a/full.jpg</image:loc></image:image>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/44438a2a-eba7-4a0d-894a-dfe6b0e074cd/full.jpg</image:loc></image:image>
     <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/9c0ea907-7ec8-437e-8fe1-df4a8df77a53/full.jpg</image:loc></image:image>
   </url>
   <url>
@@ -730,9 +730,8 @@
     <loc>https://superkidsbabys.com/producto/vestido-saco-manga-larga-lila/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/b3a67cf6-bc50-4072-997e-1ae79761fb03/full.jpg</image:loc></image:image>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/70810252-11be-4e20-930c-300c0ced2e25/full.jpg</image:loc></image:image>
     <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/a0add238-d4b7-46a1-ac50-c00f5e4a78bf/full.jpg</image:loc></image:image>
-    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/9fca863c-e528-4a21-ab12-abe4dec2cb3d/full.jpg</image:loc></image:image>
   </url>
   <url>
     <loc>https://superkidsbabys.com/producto/vestido-rojo-corazones-y-elefante/</loc>
@@ -3064,7 +3063,7 @@
     <loc>https://superkidsbabys.com/producto/vestido-mostaza-con-chaleco/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/e630c62e-7648-4a3e-a557-12a9538391b2/full.jpg</image:loc></image:image>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/76e817f8-8d8c-48ca-a1a9-74a56af01571/full.jpg</image:loc></image:image>
     <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/01da5fb4-f1b7-4da2-b96e-f311b87ce914/full.jpg</image:loc></image:image>
   </url>
   <url>
@@ -4053,7 +4052,7 @@
     <loc>https://superkidsbabys.com/producto/conjunto-de-2-piezas-2/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-11/8106ca30-1279-497a-884c-37e34428302b/full.jpg</image:loc></image:image>
+    <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/33038960-c762-4515-b2d2-16c3c9a941a5/full.jpg</image:loc></image:image>
     <image:image><image:loc>https://superkids-fotos-api.superkids-babys.workers.dev/fotos/inventario/2026-07/78da7bb9-517d-4b5a-87ac-e57a0e23d41e/full.jpg</image:loc></image:image>
   </url>
   <url>
@@ -4351,6 +4350,11 @@
   </url>
   <url>
     <loc>https://superkidsbabys.com/categoria/conjuntos-falda/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://superkidsbabys.com/categoria/coleccion-navidad/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
